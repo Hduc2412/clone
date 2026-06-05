@@ -1,10 +1,10 @@
 # Nhiệm vụ: Cửa ngõ tiếp nhận request từ người dùng
 #           Điều phối sang gemini_service để xử lý
-
+import traceback
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from gemini_service import get_gemini_response
+from rag_service import answer_with_rag
 
 app = FastAPI()
 #CORS - cho phep frontend goi vao backend
@@ -23,8 +23,8 @@ class ChatRequest(BaseModel):
 #Cau truc du lieu dau ra - them image_url so voi truoc
 
 class ChatResponse(BaseModel):
-    reply: str #Câu trả lời bằng lời
-    image_content: str #Link ảnh minh họa (nếu có)
+    answer: str
+    sources: list
 
 #Endpoint kiểm tra sever
 @app.get("/")
@@ -40,12 +40,14 @@ def health_check():
 #   2. Gọi gemini_service xử lý
 #   3. Nhận { reply, image_url }
 #   4. Trả về cho khách
-@app.post("/chat")
-def chat(request: ChatRequest):
-    #goi Gemini service de xu ly cua tra loi + image_url
-    result = get_gemini_response(request.message)
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    try:
+        result = answer_with_rag(request.message)
+        return result
+    except Exception as e:
+        traceback.print_exc()  # in lỗi ra terminal
+        raise
+    
 
-    return {
-        "reply": result["reply"],
-        "image_url": result["image_url"]
-    }
+

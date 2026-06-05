@@ -2,7 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from crawler import get_section_content
-from image_reader import read_image_content
+
 
 load_dotenv()
 
