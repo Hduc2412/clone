@@ -9,7 +9,7 @@ def build_context(hits: list) -> str:
         parts.append(f"[{title}]\n{text}\n(Nguồn: {url})")
     return "\n\n---\n\n".join(parts)
 
-def build_prompt(context: str, user_query: str, chat_history: list) -> str:
+def build_prompt(context: str, user_query: str, chat_history: list = None) -> str:
    """Build prompt hoàn chỉnh cho Gemini"""
    history_section = f"\nLICH SU HOI THOAI:\n{chat_history}\n" if chat_history else ""
 

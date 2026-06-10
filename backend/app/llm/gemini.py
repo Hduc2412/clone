@@ -8,13 +8,13 @@ load_dotenv()
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_API_URL = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta"
 GEMINI_MODEL = "gemini-2.5-flash"
 EMBEDDING_MODEL = "gemini-embedding-001"
 
 def generate_response(prompt: str) -> str:
-    url = f"https://generativelanguage,googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMNINI_API_KEY}"
-    payload = {"content": [{"parts": [{"text": prompt}]}] }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}] }
     res = requests.post(url, json=payload)
     data = res.json()
 

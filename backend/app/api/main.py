@@ -13,7 +13,7 @@ app.add_middleware(
 
 app.include_router(chat_router)
 
-@app.get
+@app.get("/")
 def read_root():
     return {"message": "Chatbot XKLD Dieu duong dang hoat dong!"}
 
