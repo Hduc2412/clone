@@ -4,14 +4,21 @@ from app.rag.retriever import search
 from app.rag.prompt_builder import build_context, build_prompt
 from app.llm.gemini import generate_response
 from app.conversation.session_manager import session_manager
+from app.conversation.reference_resolver import resolve
+from app.conversation.intent_classifier import classify
+from app.conversation.response_validator import validate
+from app.db.database import save_message
 
-def process_message(user_query: str, session_id: str) -> dict:
+async def process_message(user_query: str, session_id: str) -> dict:
     # 1. Load / tạo session
     session = session_manager.get_or_create(session_id)
+    
+    # 2. Lấy lịch sử TRƯỚC khi thêm tin nhắn mới
+    history_text = session.get_history_text()
     session.add_message("user", user_query)
-
-    # 2. Tìm context RAG
-    hits = search(user_query)
+    resolved_query = resolve(user_query, history_text)
+    intent = classify(user_query)
+    hits = search(resolved_query)
     if not hits:
         answer = (
             "Xin lỗi, tôi không tìm thấy thông tin liên quan. "
@@ -22,16 +29,20 @@ def process_message(user_query: str, session_id: str) -> dict:
 
     # 3. Build prompt có lịch sử
     context = build_context(hits)
-    history_text = session.get_history_text()
     prompt = _build_prompt_with_history(context, user_query, history_text)
 
     # 4. Gọi Gemini
     answer = generate_response(prompt)
 
-    # 5. Lưu câu trả lời vào session
-    session.add_message("assistant", answer)
+    # 5. Validate câu trả lời
+    is_valid, answer = validate(answer)
 
-    # 6. Tổng hợp sources
+    # 6. Lưu câu trả lời vào session
+    session.add_message("assistant", answer)
+    await save_message(session_id, "user", user_query, intent)
+    await save_message(session_id, "assistant", answer, intent)
+
+    # 7. Tổng hợp sources
     sources = []
     seen = set()
     for hit in hits:
@@ -45,7 +56,7 @@ def process_message(user_query: str, session_id: str) -> dict:
                 "score": round(hit.score, 3),
             })
 
-    return {"answer": answer, "sources": sources, "session_id": session_id}
+    return {"answer": answer, "sources": sources, "session_id": session_id, "intent": intent}
 
 
 def _build_prompt_with_history(context: str, user_query: str, history_text: str) -> str:
@@ -54,6 +65,7 @@ def _build_prompt_with_history(context: str, user_query: str, history_text: str)
 
     return f"""Bạn là trợ lý tư vấn xuất khẩu lao động điều dưỡng sang Nhật Bản của xklddieuduong.vn.
 Trả lời thân thiện, chính xác, dựa trên thông tin được cung cấp.
+Không chào hỏi lại nếu đã có lịch sử hội thoại, đi thẳng vào trả lời.
 
 --- LỊCH SỬ HỘI THOẠI ---
 {history_text}

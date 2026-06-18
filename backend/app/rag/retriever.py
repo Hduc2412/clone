@@ -4,7 +4,6 @@ from app.llm.gemini import create_embedding
 
 TOP_K = 5
 
-
 def search(query: str) -> list:
     """Embed query → tìm TOP_K chunk gần nhất trong Qdrant"""
     query_vector = create_embedding(query)

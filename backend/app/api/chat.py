@@ -17,6 +17,7 @@ class ChatResponse(BaseModel):
     answer: str
     sources: list
     session_id: str
+    intent: str = "chung"
 
 
 @router.post("/chat", response_model=ChatResponse)
