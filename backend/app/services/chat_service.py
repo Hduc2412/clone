@@ -25,7 +25,13 @@ async def process_message(user_query: str, session_id: str) -> dict:
             "Vui lòng liên hệ 0971.716.939 để được tư vấn trực tiếp."
         )
         session.add_message("assistant", answer)
-        return {"answer": answer, "sources": [], "session_id": session_id}
+        await _save_exchange(session_id, user_query, answer, intent)
+        return {
+            "answer": answer,
+            "sources": [],
+            "session_id": session_id,
+            "intent": intent,
+        }
 
     # 3. Build prompt có lịch sử
     context = build_context(hits)
@@ -35,12 +41,11 @@ async def process_message(user_query: str, session_id: str) -> dict:
     answer = generate_response(prompt)
 
     # 5. Validate câu trả lời
-    is_valid, answer = validate(answer)
+    _, answer = validate(answer)
 
     # 6. Lưu câu trả lời vào session
     session.add_message("assistant", answer)
-    await save_message(session_id, "user", user_query, intent)
-    await save_message(session_id, "assistant", answer, intent)
+    await _save_exchange(session_id, user_query, answer, intent)
 
     # 7. Tổng hợp sources
     sources = []
@@ -59,6 +64,16 @@ async def process_message(user_query: str, session_id: str) -> dict:
     return {"answer": answer, "sources": sources, "session_id": session_id, "intent": intent}
 
 
+async def _save_exchange(
+    session_id: str,
+    user_query: str,
+    answer: str,
+    intent: str,
+) -> None:
+    await save_message(session_id, "user", user_query, intent)
+    await save_message(session_id, "assistant", answer, intent)
+
+
 def _build_prompt_with_history(context: str, user_query: str, history_text: str) -> str:
     if not history_text:
         return build_prompt(context, user_query)
@@ -69,6 +84,9 @@ Không chào hỏi lại nếu đã có lịch sử hội thoại, đi thẳng v
 
 --- LỊCH SỬ HỘI THOẠI ---
 {history_text}
+
+Luu y bat buoc: neu da co lich su hoi thoai, khong mo dau bang "Chao ban",
+"Xin chao", hoac bat ky loi chao nao. Tra loi truc tiep vao cau hoi hien tai.
 
 --- THÔNG TIN TỪ WEBSITE ---
 {context}

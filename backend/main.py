@@ -2,13 +2,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
-from app.db.database import init_db
+from app.db.database import close_db, init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     yield
+    await close_db()
 
 
 app = FastAPI(title="XKLD Chatbot XKLD Dieu Duong", lifespan=lifespan)
@@ -22,7 +23,7 @@ app.add_middleware(
 
 app.include_router(chat_router)
 
-@app.get
+@app.get("/")
 def read_root():
     return {"message": "Chatbot XKLD Dieu duong dang hoat dong!"}
 

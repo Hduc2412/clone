@@ -37,13 +37,16 @@ class Session:
             prefix = "Khach" if msg.role == "user" else "Bot"
             lines.append(f"{prefix}: {msg.content}")
         return "\n".join(lines)
-    def sumary(self) -> dict:
+    def summary(self) -> dict:
         return {
             "session_id": self.session_id,
             "message_count": len(self.history),
             "created_at": self.created_at,
             "last_active": self.last_active
         }
+
+    def sumary(self) -> dict:
+        return self.summary()
 
 class SessionManager:
     def __init__(self):

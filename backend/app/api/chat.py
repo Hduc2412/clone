@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from app.services.chat_service import process_message
 from app.conversation.session_manager import session_manager
+from app.db.database import delete_session_data
 
 router = APIRouter()
 
@@ -23,13 +24,14 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     sid = request.session_id or str(uuid.uuid4())
-    result = process_message(request.message, session_id=sid)
+    result = await process_message(request.message, session_id=sid)
     return result
 
 
 @router.delete("/chat/session/{session_id}", status_code=204)
 async def clear_session(session_id: str):
     session_manager.delete(session_id)
+    await delete_session_data(session_id)
 
 
 @router.get("/chat/session/{session_id}")
