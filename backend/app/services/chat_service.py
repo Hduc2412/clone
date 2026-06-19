@@ -8,6 +8,7 @@ from app.conversation.reference_resolver import resolve
 from app.conversation.intent_classifier import classify
 from app.conversation.response_validator import validate
 from app.db.database import save_message
+from app.lead.lead_service import try_capture_lead, ASK_LEAD_MESSAGE
 
 async def process_message(user_query: str, session_id: str) -> dict:
     # 1. Load / tạo session
@@ -20,10 +21,14 @@ async def process_message(user_query: str, session_id: str) -> dict:
     intent = classify(user_query)
     hits = search(resolved_query)
     if not hits:
-        answer = (
-            "Xin lỗi, tôi không tìm thấy thông tin liên quan. "
-            "Vui lòng liên hệ 0971.716.939 để được tư vấn trực tiếp."
-        )
+        lead_info = await try_capture_lead(session_id, user_query, intent)
+        if lead_info:
+            answer = "Cảm ơn em! Anh Quang sẽ liên hệ lại sớm để tư vấn chi tiết nhé!"
+        else:
+            answer = (
+                "Xin lỗi, tôi không tìm thấy thông tin liên quan. "
+                "Vui lòng liên hệ 0971.716.939 để được tư vấn trực tiếp."
+            )
         session.add_message("assistant", answer)
         await _save_exchange(session_id, user_query, answer, intent)
         return {
@@ -41,13 +46,21 @@ async def process_message(user_query: str, session_id: str) -> dict:
     answer = generate_response(prompt)
 
     # 5. Validate câu trả lời
-    _, answer = validate(answer)
+    _, answer = validate(answer, intent)
 
-    # 6. Lưu câu trả lời vào session
+    # 6. Thử capture lead nếu user vừa cung cấp tên/SĐT
+    lead_info = await try_capture_lead(session_id, user_query, intent)
+
+    # 7. Nếu intent là lead nhưng chưa có thông tin → hỏi xin
+    if intent == "lead" and not lead_info:
+        answer += ASK_LEAD_MESSAGE
+
+    # 8. Lưu câu trả lời vào session + DB
     session.add_message("assistant", answer)
     await _save_exchange(session_id, user_query, answer, intent)
+    
 
-    # 7. Tổng hợp sources
+    # 9. Tổng hợp sources
     sources = []
     seen = set()
     for hit in hits:
