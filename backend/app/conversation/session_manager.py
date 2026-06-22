@@ -19,6 +19,7 @@ class Session:
     history : list[Message] = field(default_factory=list)
     created_at : float = field(default_factory=time.time)
     last_active : float = field(default_factory=time.time)
+    awaiting_lead: bool = False
 
     def add_message(self, role: str, content: str):
         self.history.append(Message(role=role, content=content))

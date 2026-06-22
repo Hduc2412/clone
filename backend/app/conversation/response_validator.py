@@ -13,7 +13,7 @@ FALLBACK = (
     "Vui lòng liên hệ anh Quang qua số 0971.716.939 để được tư vấn trực tiếp nhé!"
 )
 
-def validate(answer: str, intent: str = "chung") -> tuple[bool, str]:
+def validate(answer: str, intent: str = "chung", awaiting_lead: bool = False) -> tuple[bool, str]:
     if not answer or len(answer.strip()) < MIN_LENGTH:
         print(f"[Validator] Câu trả lời quá ngắn: '{answer}'")
         return False, FALLBACK
@@ -23,7 +23,7 @@ def validate(answer: str, intent: str = "chung") -> tuple[bool, str]:
         return False, FALLBACK
 
     # Bỏ qua check SĐT khi đang trong luồng lead (answer có thể echo SĐT khách)
-    if intent != "lead":
+    if intent != "lead" and not awaiting_lead:
         phone_pattern = r"0\d{9,10}"
         found_phones = re.findall(phone_pattern, answer.replace(".", ""))
         for phone in found_phones:

@@ -19,6 +19,8 @@ async def process_message(user_query: str, session_id: str) -> dict:
     session.add_message("user", user_query)
     resolved_query = resolve(user_query, history_text)
     intent = classify(user_query)
+    if intent == "lead":
+        session.awaiting_lead = True
     hits = search(resolved_query)
     if not hits:
         lead_info = await try_capture_lead(session_id, user_query, intent)
@@ -46,7 +48,7 @@ async def process_message(user_query: str, session_id: str) -> dict:
     answer = generate_response(prompt)
 
     # 5. Validate câu trả lời
-    _, answer = validate(answer, intent)
+    _, answer = validate(answer, intent, awaiting_lead=session.awaiting_lead)
 
     # 6. Thử capture lead nếu user vừa cung cấp tên/SĐT
     lead_info = await try_capture_lead(session_id, user_query, intent)

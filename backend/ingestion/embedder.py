@@ -5,6 +5,7 @@
 # ============================================================
 
 import os
+import re 
 import time
 import requests
 from bs4 import BeautifulSoup
@@ -129,7 +130,8 @@ def get_post_content(post_url: str) -> tuple:
         if content:
             for tag in content.find_all(["script", "style"]):
                 tag.decompose()
-            return content.get_text(separator=" ", strip=True), content
+            raw_text = content.get_text(separator=" ", strip=True), content
+            return clean_text(raw_text), content
 
         return "", None
 
@@ -218,7 +220,7 @@ def run_embedding_pipeline():
     point_id = 0
 
     for section_key, section_info in WEBSITE_SECTIONS.items():
-        print(f"\n[{section_key.upper()}] {section_info['title']}")  # Fix lỗi 3
+        print(f"\n[{section_key.upper()}] {section_info['title']}")  
         print(f"  Crawl: {section_info['url']}")
 
         posts = get_posts_from_section(section_info["url"])
@@ -256,7 +258,7 @@ def run_embedding_pipeline():
                     "Hãy đọc toàn bộ nội dung text trong ảnh này"
                 )
                 if image_text and "Không thể" not in image_text and "Loi" not in image_text:
-                    text = text + "\n\n[NỘI DUNG TỪ ẢNH]\n" + image_text
+                    text = text + "\n\n[NỘI DUNG TỪ ẢNH]\n" + clean_text(image_text)
                     print(f"    Đã extract text từ ảnh")
 
             # Chunk
@@ -299,6 +301,19 @@ def run_embedding_pipeline():
     print(f"Collection: '{COLLECTION_NAME}'")
     print("=" * 50)
 
+def clean_text(text: str) -> str:
+    """Làm sạch text crawl trước khi chunk + embed"""
+    # Thay &nbsp; và các HTML entities còn sót
+    text = text.replace("\xa0", " ").replace("&nbsp;", " ")
+    
+    # Xóa nhiều khoảng trắng/xuống dòng liên tiếp
+    text = re.sub(r"\s+", " ", text)
+    
+    # Xóa các dòng quá ngắn (< 15 ký tự) — thường là menu/label thừa
+    lines = [line.strip() for line in text.split(".") if len(line.strip()) >= 15]
+    text = ". ".join(lines)
+    
+    return text.strip()
 
 if __name__ == "__main__":
     run_embedding_pipeline()
