@@ -1,56 +1,78 @@
-# 🏥 Chatbot AI Tư Vấn XKLĐ Điều Dưỡng
+# Chatbot AI Tư Vấn XKLĐ Điều Dưỡng Nhật Bản
 
-Hệ thống chatbot AI tự động tư vấn xuất khẩu lao động điều dưỡng sang Nhật Bản cho website xklddieuduong.vn
+Chatbot tư vấn tự động cho chương trình xuất khẩu lao động điều dưỡng Nhật Bản, tích hợp RAG (Retrieval-Augmented Generation) với dữ liệu từ website xklddieuduong.vn.
 
-## 🚀 Tech Stack
+## Stack
 
-- **Backend:** Python 3.14 + FastAPI + Uvicorn
-- **AI:** Gemini 2.5 Flash API (Google)
-- **Crawling:** Requests + BeautifulSoup4
-- **Frontend:** Next.js 14 + TypeScript + Tailwind CSS (coming soon)
+- **Backend:** Python 3.14 + FastAPI
+- **LLM:** Gemini 2.5 Flash
+- **Vector DB:** Qdrant
+- **Database:** MongoDB (motor async driver)
+- **Frontend:** Next.js 14 + TypeScript + Tailwind CSS
 
-## 📁 Cấu Trúc
-
-```
-xkld-chatbot/
+## Cấu trúc project
+XKLD-CHATBOT/
 ├── backend/
-│   ├── main.py              # FastAPI server
-│   ├── gemini_service.py    # Xử lý AI
-│   ├── crawler.py           # Crawl website
-│   ├── image_reader.py      # Đọc ảnh Gemini Vision
-│   └── requirements.txt
-└── frontend/                # Coming soon
-```
+│   ├── app/
+│   │   ├── api/          # Chat + Analytics endpoints
+│   │   ├── conversation/ # Session, Intent, Validator, Entity Extractor
+│   │   ├── db/           # MongoDB + Qdrant
+│   │   ├── lead/         # Lead Capture Service
+│   │   ├── llm/          # Gemini integration
+│   │   ├── rag/          # Retriever + Prompt Builder
+│   │   └── services/     # Chat Service, Analytics Service
+│   ├── ingestion/        # Crawler + Embedder
+│   └── main.py
+└── frontend/
+    ├── app/
+    │   ├── chat/
+    │   │   └── page.tsx  # Trang chat toàn màn hình
+    │   ├── globals.css
+    │   ├── layout.tsx
+    │   └── page.tsx      # Trang chủ nhúng widget
+    ├── components/
+    │   ├── ChatWidget.tsx # Nút + container widget góc màn hình
+    │   ├── ChatWindow.tsx # Cửa sổ chat nhỏ trong widget
+    │   └── ChatPage.tsx   # Component chat toàn màn hình
+    └── lib/
+        └── api.ts         # Hàm gọi API backend
+## Tính năng
 
-## ⚙️ Cài Đặt
+- Trả lời câu hỏi về chi phí, quy trình, đơn hàng điều dưỡng Nhật Bản
+- Tự động capture lead (tên + SĐT) trong luồng tư vấn
+- Widget chat nhúng góc màn hình + trang chat riêng
+- Analytics: thống kê sessions, intents, leads, fallback rate
+- Retry logic khi Gemini API quá tải
 
+## Chạy local
+
+### Backend
 ```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate
 pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-Tạo file `.env`:
-
-```
-GEMINI_API_KEY=your_api_key_here
-```
-
-Chạy server:
-
+### Frontend
 ```bash
-uvicorn main:app --reload --port 8000
+cd frontend
+npm install
+npm run dev
 ```
 
-## 📡 API
+### Endpoints
+- Chat: `POST /chat`
+- Analytics: `GET /analytics/overview|today|intents|fallbacks|leads`
+- Docs: `http://localhost:8000/docs`
 
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | / | Kiểm tra server |
-| GET | /health | Health check |
-| POST | /chat | Chat với bot |
+## Trạng thái
 
-## 📞 Liên hệ
-
-**DC Trung Tâm Học** — 0971.716.939
+| Hạng mục | Trạng thái |
+|---|---|
+| RAG + Qdrant + Chat API | ✅ Xong |
+| Session Manager + Intent Classifier | ✅ Xong |
+| MongoDB + Lead Capture | ✅ Xong |
+| Analytics Service | ✅ Xong |
+| Frontend Next.js | ✅ Xong |
+| Zalo Bot Webhook | ⏳ Chưa làm |
+| Human Handoff | ⏳ Chưa làm |
