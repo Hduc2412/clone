@@ -10,9 +10,11 @@ câu trả lời, MongoDB để lưu hội thoại/lead và Qdrant để lưu ve
 - Vector database: Qdrant.
 - Database: MongoDB.
 - Frontend: Next.js 14, TypeScript, Tailwind CSS.
-- Dữ liệu hiện tại: 32 bài, đủ nội dung chữ đọc từ ảnh.
+- Docker volume trên máy bàn giao hiện có 32 bài, đủ nội dung chữ đọc từ ảnh.
 
-Zalo và hệ thống quản lý chưa nằm trong phạm vi hiện tại.
+Zalo, hệ thống quản lý, đăng nhập và triển khai production chưa nằm trong phạm
+vi hiện tại. Trang `/` mới là trang mẫu chứa widget, chưa phải giao diện website
+thật.
 
 ## Cấu trúc chính
 
@@ -40,7 +42,7 @@ xkld-chatbot/
 
 ## Yêu cầu
 
-- Python 3.14.
+- Python 3.11 trở lên (môi trường hiện tại dùng Python 3.14).
 - Node.js và npm.
 - MongoDB chạy tại máy cá nhân.
 - Docker Desktop để chạy Qdrant.
@@ -91,6 +93,9 @@ Những lần sau:
 docker start qdrant
 ```
 
+Qdrant lưu vector trong Docker volume, không lưu trong Git. Vì vậy máy mới
+clone repo sẽ có source code và cache Vision nhưng chưa có collection vector.
+
 ### 3. Backend
 
 ```powershell
@@ -110,7 +115,7 @@ Mở terminal khác:
 
 ```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -158,6 +163,9 @@ Kết quả hợp lệ phải có 32 URL, 32 tiêu đề, không thiếu nội d
 
 ## Collection Qdrant
 
+Các tên dưới đây mô tả trạng thái trong Docker volume của máy bàn giao hiện
+tại; chúng không tự xuất hiện khi clone Git sang máy mới.
+
 - `xkld_knowledge`: alias ứng dụng sử dụng.
 - `xkld_knowledge_v20260730`: version dữ liệu đã nghiệm thu, 32 bài.
 - `xkld_knowledge_backup_20260730`: bản cũ để khôi phục, 31 bài.
@@ -178,7 +186,25 @@ $env:RESET_BUILD_COLLECTION="false"
 ```
 
 `backend/data/image_vision_cache.json` chứa kết quả Vision đã đọc để giảm số
-lần gọi Gemini miễn phí. File không chứa API key.
+lần gọi Gemini miễn phí. File không chứa API key. Máy mới vẫn phải tạo
+embedding và ghi vector vào Qdrant.
+
+Sau khi ingestion trên máy mới hoàn tất, kiểm tra staging:
+
+```powershell
+.\venv\Scripts\python.exe check_qdrant.py `
+  --collection xkld_knowledge_staging `
+  --require-image-content `
+  --require-complete-images
+```
+
+Để chạy thử trực tiếp với staging trên máy mới, đặt trong `backend/.env`:
+
+```env
+QDRANT_COLLECTION_NAME=xkld_knowledge_staging
+```
+
+Chỉ tạo hoặc chuyển alias chính sau khi đã kiểm thử hội thoại và tạo backup.
 
 ### Khôi phục bản cũ
 
@@ -195,3 +221,7 @@ Nếu version mới có vấn đề, dừng backend rồi đổi alias
 - API trả tối đa ba nguồn; nguồn có điểm cao nhất được đánh dấu là nguồn chính.
 - Lịch sử đưa vào prompt giới hạn 3.000 ký tự để tiết kiệm hạn mức.
 - Chỉ chuyển staging sang chính sau khi kiểm thử và đã tạo backup.
+- API Analytics hiện chưa có xác thực, chỉ nên dùng trên máy cá nhân.
+- CORS backend hiện cho phép mọi origin để phát triển local; phải giới hạn lại
+  trước khi public.
+- Không chạy nhiều tiến trình ingestion cùng lúc.
