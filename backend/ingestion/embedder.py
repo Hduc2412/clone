@@ -6,7 +6,9 @@
 
 import os
 import re 
+import sys
 import time
+import uuid
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -21,55 +23,54 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
 # Import từ đúng path sau khi migrate
 from ingestion.image_reader import read_image_content, get_best_image_url
+from app.rag.taxonomy import infer_topic, normalize_text
 
 # ============================================================
 # CẤU HÌNH
 # ============================================================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")  # Fix lỗi 1
-COLLECTION_NAME = "xkld_knowledge"
+COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "xkld_knowledge")
+BUILD_COLLECTION_NAME = os.getenv(
+    "QDRANT_BUILD_COLLECTION_NAME",
+    f"{COLLECTION_NAME}_staging",
+)
+RESET_BUILD_COLLECTION = os.getenv(
+    "RESET_BUILD_COLLECTION",
+    "false",
+).lower() in {"1", "true", "yes"}
 EMBEDDING_MODEL = "gemini-embedding-001"
 VECTOR_SIZE = 3072
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
+EMBEDDING_DELAY_SECONDS = float(os.getenv("EMBEDDING_DELAY_SECONDS", "3"))
+POST_DELAY_SECONDS = float(os.getenv("POST_DELAY_SECONDS", "3"))
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 WEBSITE_SECTIONS = {
-    "cong_ty": {
-        "url": "https://xklddieuduong.vn/",
-        "title": "Công ty DC Trung tâm học"
+    "chi_phi": {
+        "url": "https://xklddieuduong.vn/?product_cat=quy-trinh-chi-phi-don",
+        "title": "Chi phí đơn điều dưỡng",
+        "filter_keywords": ["chi phí", "đóng phí", "tiền", "phí"],  # chỉ lấy bài có keyword này trong title
+    },
+    "quy_trinh": {
+        "url": "https://xklddieuduong.vn/?product_cat=quy-trinh-chi-phi-don",
+        "title": "Quy trình đi Nhật",
+        "filter_keywords": ["quy trình", "vấn đề", "các bước", "thủ tục"],
     },
     "don_hang": {
         "url": "https://xklddieuduong.vn/?product_cat=don-hang",
-        "title": "Hỏi đáp về điều dưỡng"
-    },
-    "chi_phi": {
-        "url": "https://xklddieuduong.vn/?product_cat=quy-trinh-chi-phi-don",
-        "title": "Quy trình và chi phí đơn"
-    },
-    "dang_ky": {
-        "url": "https://xklddieuduong.vn/?product_cat=dang-ky-don",
-        "title": "Đăng ký đơn"
-    },
-    "phong_van": {
-        "url": "https://xklddieuduong.vn/?product_cat=phong-van-va-nhap-hoc",
-        "title": "Phỏng vấn và nhập học"
+        "title": "Hỏi đáp về điều dưỡng",
+        "filter_keywords": [],  # lấy hết
     },
     "lop_hoc": {
         "url": "https://xklddieuduong.vn/?product_cat=lop-hoc-ki-tuc-xa",
-        "title": "Lớp học và ký túc xá"
+        "title": "Lớp học và ký túc xá",
+        "filter_keywords": [],  # lấy hết
     },
-    "xuat_canh": {
-        "url": "https://xklddieuduong.vn/?product_cat=hoc-vien-xuat-canh",
-        "title": "Học viên xuất cảnh"
-    },
-    "tai_nhat": {
-        "url": "https://xklddieuduong.vn/?product_cat=hoc-vien-tai-nhat",
-        "title": "Học viên tại Nhật"
-    }
 }
 
 # ============================================================
@@ -130,7 +131,7 @@ def get_post_content(post_url: str) -> tuple:
         if content:
             for tag in content.find_all(["script", "style"]):
                 tag.decompose()
-            raw_text = content.get_text(separator=" ", strip=True), content
+            raw_text = content.get_text(separator=" ", strip=True)
             return clean_text(raw_text), content
 
         return "", None
@@ -181,22 +182,63 @@ def create_embedding(client: genai.Client, text: str) -> list:
 # ============================================================
 # BƯỚC 4: LƯU VÀO QDRANT
 # ============================================================
-def setup_qdrant_collection(qdrant: QdrantClient):
-    """Tạo collection mới, xóa cũ nếu đã tồn tại"""
+def setup_build_collection(qdrant: QdrantClient) -> None:
+    """Tạo hoặc tiếp tục collection staging, không thay đổi collection chính."""
     existing = [c.name for c in qdrant.get_collections().collections]
 
-    if COLLECTION_NAME in existing:
-        print(f"Collection '{COLLECTION_NAME}' đã tồn tại → xóa và tạo lại")
-        qdrant.delete_collection(COLLECTION_NAME)
+    if BUILD_COLLECTION_NAME in existing and RESET_BUILD_COLLECTION:
+        print(f"Xóa collection staging cũ: '{BUILD_COLLECTION_NAME}'")
+        qdrant.delete_collection(BUILD_COLLECTION_NAME)
+        existing.remove(BUILD_COLLECTION_NAME)
 
-    qdrant.create_collection(
-        collection_name=COLLECTION_NAME,
-        vectors_config=VectorParams(
-            size=VECTOR_SIZE,
-            distance=Distance.COSINE
+    if BUILD_COLLECTION_NAME not in existing:
+        qdrant.create_collection(
+            collection_name=BUILD_COLLECTION_NAME,
+            vectors_config=VectorParams(
+                size=VECTOR_SIZE,
+                distance=Distance.COSINE
+            )
         )
+        print(f"Đã tạo collection staging '{BUILD_COLLECTION_NAME}'")
+    else:
+        print(f"Tiếp tục collection staging '{BUILD_COLLECTION_NAME}'")
+
+
+def is_post_complete(qdrant: QdrantClient, post: dict) -> bool:
+    """Kiểm tra cả phần chữ và phần ảnh của bài đã hoàn tất chưa."""
+    existing, _ = qdrant.scroll(
+        collection_name=BUILD_COLLECTION_NAME,
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="url",
+                    match=models.MatchValue(value=post["url"]),
+                ),
+                models.FieldCondition(
+                    key="ingestion_complete",
+                    match=models.MatchValue(value=True),
+                ),
+            ]
+        ),
+        limit=100,
+        with_payload=True,
+        with_vectors=False,
     )
-    print(f"Đã tạo collection '{COLLECTION_NAME}'")
+    if not existing:
+        return False
+
+    if not post.get("image"):
+        return True
+
+    return any(
+        "[NỘI DUNG TỪ ẢNH]" in (point.payload or {}).get("text", "")
+        for point in existing
+    )
+
+
+def make_point_id(post_url: str, chunk_index: int) -> str:
+    """Tạo ID ổn định để chạy lại không sinh bản ghi trùng."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{post_url}#chunk-{chunk_index}"))
 
 
 # ============================================================
@@ -204,44 +246,57 @@ def setup_qdrant_collection(qdrant: QdrantClient):
 # ============================================================
 def run_embedding_pipeline():
     """Pipeline chính: crawl → chunk → embed → lưu Qdrant"""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
     print("=" * 50)
     print("BẮT ĐẦU EMBEDDING PIPELINE")
     print("=" * 50)
+
+    if not GEMINI_API_KEY:
+        raise RuntimeError("Thiếu GEMINI_API_KEY trong file .env")
+
+    if BUILD_COLLECTION_NAME == COLLECTION_NAME:
+        raise RuntimeError(
+            "Collection staging phải khác collection chính để bảo vệ dữ liệu."
+        )
 
     # Kết nối
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     qdrant = QdrantClient(url=QDRANT_URL)
     print("Đã kết nối Gemini và Qdrant")
 
-    # Setup collection
-    setup_qdrant_collection(qdrant)
+    # Chỉ làm việc với collection staging; collection chính luôn được giữ nguyên.
+    setup_build_collection(qdrant)
 
     total_chunks = 0
-    point_id = 0
+    completed_posts = 0
+    failed_posts = 0
 
     for section_key, section_info in WEBSITE_SECTIONS.items():
         print(f"\n[{section_key.upper()}] {section_info['title']}")  
         print(f"  Crawl: {section_info['url']}")
 
         posts = get_posts_from_section(section_info["url"])
-        print(f"  Tìm thấy {len(posts)} bài viết")
+        filter_keywords = section_info.get("filter_keywords", [])
+        if filter_keywords:
+            posts = [
+                p for p in posts
+                if any(
+                    normalize_text(keyword) in normalize_text(p["title"])
+                    for keyword in filter_keywords
+                )
+            ]
+
+        print(f"  Tìm thấy {len(posts)} bài viết sau filter")
 
         for post in posts:
             print(f"  → {post['title'][:50]}...")
 
-            # Kiểm tra đã có trong Qdrant chưa
-            existing, _ = qdrant.scroll(
-                collection_name=COLLECTION_NAME,
-                scroll_filter=models.Filter(
-                    must=[models.FieldCondition(
-                        key="url",
-                        match=models.MatchValue(value=post["url"])
-                    )]
-                ),
-                limit=1
-            )
-            if existing:
-                print(f"    Đã có trong Qdrant, bỏ qua")
+            if is_post_complete(qdrant, post):
+                print("    Bài đã hoàn tất trong staging, bỏ qua")
                 continue
 
             # Lấy nội dung text
@@ -257,9 +312,19 @@ def run_embedding_pipeline():
                     best_url,
                     "Hãy đọc toàn bộ nội dung text trong ảnh này"
                 )
-                if image_text and "Không thể" not in image_text and "Loi" not in image_text:
+                if image_text:
                     text = text + "\n\n[NỘI DUNG TỪ ẢNH]\n" + clean_text(image_text)
                     print(f"    Đã extract text từ ảnh")
+                else:
+                    failed_posts += 1
+                    print(
+                        "    Tạm hoãn bài vì chưa đọc được ảnh; "
+                        "sẽ thử lại ở lần chạy sau."
+                    )
+                    time.sleep(POST_DELAY_SECONDS)
+                    continue
+
+            image_content_included = "[NỘI DUNG TỪ ẢNH]" in text
 
             # Chunk
             chunks = split_into_chunks(text)
@@ -267,14 +332,20 @@ def run_embedding_pipeline():
 
             # Embed + lưu
             points = []
+            post_failed = False
             for i, chunk in enumerate(chunks):
                 enriched_chunk = f"{post['title']}\n{chunk}"
                 vector = create_embedding(gemini_client, enriched_chunk)
                 if not vector:
-                    continue
+                    post_failed = True
+                    print(
+                        "    Dừng bài hiện tại vì một chunk embedding thất bại; "
+                        "chưa ghi dữ liệu dở dang."
+                    )
+                    break
 
                 points.append(PointStruct(
-                    id=point_id,
+                    id=make_point_id(post["url"], i),
                     vector=vector,
                     payload={
                         "text": chunk,
@@ -283,22 +354,34 @@ def run_embedding_pipeline():
                         "image": post["image"],
                         "section": section_key,
                         "section_title": section_info["title"],
-                        "chunk_index": i
+                        "topic": infer_topic(section_key, post["title"]),
+                        "chunk_index": i,
+                        "chunk_count": len(chunks),
+                        "ingestion_complete": True,
+                        "image_content_included": image_content_included,
                     }
                 ))
-                point_id += 1
-                time.sleep(0.3)
+                time.sleep(EMBEDDING_DELAY_SECONDS)
 
-            if points:
-                qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+            if not post_failed and points and len(points) == len(chunks):
+                qdrant.upsert(
+                    collection_name=BUILD_COLLECTION_NAME,
+                    points=points,
+                )
                 total_chunks += len(points)
+                completed_posts += 1
                 print(f"    Đã lưu {len(points)} vectors vào Qdrant")
+            else:
+                failed_posts += 1
 
-            time.sleep(0.5)
+            time.sleep(POST_DELAY_SECONDS)
 
     print("\n" + "=" * 50)
-    print(f"HOÀN TẤT! Tổng cộng {total_chunks} chunks đã lưu vào Qdrant")
-    print(f"Collection: '{COLLECTION_NAME}'")
+    print(f"HOÀN TẤT! Đã lưu mới {total_chunks} chunks")
+    print(f"Số bài hoàn tất trong lần chạy này: {completed_posts}")
+    print(f"Số bài thất bại trong lần chạy này: {failed_posts}")
+    print(f"Collection staging: '{BUILD_COLLECTION_NAME}'")
+    print(f"Collection chính chưa thay đổi: '{COLLECTION_NAME}'")
     print("=" * 50)
 
 def clean_text(text: str) -> str:

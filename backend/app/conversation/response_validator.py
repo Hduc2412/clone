@@ -12,6 +12,10 @@ FALLBACK = (
     "Xin lỗi, mình chưa có đủ thông tin để trả lời câu này. "
     "Vui lòng liên hệ anh Quang qua số 0971.716.939 để được tư vấn trực tiếp nhé!"
 )
+RATE_LIMIT_FALLBACK = (
+    "Hiện chatbot đang có nhiều yêu cầu cùng lúc. "
+    "Bạn vui lòng thử lại sau khoảng một phút nhé!"
+)
 
 def validate(answer: str, intent: str = "chung", awaiting_lead: bool = False) -> tuple[bool, str]:
     if not answer or len(answer.strip()) < MIN_LENGTH:
@@ -20,6 +24,14 @@ def validate(answer: str, intent: str = "chung", awaiting_lead: bool = False) ->
 
     if answer.strip().startswith("Lỗi Gemini:"):
         print(f"[Validator] Phát hiện lỗi Gemini: '{answer[:50]}'")
+        normalized_error = answer.lower()
+        if (
+            "429" in normalized_error
+            or "quota" in normalized_error
+            or "resource_exhausted" in normalized_error
+            or "rate limit" in normalized_error
+        ):
+            return False, RATE_LIMIT_FALLBACK
         return False, FALLBACK
 
     # Bỏ qua check SĐT khi đang trong luồng lead (answer có thể echo SĐT khách)

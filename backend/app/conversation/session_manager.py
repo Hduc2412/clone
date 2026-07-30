@@ -5,6 +5,7 @@ from typing import Optional
 
 SESSION_TTL = 30 * 60
 MAX_HISTORY = 10
+MAX_HISTORY_CHARS = 3000
 CLEANUP_INTERVAL = 5 * 60
 
 @dataclass 
@@ -20,12 +21,34 @@ class Session:
     created_at : float = field(default_factory=time.time)
     last_active : float = field(default_factory=time.time)
     awaiting_lead: bool = False
+    restored_from_db: bool = False
 
     def add_message(self, role: str, content: str):
         self.history.append(Message(role=role, content=content))
         self.last_active = time.time()
         if len(self.history) > MAX_HISTORY:
             self.history = self.history[-MAX_HISTORY:]
+
+    def restore_history(self, records: list[dict]) -> None:
+        """Khôi phục lịch sử gần nhất từ MongoDB đúng một lần."""
+        restored = []
+        for record in records[-MAX_HISTORY:]:
+            created_at = record.get("created_at")
+            timestamp = (
+                created_at.timestamp()
+                if hasattr(created_at, "timestamp")
+                else time.time()
+            )
+            restored.append(
+                Message(
+                    role=record.get("role", ""),
+                    content=record.get("content", ""),
+                    timestamp=timestamp,
+                )
+            )
+        self.history = restored
+        self.restored_from_db = True
+        self.last_active = time.time()
     
     def is_expired(self) -> bool:
         return(time.time() - self.last_active) > SESSION_TTL
@@ -34,16 +57,25 @@ class Session:
         if not self.history:
             return ""
         lines = []
-        for msg in self.history:
+        used_chars = 0
+        for msg in reversed(self.history):
             prefix = "Khach" if msg.role == "user" else "Bot"
-            lines.append(f"{prefix}: {msg.content}")
-        return "\n".join(lines)
+            line = f"{prefix}: {msg.content}"
+            remaining = MAX_HISTORY_CHARS - used_chars
+            if remaining <= 0:
+                break
+            if len(line) > remaining:
+                line = line[-remaining:]
+            lines.append(line)
+            used_chars += len(line) + 1
+        return "\n".join(reversed(lines))
     def summary(self) -> dict:
         return {
             "session_id": self.session_id,
             "message_count": len(self.history),
             "created_at": self.created_at,
-            "last_active": self.last_active
+            "last_active": self.last_active,
+            "restored_from_db": self.restored_from_db,
         }
 
     def sumary(self) -> dict:

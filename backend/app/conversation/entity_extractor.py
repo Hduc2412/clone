@@ -19,7 +19,7 @@ def extract_phone(text: str) -> str | None:
 def extract_name(text: str) -> str | None:
     """Tìm tên trong text dựa trên các pattern phổ biến."""
     for pattern in NAME_PATTERNS:
-        match = re.search(pattern, text, re.UNICODE)
+        match = re.search(pattern, text, re.UNICODE | re.IGNORECASE)
         if match:
             return match.group(1).strip()
     return None

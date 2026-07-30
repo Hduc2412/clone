@@ -7,25 +7,50 @@ from app.conversation.session_manager import session_manager
 from app.conversation.reference_resolver import resolve
 from app.conversation.intent_classifier import classify
 from app.conversation.response_validator import validate
-from app.db.database import save_message
+from app.db.database import get_messages, save_message
 from app.lead.lead_service import try_capture_lead, ASK_LEAD_MESSAGE
 
 async def process_message(user_query: str, session_id: str) -> dict:
     # 1. Load / tạo session
     session = session_manager.get_or_create(session_id)
-    
+
+    if not session.restored_from_db:
+        stored_messages = await get_messages(session_id)
+        session.restore_history(stored_messages)
+        session.awaiting_lead = any(
+            message.role == "assistant"
+            and "tên và số điện thoại" in message.content.lower()
+            for message in session.history[-2:]
+        )
+
     # 2. Lấy lịch sử TRƯỚC khi thêm tin nhắn mới
     history_text = session.get_history_text()
     session.add_message("user", user_query)
     resolved_query = resolve(user_query, history_text)
     intent = classify(user_query)
+    print(f"[ChatService] intent = '{intent}'")
     if intent == "lead":
         session.awaiting_lead = True
-    hits = search(resolved_query)
+    hits = search(resolved_query, intent=intent)
     if not hits:
-        lead_info = await try_capture_lead(session_id, user_query, intent)
-        if lead_info:
+        lead_info = await try_capture_lead(
+            session_id,
+            user_query,
+            intent,
+            awaiting_lead=session.awaiting_lead,
+        )
+        if lead_info and lead_info.get("phone"):
+            session.awaiting_lead = False
+        if lead_info and lead_info.get("phone"):
             answer = "Cảm ơn em! Anh Quang sẽ liên hệ lại sớm để tư vấn chi tiết nhé!"
+        elif intent == "lead" or session.awaiting_lead:
+            session.awaiting_lead = True
+            answer = (
+                "Mình đã ghi nhận tên của bạn."
+                if lead_info and lead_info.get("name")
+                else "Mình sẽ hỗ trợ bạn kết nối với tư vấn viên."
+            )
+            answer += ASK_LEAD_MESSAGE
         else:
             answer = (
                 "Xin lỗi, tôi không tìm thấy thông tin liên quan. "
@@ -42,7 +67,7 @@ async def process_message(user_query: str, session_id: str) -> dict:
 
     # 3. Build prompt có lịch sử
     context = build_context(hits)
-    prompt = _build_prompt_with_history(context, user_query, history_text)
+    prompt = build_prompt(context, user_query, history_text)
 
     # 4. Gọi Gemini
     answer = generate_response(prompt)
@@ -51,10 +76,17 @@ async def process_message(user_query: str, session_id: str) -> dict:
     _, answer = validate(answer, intent, awaiting_lead=session.awaiting_lead)
 
     # 6. Thử capture lead nếu user vừa cung cấp tên/SĐT
-    lead_info = await try_capture_lead(session_id, user_query, intent)
+    lead_info = await try_capture_lead(
+        session_id,
+        user_query,
+        intent,
+        awaiting_lead=session.awaiting_lead,
+    )
+    if lead_info and lead_info.get("phone"):
+        session.awaiting_lead = False
 
     # 7. Nếu intent là lead nhưng chưa có thông tin → hỏi xin
-    if intent == "lead" and not lead_info:
+    if intent == "lead" and not (lead_info and lead_info.get("phone")):
         answer += ASK_LEAD_MESSAGE
 
     # 8. Lưu câu trả lời vào session + DB
@@ -74,7 +106,11 @@ async def process_message(user_query: str, session_id: str) -> dict:
                 "url": url,
                 "image": hit.payload.get("image", ""),
                 "score": round(hit.score, 3),
+                "topic": hit.payload.get("topic", None),
+                "is_primary": len(sources) == 0,
             })
+        if len(sources) == 3:
+            break
 
     return {"answer": answer, "sources": sources, "session_id": session_id, "intent": intent}
 
@@ -87,28 +123,3 @@ async def _save_exchange(
 ) -> None:
     await save_message(session_id, "user", user_query, intent)
     await save_message(session_id, "assistant", answer, intent)
-
-
-def _build_prompt_with_history(context: str, user_query: str, history_text: str) -> str:
-    if not history_text:
-        return build_prompt(context, user_query)
-
-    return f"""Bạn là trợ lý tư vấn xuất khẩu lao động điều dưỡng sang Nhật Bản của xklddieuduong.vn.
-Trả lời thân thiện, chính xác, dựa trên thông tin được cung cấp.
-Không chào hỏi lại nếu đã có lịch sử hội thoại, đi thẳng vào trả lời.
-
---- LỊCH SỬ HỘI THOẠI ---
-{history_text}
-
-Luu y bat buoc: neu da co lich su hoi thoai, khong mo dau bang "Chao ban",
-"Xin chao", hoac bat ky loi chao nao. Tra loi truc tiep vao cau hoi hien tai.
-
---- THÔNG TIN TỪ WEBSITE ---
-{context}
-
---- CÂU HỎI HIỆN TẠI ---
-{user_query}
-
-Trả lời:"""
-        
-

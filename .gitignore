@@ -10,6 +10,12 @@ __pycache__/
 
 # Debug files
 debug.html
+*.log
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
 
 # Node / Next.js
 node_modules/
@@ -19,3 +25,7 @@ out/
 # IDE
 .vscode/
 .idea/
+
+# OS files
+.DS_Store
+Thumbs.db

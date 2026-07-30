@@ -18,22 +18,29 @@ def should_ask_lead(intent:str, already_asked: bool) -> bool:
     """
     return intent == "lead" and not already_asked
 
-async def try_capture_lead(session_id: str, user_query: str, intent: str) -> dict | None:
+async def try_capture_lead(
+    session_id: str,
+    user_query: str,
+    intent: str,
+    awaiting_lead: bool = False,
+) -> dict | None:
     """
     Thử trích xuất tên/SĐT từ tin nhắn user.
     Nếu có ít nhất 1 trong 2 (ưu tiên có phone) thì lưu vào DB.
     Trả về dict thông tin đã lưu, hoặc None nếu không trích xuất được gì.
     """
-    info = extract_lead_info(user_query)
+    if intent != "lead" and not awaiting_lead:
+        return None
 
+    info = extract_lead_info(user_query)
     if not info["phone"] and not info["name"]:
         return None
-    await save_lead(
+    saved_lead = await save_lead(
         session_id=session_id,
         name=info["name"],
         phone=info["phone"],
         note=f"Captured from intent: {intent}",
     )
 
-    print(f"[LeadService] Đã lưu lead cho session {session_id}: {info}")
-    return info
+    print(f"[LeadService] Đã cập nhật lead cho session {session_id}: {saved_lead}")
+    return saved_lead

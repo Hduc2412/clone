@@ -5,7 +5,7 @@ from qdrant_client import QdrantClient
 load_dotenv()
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-COLLECTION_NAME = "xkld_knowledge"
+COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "xkld_knowledge")
 
 _client = None
 

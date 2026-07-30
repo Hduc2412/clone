@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING, DESCENDING, ReturnDocument
 
 
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
@@ -43,6 +43,11 @@ async def init_db() -> None:
     await db.sessions.create_index("session_id", unique=True)
     await db.sessions.create_index("last_active")
     await db.leads.create_index([("session_id", ASCENDING), ("created_at", DESCENDING)])
+    await db.leads.create_index(
+        "session_id",
+        unique=True,
+        name="unique_lead_session_id",
+    )
     await db.analytics.create_index("date", unique=True)
 
     print("[DB] MongoDB initialized successfully.")
@@ -101,19 +106,39 @@ async def save_lead(
     name: str | None = None,
     phone: str | None = None,
     note: str | None = None,
-) -> None:
-    """Save a potential customer lead."""
+) -> dict[str, Any]:
+    """Tạo hoặc bổ sung lead của session mà không sinh bản ghi trùng."""
     now = _now()
-    await get_db().leads.insert_one(
+    fields: dict[str, Any] = {"updated_at": now}
+    if name:
+        fields["name"] = name
+    if phone:
+        fields["phone"] = phone
+    if note:
+        fields["note"] = note
+
+    lead = await get_db().leads.find_one_and_update(
+        {"session_id": session_id},
         {
-            "session_id": session_id,
-            "name": name,
-            "phone": phone,
-            "note": note,
-            "created_at": now,
-            "updated_at": now,
-        }
+            "$set": fields,
+            "$setOnInsert": {
+                "session_id": session_id,
+                "created_at": now,
+            },
+        },
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+        projection={
+            "_id": 0,
+            "session_id": 1,
+            "name": 1,
+            "phone": 1,
+            "note": 1,
+            "created_at": 1,
+            "updated_at": 1,
+        },
     )
+    return lead or {"session_id": session_id, **fields}
 
 
 async def get_messages(session_id: str) -> list[dict[str, Any]]:

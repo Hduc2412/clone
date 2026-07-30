@@ -1,22 +1,26 @@
-// lib/api.ts
-// Gọi API backend FastAPI
-
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+export interface Source {
+  title: string;
+  url: string;
+  image?: string;
+  score: number;
+  topic?: string;
+  is_primary?: boolean;
+}
 
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  image?: string;
+  sources?: Source[];
 }
 
 export interface ChatResponse {
   answer: string;
   session_id: string;
-  sources: Array<{
-    title: string;
-    url: string;
-    image?: string;
-    score: number;
-  }>;
+  intent: string;
+  sources: Source[];
 }
 
 export async function sendMessage(
