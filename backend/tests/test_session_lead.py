@@ -69,40 +69,31 @@ class LeadServiceTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ChatServiceRestoreTests(unittest.IsolatedAsyncioTestCase):
-    TEST_SESSION_ID = "__codex_test_restored_lead_flow__"
+    TEST_SESSION_ID = "__codex_test_restored_booking_flow__"
 
     async def asyncTearDown(self):
         session_manager.delete(self.TEST_SESSION_ID)
 
-    async def test_restored_lead_flow_captures_phone_and_stops_waiting(self):
-        stored_messages = [
-            {
-                "role": "assistant",
-                "content": (
-                    "Anh/chị vui lòng để lại tên và số điện thoại "
-                    "để được tư vấn."
-                ),
-                "created_at": datetime.now(UTC),
-            }
-        ]
-        saved_lead = {
-            "session_id": self.TEST_SESSION_ID,
-            "name": "Nguyễn Văn An",
-            "phone": "0912345678",
-        }
-
+    async def test_restored_booking_flow_continues_from_saved_step(self):
         with (
             patch(
                 "app.services.chat_service.get_messages",
                 new_callable=AsyncMock,
-                return_value=stored_messages,
+                return_value=[],
             ),
-            patch("app.services.chat_service.search", return_value=[]),
             patch(
-                "app.services.chat_service.try_capture_lead",
+                "app.services.chat_service.get_booking_draft",
                 new_callable=AsyncMock,
-                return_value=saved_lead,
-            ) as mocked_capture,
+                return_value={
+                    "booking_step": "phone",
+                    "booking_data": {"customer_name": "Nguyễn Văn An"},
+                },
+            ),
+            patch(
+                "app.services.chat_service.process_booking_message",
+                new_callable=AsyncMock,
+                return_value=("Bạn vui lòng chọn ngày.", False),
+            ) as mocked_booking,
             patch(
                 "app.services.chat_service._save_exchange",
                 new_callable=AsyncMock,
@@ -116,9 +107,9 @@ class ChatServiceRestoreTests(unittest.IsolatedAsyncioTestCase):
         session = session_manager.get(self.TEST_SESSION_ID)
         self.assertIsNotNone(session)
         self.assertTrue(session.restored_from_db)
-        self.assertFalse(session.awaiting_lead)
-        self.assertIn("liên hệ lại", result["answer"])
-        self.assertTrue(mocked_capture.await_args.kwargs["awaiting_lead"])
+        self.assertEqual(session.booking_step, "phone")
+        self.assertEqual(result["intent"], "booking")
+        mocked_booking.assert_awaited_once()
 
 
 class LeadDatabaseIntegrationTests(unittest.IsolatedAsyncioTestCase):

@@ -40,6 +40,10 @@ INTENT_PATTERNS = {
     "ky_tuc_xa": [
         "ký túc xá", "kí túc xá", "chỗ ở", "nơi ở"
     ],
+    "booking": [
+        "đặt lịch", "hẹn lịch", "lịch tư vấn", "hẹn tư vấn",
+        "đặt hẹn", "gọi lại cho tôi", "gọi cho tôi"
+    ],
     "lead": [
         "tư vấn", "liên hệ", "muốn đi",
         "quan tâm", "muốn tham gia", "apply"
@@ -50,6 +54,7 @@ INTENT_PATTERNS = {
 # Khi nhiều nhóm có cùng điểm, ưu tiên ý định cụ thể hơn các từ khóa chung
 # như "đăng ký", "như thế nào" hoặc "thời gian".
 INTENT_PRIORITY = [
+    "booking",
     "lead",
     "ky_tuc_xa",
     "hoc_tap",

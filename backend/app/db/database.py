@@ -49,6 +49,27 @@ async def init_db() -> None:
         name="unique_lead_session_id",
     )
     await db.analytics.create_index("date", unique=True)
+    await db.consultation_appointments.create_index(
+        "appointment_code",
+        unique=True,
+    )
+    await db.consultation_appointments.create_index(
+        [("status", ASCENDING), ("appointment_date", ASCENDING)],
+    )
+    await db.consultation_appointments.create_index(
+        "booking_key",
+        unique=True,
+    )
+    await db.notifications.create_index(
+        [("is_read", ASCENDING), ("created_at", DESCENDING)],
+    )
+    await db.managed_leads.create_index("lead_code", unique=True)
+    await db.managed_leads.create_index("phone")
+    await db.managed_leads.create_index(
+        [("status", ASCENDING), ("created_at", DESCENDING)]
+    )
+    await db.staff_users.create_index("email", unique=True)
+    await db.staff_users.create_index("status")
 
     print("[DB] MongoDB initialized successfully.")
 
@@ -185,3 +206,293 @@ async def delete_session_data(session_id: str) -> None:
     db = get_db()
     await db.messages.delete_many({"session_id": session_id})
     await db.sessions.delete_one({"session_id": session_id})
+
+
+async def save_booking_draft(
+    session_id: str,
+    step: str | None,
+    data: dict[str, Any],
+) -> None:
+    """Lưu tiến độ đặt lịch để không mất khi backend/session khởi động lại."""
+    now = _now()
+    await get_db().sessions.update_one(
+        {"session_id": session_id},
+        {
+            "$set": {
+                "booking_step": step,
+                "booking_data": data,
+                "last_active": now,
+            },
+            "$setOnInsert": {
+                "session_id": session_id,
+                "created_at": now,
+                "message_count": 0,
+            },
+        },
+        upsert=True,
+    )
+
+
+async def get_booking_draft(session_id: str) -> dict[str, Any] | None:
+    return await get_db().sessions.find_one(
+        {"session_id": session_id},
+        {"_id": 0, "booking_step": 1, "booking_data": 1},
+    )
+
+
+async def create_appointment(appointment: dict[str, Any]) -> dict[str, Any]:
+    """Tạo lịch pending và thông báo nhân viên."""
+    now = _now()
+    document = {
+        **appointment,
+        "status": "pending",
+        "confirmed_by": None,
+        "confirmed_at": None,
+        "contacted_at": None,
+        "result_note": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await get_db().consultation_appointments.insert_one(document)
+    await get_db().notifications.insert_one(
+        {
+            "type": "new_appointment",
+            "title": "Lịch tư vấn mới",
+            "appointment_code": document["appointment_code"],
+            "customer_name": document["customer_name"],
+            "phone": document["phone"],
+            "appointment_date": document["appointment_date"],
+            "appointment_time": document["appointment_time"],
+            "is_read": False,
+            "created_at": now,
+        }
+    )
+    return {key: value for key, value in document.items() if key != "_id"}
+
+
+async def list_appointments(
+    status: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    query = {"status": status} if status else {}
+    cursor = (
+        get_db()
+        .consultation_appointments.find(query, {"_id": 0, "booking_key": 0})
+        .sort([("appointment_date", ASCENDING), ("appointment_time", ASCENDING)])
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
+async def update_appointment_status(
+    appointment_code: str,
+    status: str,
+    employee_name: str,
+    result_note: str | None = None,
+) -> dict[str, Any] | None:
+    now = _now()
+    fields: dict[str, Any] = {
+        "status": status,
+        "updated_at": now,
+        "updated_by": employee_name,
+    }
+    if status == "confirmed":
+        fields["confirmed_by"] = employee_name
+        fields["confirmed_at"] = now
+    if status in {"completed", "unreachable"}:
+        fields["contacted_at"] = now
+    if result_note is not None:
+        fields["result_note"] = result_note
+
+    allowed_previous_statuses = {
+        "confirmed": ["pending"],
+        "completed": ["confirmed"],
+        "unreachable": ["confirmed"],
+        "rescheduled": ["confirmed", "unreachable"],
+        "cancelled": ["pending", "confirmed", "unreachable"],
+    }
+    query: dict[str, Any] = {
+        "appointment_code": appointment_code,
+        "status": {"$in": allowed_previous_statuses.get(status, [])},
+    }
+    if status == "confirmed":
+        query["confirmed_by"] = None
+
+    return await get_db().consultation_appointments.find_one_and_update(
+        query,
+        {"$set": fields},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0, "booking_key": 0},
+    )
+
+
+async def list_notifications(
+    unread_only: bool = False,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    query = {"is_read": False} if unread_only else {}
+    cursor = (
+        get_db()
+        .notifications.find(query, {"_id": 0})
+        .sort("created_at", DESCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
+async def mark_notification_read(appointment_code: str) -> bool:
+    result = await get_db().notifications.update_many(
+        {"appointment_code": appointment_code},
+        {"$set": {"is_read": True, "read_at": _now()}},
+    )
+    return result.modified_count > 0
+
+
+async def get_management_overview() -> dict[str, Any]:
+    db = get_db()
+    appointment_pipeline = [
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+    ]
+    appointment_rows = await db.consultation_appointments.aggregate(
+        appointment_pipeline
+    ).to_list(length=None)
+    appointment_by_status = {
+        row["_id"]: row["count"] for row in appointment_rows
+    }
+    return {
+        "appointments_total": sum(appointment_by_status.values()),
+        "appointments_pending": appointment_by_status.get("pending", 0),
+        "appointments_confirmed": appointment_by_status.get("confirmed", 0),
+        "appointments_completed": appointment_by_status.get("completed", 0),
+        "leads_total": await db.managed_leads.count_documents({}),
+        "leads_new": await db.managed_leads.count_documents({"status": "new"}),
+        "conversations_total": await db.sessions.count_documents({}),
+        "messages_total": await db.messages.count_documents({}),
+        "notifications_unread": await db.notifications.count_documents(
+            {"is_read": False}
+        ),
+        "staff_active": await db.staff_users.count_documents(
+            {"status": "active"}
+        ),
+    }
+
+
+async def list_conversations(limit: int = 100) -> list[dict[str, Any]]:
+    pipeline = [
+        {"$sort": {"last_active": -1}},
+        {"$limit": limit},
+        {
+            "$lookup": {
+                "from": "messages",
+                "let": {"sid": "$session_id"},
+                "pipeline": [
+                    {
+                        "$match": {
+                            "$expr": {"$eq": ["$session_id", "$$sid"]}
+                        }
+                    },
+                    {"$sort": {"created_at": -1}},
+                    {"$limit": 1},
+                    {"$project": {"_id": 0, "role": 1, "content": 1}},
+                ],
+                "as": "latest",
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "session_id": 1,
+                "message_count": 1,
+                "last_intent": 1,
+                "created_at": 1,
+                "last_active": 1,
+                "booking_step": 1,
+                "latest_message": {"$arrayElemAt": ["$latest", 0]},
+            }
+        },
+    ]
+    return await get_db().sessions.aggregate(pipeline).to_list(length=limit)
+
+
+async def list_managed_leads(
+    status: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    query = {"status": status} if status else {}
+    cursor = (
+        get_db()
+        .managed_leads.find(query, {"_id": 0})
+        .sort("created_at", DESCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
+async def create_managed_lead(data: dict[str, Any]) -> dict[str, Any]:
+    now = _now()
+    document = {
+        **data,
+        "status": data.get("status", "new"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await get_db().managed_leads.insert_one(document)
+    return {key: value for key, value in document.items() if key != "_id"}
+
+
+async def update_managed_lead(
+    lead_code: str,
+    fields: dict[str, Any],
+) -> dict[str, Any] | None:
+    fields = {
+        key: value
+        for key, value in fields.items()
+        if value is not None
+    }
+    fields["updated_at"] = _now()
+    return await get_db().managed_leads.find_one_and_update(
+        {"lead_code": lead_code},
+        {"$set": fields},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0},
+    )
+
+
+async def list_staff_users(limit: int = 100) -> list[dict[str, Any]]:
+    cursor = (
+        get_db()
+        .staff_users.find({}, {"_id": 0, "password_hash": 0})
+        .sort("created_at", DESCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
+async def create_staff_user(data: dict[str, Any]) -> dict[str, Any]:
+    now = _now()
+    document = {
+        **data,
+        "status": data.get("status", "active"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await get_db().staff_users.insert_one(document)
+    return {key: value for key, value in document.items() if key != "_id"}
+
+
+async def update_staff_user(
+    email: str,
+    fields: dict[str, Any],
+) -> dict[str, Any] | None:
+    fields = {
+        key: value
+        for key, value in fields.items()
+        if value is not None
+    }
+    fields["updated_at"] = _now()
+    return await get_db().staff_users.find_one_and_update(
+        {"email": email},
+        {"$set": fields},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0, "password_hash": 0},
+    )

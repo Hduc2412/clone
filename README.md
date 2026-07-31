@@ -1,8 +1,15 @@
-# Chatbot tư vấn XKLĐ điều dưỡng Nhật Bản
+# Hệ thống AI tư vấn và quản lý tuyển dụng điều dưỡng Nhật Bản
 
-Chatbot tư vấn chương trình xuất khẩu lao động điều dưỡng Nhật Bản. Hệ thống
-sử dụng RAG để tìm nội dung đã thu thập từ `xklddieuduong.vn`, Gemini để tạo
-câu trả lời, MongoDB để lưu hội thoại/lead và Qdrant để lưu vector.
+Hệ thống hỗ trợ tư vấn chương trình xuất khẩu lao động điều dưỡng Nhật Bản,
+đặt lịch tư vấn và quản lý nghiệp vụ nội bộ. Phần AI sử dụng RAG để tìm nội
+dung đã thu thập từ `xklddieuduong.vn`, Gemini để tạo câu trả lời, MongoDB để
+lưu dữ liệu nghiệp vụ và Qdrant để lưu vector.
+
+## Tài liệu dự án
+
+- [Phạm vi và định hướng](docs/PROJECT_SCOPE.md)
+- [Workflow nghiệp vụ](docs/WORKFLOWS.md)
+- [Kế hoạch triển khai](docs/ROADMAP.md)
 
 ## Thành phần
 
@@ -12,9 +19,9 @@ câu trả lời, MongoDB để lưu hội thoại/lead và Qdrant để lưu ve
 - Frontend: Next.js 14, TypeScript, Tailwind CSS.
 - Docker volume trên máy bàn giao hiện có 32 bài, đủ nội dung chữ đọc từ ảnh.
 
-Zalo, hệ thống quản lý, đăng nhập và triển khai production chưa nằm trong phạm
-vi hiện tại. Trang `/` mới là trang mẫu chứa widget, chưa phải giao diện website
-thật.
+Hệ thống quản lý đã có MVP chạy local. Đăng nhập, phân quyền API, website hoàn
+chỉnh và triển khai production chưa hoàn thành. Zalo tạm thời không nằm trong
+phạm vi. Trang `/` hiện vẫn là trang mẫu chứa widget.
 
 ## Cấu trúc chính
 
@@ -22,10 +29,11 @@ thật.
 xkld-chatbot/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # Chat và Analytics API
+│   │   ├── api/            # Chat, Analytics, lịch và Management API
+│   │   ├── booking/        # Luồng đặt lịch tư vấn
 │   │   ├── conversation/   # Session, intent, entity, validator
 │   │   ├── db/             # MongoDB và Qdrant
-│   │   ├── lead/           # Thu thập tên, số điện thoại
+│   │   ├── lead/           # Nghiệp vụ lead cũ, không dùng trong booking
 │   │   ├── llm/            # Gemini
 │   │   ├── rag/            # Taxonomy, truy xuất, prompt
 │   │   └── services/       # Điều phối nghiệp vụ
@@ -33,9 +41,10 @@ xkld-chatbot/
 │   ├── tests/              # Kiểm thử backend
 │   ├── check_qdrant.py     # Kiểm tra dữ liệu Qdrant
 │   └── main.py
+├── docs/                   # Phạm vi, workflow và roadmap
 └── frontend/
-    ├── app/                # Trang chủ và trang chat
-    ├── components/         # Giao diện tin nhắn/widget
+    ├── app/                # Website, chat và hệ thống quản lý
+    ├── components/         # Chat widget và giao diện quản lý
     ├── hooks/              # Logic và trạng thái chat
     └── lib/api.ts          # Kết nối backend
 ```
@@ -121,6 +130,8 @@ npm run dev
 
 Frontend chạy tại `http://localhost:3000`.
 
+Hệ thống quản lý local: `http://localhost:3000/admin`.
+
 ## API chính
 
 - `POST /chat`: gửi câu hỏi.
@@ -131,6 +142,54 @@ Frontend chạy tại `http://localhost:3000`.
 - `GET /analytics/intents`: phân bố intent.
 - `GET /analytics/fallbacks`: tỷ lệ fallback.
 - `GET /analytics/leads`: danh sách lead gần nhất.
+- `GET /appointments`: nhân viên xem danh sách lịch.
+- `PATCH /appointments/{appointment_code}/status`: xác nhận/cập nhật lịch.
+- `GET /notifications`: xem thông báo lịch mới.
+- `PATCH /notifications/{appointment_code}/read`: đánh dấu đã đọc.
+- `GET /management/overview`: số liệu Dashboard.
+- `GET /management/conversations`: danh sách hội thoại.
+- `GET /management/conversations/{session_id}`: chi tiết hội thoại.
+- `GET/POST/PATCH /management/leads`: quản lý khách hàng/lead.
+- `GET/POST/PATCH /management/users`: quản lý người dùng nội bộ.
+
+## Đặt lịch tư vấn
+
+Khách bắt đầu bằng câu như `Tôi muốn đặt lịch tư vấn`. Chatbot lần lượt thu:
+
+1. Họ tên.
+2. Số điện thoại.
+3. Ngày muốn được liên hệ.
+4. Giờ muốn được liên hệ.
+5. Xác nhận lại thông tin.
+
+Giờ nhận lịch:
+
+- Thứ Hai đến Thứ Bảy.
+- `08:00–11:30`.
+- `13:30–17:00`.
+- Không cần thời lượng hoặc nội dung mong muốn.
+
+Lịch mới có trạng thái `pending`. Nhân viên xem số điện thoại và bấm xác nhận
+qua API/Swagger, sau đó chủ động liên hệ khách. Các trạng thái dùng trong MVP:
+`pending`, `confirmed`, `completed`, `unreachable`, `rescheduled`,
+`cancelled`.
+
+API lịch và thông báo hiện chưa có Authentication, chỉ phục vụ kiểm thử local.
+
+## Hệ thống quản lý local
+
+Các trang hiện có:
+
+- `/admin`: Dashboard tổng quan.
+- `/admin/appointments`: lịch hẹn và thông báo.
+- `/admin/leads`: khách hàng/lead do nhân viên quản lý.
+- `/admin/conversations`: xem lại lịch sử chatbot.
+- `/admin/knowledge`: trạng thái bộ tri thức AI.
+- `/admin/users`: người dùng và vai trò nội bộ.
+
+Dashboard đọc dữ liệu thật từ MongoDB, không dùng dữ liệu mẫu trong trình
+duyệt. Authentication và phân quyền API chưa được bật trong MVP này, vì vậy
+không public `/admin` hoặc các API `/management` ra Internet.
 
 ## Kiểm thử
 

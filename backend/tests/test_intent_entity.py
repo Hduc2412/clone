@@ -22,6 +22,10 @@ class IntentClassifierTests(unittest.TestCase):
             classify("Điều kiện tham gia chương trình là gì?"),
             "dieu_kien",
         )
+        self.assertEqual(
+            classify("Tôi muốn đặt lịch tư vấn"),
+            "booking",
+        )
 
     def test_existing_intents_are_not_regressed(self):
         self.assertEqual(

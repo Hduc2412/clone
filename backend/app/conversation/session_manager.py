@@ -21,6 +21,8 @@ class Session:
     created_at : float = field(default_factory=time.time)
     last_active : float = field(default_factory=time.time)
     awaiting_lead: bool = False
+    booking_step: str | None = None
+    booking_data: dict = field(default_factory=dict)
     restored_from_db: bool = False
 
     def add_message(self, role: str, content: str):
@@ -76,6 +78,7 @@ class Session:
             "created_at": self.created_at,
             "last_active": self.last_active,
             "restored_from_db": self.restored_from_db,
+            "booking_step": self.booking_step,
         }
 
     def sumary(self) -> dict:
