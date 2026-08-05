@@ -1,13 +1,12 @@
-import os
-
 from app.db.qdrant import get_qdrant_client, COLLECTION_NAME
+from app.core.config import settings
 from app.llm.gemini import create_embedding
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 from qdrant_client import models
 from app.rag.taxonomy import infer_topic
 
 TOP_K = 5
-MIN_RETRIEVAL_SCORE = float(os.getenv("MIN_RETRIEVAL_SCORE", "0.65"))
+MIN_RETRIEVAL_SCORE = settings.min_retrieval_score
 
 INTENT_TO_TOPICS = {
     "chi_phi": ["chi_phi"],

@@ -81,9 +81,6 @@ class Session:
             "booking_step": self.booking_step,
         }
 
-    def sumary(self) -> dict:
-        return self.summary()
-
 class SessionManager:
     def __init__(self):
         self._sessions: dict[str, Session] = {}

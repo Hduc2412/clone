@@ -1,17 +1,8 @@
-import os
 import math
 import re
 import time
 import requests
-from dotenv import load_dotenv
-from pathlib import Path
-
-load_dotenv
-load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / ".env")
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = "gemini-2.5-flash"
-EMBEDDING_MODEL = "gemini-embedding-001"
+from app.core.config import settings
 
 MAX_RETRIES = 5
 RETRY_DELAYS = [2, 5, 10]
@@ -45,7 +36,7 @@ def _post_with_retry(
             res = requests.post(
                 url,
                 json=payload,
-                headers={"x-goog-api-key": GEMINI_API_KEY or ""},
+                headers={"x-goog-api-key": settings.gemini_api_key},
                 timeout=30,
             )
             data = res.json()
@@ -87,7 +78,7 @@ def _post_with_retry(
 def generate_response(prompt: str) -> str:
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{GEMINI_MODEL}:generateContent"
+        f"{settings.gemini_model}:generateContent"
     )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -139,10 +130,10 @@ def generate_response(prompt: str) -> str:
 def create_embedding(text: str) -> list | None:
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{EMBEDDING_MODEL}:embedContent"
+        f"{settings.embedding_model}:embedContent"
     )
     payload = {
-        "model": f"models/{EMBEDDING_MODEL}",
+        "model": f"models/{settings.embedding_model}",
         "content": {"parts": [{"text": text}]},
         "taskType": "RETRIEVAL_QUERY",
     }

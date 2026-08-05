@@ -1,16 +1,13 @@
 """
 MongoDB persistence layer for chat sessions, messages, leads, and analytics.
 """
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import ASCENDING, DESCENDING, ReturnDocument
+from app.core.config import settings
 
-
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "xkld_chatbot")
 
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
@@ -31,8 +28,8 @@ async def init_db() -> None:
     global _client, _db
 
     if _client is None:
-        _client = AsyncIOMotorClient(MONGODB_URI)
-        _db = _client[MONGODB_DB_NAME]
+        _client = AsyncIOMotorClient(settings.mongodb_uri)
+        _db = _client[settings.mongodb_db_name]
 
     db = get_db()
     await db.command("ping")
@@ -511,9 +508,9 @@ async def update_staff_password(email: str, password_hash: str) -> bool:
 
 async def _create_initial_admin() -> None:
     """Create the first admin from environment variables when no staff exists."""
-    email = os.getenv("INITIAL_ADMIN_EMAIL", "").strip().lower()
-    password_hash = os.getenv("INITIAL_ADMIN_PASSWORD_HASH", "").strip()
-    full_name = os.getenv("INITIAL_ADMIN_NAME", "Quản trị viên").strip()
+    email = settings.initial_admin_email
+    password_hash = settings.initial_admin_password_hash
+    full_name = settings.initial_admin_name
     if not email or not password_hash:
         return
     if await get_db().staff_users.count_documents({"email": email}) > 0:

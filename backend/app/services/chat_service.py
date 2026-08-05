@@ -1,5 +1,7 @@
 
-#điều phối toàn bộ luồng xử lý từ câu hỏi đến câu trả lời
+# Điều phối toàn bộ luồng xử lý từ câu hỏi đến câu trả lời.
+from fastapi.concurrency import run_in_threadpool
+
 from app.rag.retriever import search
 from app.rag.prompt_builder import build_context, build_prompt
 from app.llm.gemini import generate_response
@@ -41,7 +43,8 @@ async def process_message(user_query: str, session_id: str) -> dict:
             "intent": "booking",
         }
 
-    hits = search(resolved_query, intent=intent)
+    # Embedding + Qdrant client đang là API đồng bộ; chạy ngoài event loop.
+    hits = await run_in_threadpool(search, resolved_query, intent)
     if not hits:
         if intent == "lead":
             answer = (
@@ -67,7 +70,8 @@ async def process_message(user_query: str, session_id: str) -> dict:
     prompt = build_prompt(context, user_query, history_text)
 
     # 4. Gọi Gemini
-    answer = generate_response(prompt)
+    # requests.post của Gemini là đồng bộ; không chặn các request FastAPI khác.
+    answer = await run_in_threadpool(generate_response, prompt)
 
     # 5. Validate câu trả lời
     _, answer = validate(answer, intent)

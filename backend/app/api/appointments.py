@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.database import (
     list_appointments,
@@ -31,8 +31,9 @@ ALLOWED_STATUSES = {
 
 
 class AppointmentStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     status: str
-    employee_name: str = Field(min_length=2, max_length=100)
     result_note: str | None = Field(default=None, max_length=1000)
 
 
@@ -48,6 +49,7 @@ async def get_appointments(
 async def change_appointment_status(
     appointment_code: str,
     request: AppointmentStatusRequest,
+    current_user=Depends(get_current_user),
 ):
     if request.status not in ALLOWED_STATUSES:
         raise HTTPException(
@@ -58,7 +60,7 @@ async def change_appointment_status(
     appointment = await update_appointment_status(
         appointment_code=appointment_code,
         status=request.status,
-        employee_name=request.employee_name,
+        employee_name=current_user["full_name"],
         result_note=request.result_note,
     )
     if appointment is None:

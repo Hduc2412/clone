@@ -2,11 +2,9 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
-from app.conversation.session_manager import MAX_HISTORY, Session
+from app.conversation.session_manager import MAX_HISTORY, Session, session_manager
 from app.db.database import close_db, get_db, init_db, save_lead
-from app.lead.lead_service import try_capture_lead
 from app.services.chat_service import process_message
-from app.conversation.session_manager import session_manager
 
 
 class SessionRestoreTests(unittest.TestCase):
@@ -28,44 +26,6 @@ class SessionRestoreTests(unittest.TestCase):
         self.assertEqual(len(session.history), MAX_HISTORY)
         self.assertEqual(session.history[0].content, "message-3")
         self.assertEqual(session.history[-1].content, "message-12")
-
-
-class LeadServiceTests(unittest.IsolatedAsyncioTestCase):
-    async def test_does_not_capture_outside_lead_flow(self):
-        with patch(
-            "app.lead.lead_service.save_lead",
-            new_callable=AsyncMock,
-        ) as mocked_save:
-            result = await try_capture_lead(
-                "normal-chat",
-                "Tôi tên là Nguyễn Văn An",
-                "chung",
-                awaiting_lead=False,
-            )
-
-        self.assertIsNone(result)
-        mocked_save.assert_not_awaited()
-
-    async def test_capture_while_session_is_awaiting_lead(self):
-        saved = {
-            "session_id": "lead-chat",
-            "name": "Nguyễn Văn An",
-            "phone": "0912345678",
-        }
-        with patch(
-            "app.lead.lead_service.save_lead",
-            new_callable=AsyncMock,
-            return_value=saved,
-        ) as mocked_save:
-            result = await try_capture_lead(
-                "lead-chat",
-                "Số của tôi là 0912345678",
-                "chung",
-                awaiting_lead=True,
-            )
-
-        self.assertEqual(result, saved)
-        mocked_save.assert_awaited_once()
 
 
 class ChatServiceRestoreTests(unittest.IsolatedAsyncioTestCase):

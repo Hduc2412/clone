@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getToken, login } from "@/lib/auth";
+import { loadCurrentUser, login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,7 +10,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (getToken()) router.replace("/admin");
+    loadCurrentUser()
+      .then(() => router.replace("/admin"))
+      .catch(() => undefined);
   }, [router]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

@@ -2,21 +2,17 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import secrets
 import time
 from typing import Any
 
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Cookie, Depends, HTTPException
 
+from app.core.config import settings
 from app.db.database import get_staff_user_by_email
 
 
-JWT_SECRET = os.getenv("JWT_SECRET", "").strip()
-JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
 PASSWORD_ITERATIONS = 600_000
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _b64encode(value: bytes) -> str:
@@ -49,17 +45,20 @@ def verify_password(password: str, encoded: str) -> bool:
 
 
 def _secret() -> bytes:
-    if not JWT_SECRET:
+    if not settings.jwt_secret:
         raise RuntimeError("JWT_SECRET must be configured before using authentication.")
-    return JWT_SECRET.encode("utf-8")
+    return settings.jwt_secret.encode("utf-8")
 
 
 def create_access_token(user: dict[str, Any]) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
-        "sub": user["email"], "name": user["full_name"], "role": user["role"],
-        "iat": now, "exp": now + JWT_EXPIRE_MINUTES * 60,
+        "sub": user["email"],
+        "name": user["full_name"],
+        "role": user["role"],
+        "iat": now,
+        "exp": now + settings.jwt_expire_minutes * 60,
     }
     encoded_header = _b64encode(json.dumps(header, separators=(",", ":")).encode())
     encoded_payload = _b64encode(
@@ -84,24 +83,34 @@ def decode_access_token(token: str) -> dict[str, Any]:
             raise ValueError("Invalid claims")
         return payload
     except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=401, detail="Phiên đăng nhập không hợp lệ hoặc đã hết hạn.") from exc
+        raise HTTPException(
+            status_code=401,
+            detail="Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+        ) from exc
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    token: str | None = Cookie(default=None, alias=settings.auth_cookie_name),
 ) -> dict[str, Any]:
-    if credentials is None or credentials.scheme.lower() != "bearer":
+    if not token:
         raise HTTPException(status_code=401, detail="Bạn cần đăng nhập để tiếp tục.")
-    payload = decode_access_token(credentials.credentials)
+    payload = decode_access_token(token)
     user = await get_staff_user_by_email(payload["sub"])
     if user is None or user.get("status") != "active":
-        raise HTTPException(status_code=401, detail="Tài khoản không tồn tại hoặc đã bị khóa.")
+        raise HTTPException(
+            status_code=401,
+            detail="Tài khoản không tồn tại hoặc đã bị khóa.",
+        )
     return {key: value for key, value in user.items() if key != "password_hash"}
 
 
 def require_roles(*roles: str):
     async def dependency(user: dict[str, Any] = Depends(get_current_user)):
         if user.get("role") not in roles:
-            raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện thao tác này.")
+            raise HTTPException(
+                status_code=403,
+                detail="Bạn không có quyền thực hiện thao tác này.",
+            )
         return user
+
     return dependency

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { managementApi } from "@/lib/managementApi";
-import { AuthUser, clearAuth, loadCurrentUser } from "@/lib/auth";
+import { AuthUser, loadCurrentUser, logout } from "@/lib/auth";
 
 const navigation = [
   { href: "/admin", label: "Tổng quan", icon: "▦" },
@@ -51,9 +51,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const logout = () => {
-    clearAuth();
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
+    router.refresh();
   };
 
   return (
@@ -116,7 +117,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               <p className="truncate text-sm font-medium">{user.full_name}</p>
               <p className="text-xs capitalize text-slate-400">{user.role}</p>
             </div>
-            <button onClick={logout} className="ml-auto text-xs text-red-300">Thoát</button>
+            <button onClick={handleLogout} className="ml-auto text-xs text-red-300">Thoát</button>
           </div>
         </div>
       </aside>

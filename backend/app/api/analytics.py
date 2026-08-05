@@ -1,7 +1,7 @@
 """
 Endpoints xem số liệu hoạt động chatbot.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from app.auth.security import get_current_user
 from app.services.analytics_service import (
     get_overview,
@@ -41,6 +41,6 @@ async def fallbacks():
 
 
 @router.get("/leads")
-async def leads(limit: int = 20):
+async def leads(limit: int = Query(default=20, ge=1, le=500)):
     """Danh sách leads gần nhất."""
     return await get_recent_leads(limit=limit)

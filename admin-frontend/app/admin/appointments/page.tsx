@@ -45,7 +45,6 @@ export default function AppointmentsPage() {
       await managementApi.updateAppointment(
         appointment.appointment_code,
         status,
-        "Nhân viên local",
         notes[appointment.appointment_code],
       );
       if (status === "confirmed") {
