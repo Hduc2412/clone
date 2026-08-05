@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.db.database import (
@@ -7,15 +7,18 @@ from app.db.database import (
     mark_notification_read,
     update_appointment_status,
 )
+from app.auth.security import get_current_user
 
 
 appointment_router = APIRouter(
     prefix="/appointments",
     tags=["Appointments"],
+    dependencies=[Depends(get_current_user)],
 )
 notification_router = APIRouter(
     prefix="/notifications",
     tags=["Notifications"],
+    dependencies=[Depends(get_current_user)],
 )
 
 ALLOWED_STATUSES = {

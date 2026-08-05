@@ -1,7 +1,7 @@
 import re
 import secrets
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
@@ -9,6 +9,7 @@ from app.db.database import (
     create_managed_lead,
     create_staff_user,
     get_management_overview,
+    get_staff_user_by_email,
     get_messages,
     list_conversations,
     list_managed_leads,
@@ -16,9 +17,14 @@ from app.db.database import (
     update_managed_lead,
     update_staff_user,
 )
+from app.auth.security import get_current_user, hash_password, require_roles
 
 
-router = APIRouter(prefix="/management", tags=["Management"])
+router = APIRouter(
+    prefix="/management",
+    tags=["Management"],
+    dependencies=[Depends(get_current_user)],
+)
 
 LEAD_STATUSES = {
     "new",
@@ -61,6 +67,7 @@ class StaffCreateRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=100)
     email: str = Field(min_length=5, max_length=150)
     role: str = "consultant"
+    password: str = Field(min_length=8, max_length=128)
 
 
 class StaffUpdateRequest(BaseModel):
@@ -123,17 +130,23 @@ async def update_lead(lead_code: str, request: LeadUpdateRequest):
     return lead
 
 
-@router.get("/users")
+@router.get("/users", dependencies=[Depends(require_roles("admin", "manager"))])
 async def users(limit: int = Query(default=100, ge=1, le=500)):
     return await list_staff_users(limit=limit)
 
 
 @router.post("/users", status_code=201)
-async def create_user(request: StaffCreateRequest):
+async def create_user(
+    request: StaffCreateRequest,
+    current_user=Depends(require_roles("admin", "manager")),
+):
     if request.role not in USER_ROLES:
         raise HTTPException(status_code=400, detail="Vai trò không hợp lệ.")
-    data = request.model_dump()
+    if request.role == "admin" and current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Chỉ Admin được tạo tài khoản Admin.")
+    data = request.model_dump(exclude={"password"})
     data["email"] = _validate_email(data["email"])
+    data["password_hash"] = hash_password(request.password)
     try:
         return await create_staff_user(data)
     except DuplicateKeyError as exc:
@@ -141,12 +154,21 @@ async def create_user(request: StaffCreateRequest):
 
 
 @router.patch("/users/{email}")
-async def update_user(email: str, request: StaffUpdateRequest):
+async def update_user(
+    email: str,
+    request: StaffUpdateRequest,
+    current_user=Depends(require_roles("admin", "manager")),
+):
     fields = request.model_dump(exclude_unset=True)
     if fields.get("role") and fields["role"] not in USER_ROLES:
         raise HTTPException(status_code=400, detail="Vai trò không hợp lệ.")
     if fields.get("status") and fields["status"] not in USER_STATUSES:
         raise HTTPException(status_code=400, detail="Trạng thái tài khoản không hợp lệ.")
+    target = await get_staff_user_by_email(_validate_email(email))
+    if target and target.get("role") == "admin" and current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Manager không được sửa tài khoản Admin.")
+    if fields.get("role") == "admin" and current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Chỉ Admin được cấp vai trò Admin.")
     user = await update_staff_user(_validate_email(email), fields)
     if user is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")

@@ -38,6 +38,7 @@ export default function UsersPage() {
         full_name: String(form.get("full_name") || ""),
         email: String(form.get("email") || ""),
         role: String(form.get("role") || "consultant"),
+        password: String(form.get("password") || ""),
       });
       event.currentTarget.reset();
       setShowForm(false);
@@ -75,15 +76,15 @@ export default function UsersPage() {
       />
       {error && <ErrorBanner message={error} />}
 
-      <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        MVP chưa có đăng nhập và mật khẩu. Danh sách này dùng để chuẩn bị phân
-        công và xác nhận lịch; Authentication sẽ được bổ sung ở giai đoạn sau.
+      <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        Tài khoản mới được bảo vệ bằng mật khẩu. Admin được tạo mọi vai trò;
+        Manager không được tạo hoặc chỉnh sửa tài khoản Admin.
       </div>
 
       {showForm && (
         <form
           onSubmit={submit}
-          className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-3"
+          className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2 xl:grid-cols-4"
         >
           <label className="text-sm font-medium text-slate-600">
             Họ tên
@@ -114,6 +115,18 @@ export default function UsersPage() {
               <option value="manager">Quản lý</option>
               <option value="admin">Quản trị viên</option>
             </select>
+          </label>
+          <label className="text-sm font-medium text-slate-600">
+            Mật khẩu ban đầu
+            <input
+              required
+              minLength={8}
+              type="password"
+              name="password"
+              autoComplete="new-password"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+              placeholder="Tối thiểu 8 ký tự"
+            />
           </label>
           <button className="rounded-xl bg-[#171b22] px-4 py-2.5 text-sm font-medium text-white md:col-span-3">
             Lưu người dùng

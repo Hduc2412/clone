@@ -71,6 +71,8 @@ async def init_db() -> None:
     await db.staff_users.create_index("email", unique=True)
     await db.staff_users.create_index("status")
 
+    await _create_initial_admin()
+
     print("[DB] MongoDB initialized successfully.")
 
 
@@ -477,7 +479,48 @@ async def create_staff_user(data: dict[str, Any]) -> dict[str, Any]:
         "updated_at": now,
     }
     await get_db().staff_users.insert_one(document)
-    return {key: value for key, value in document.items() if key != "_id"}
+    return {
+        key: value
+        for key, value in document.items()
+        if key not in {"_id", "password_hash"}
+    }
+
+
+async def get_staff_user_by_email(email: str) -> dict[str, Any] | None:
+    return await get_db().staff_users.find_one(
+        {"email": email.strip().lower()},
+        {"_id": 0},
+    )
+
+
+async def record_staff_login(email: str) -> None:
+    now = _now()
+    await get_db().staff_users.update_one(
+        {"email": email.strip().lower()},
+        {"$set": {"last_login_at": now, "updated_at": now}},
+    )
+
+
+async def update_staff_password(email: str, password_hash: str) -> bool:
+    result = await get_db().staff_users.update_one(
+        {"email": email.strip().lower(), "status": "active"},
+        {"$set": {"password_hash": password_hash, "updated_at": _now()}},
+    )
+    return result.modified_count == 1
+
+
+async def _create_initial_admin() -> None:
+    """Create the first admin from environment variables when no staff exists."""
+    email = os.getenv("INITIAL_ADMIN_EMAIL", "").strip().lower()
+    password_hash = os.getenv("INITIAL_ADMIN_PASSWORD_HASH", "").strip()
+    full_name = os.getenv("INITIAL_ADMIN_NAME", "Quản trị viên").strip()
+    if not email or not password_hash:
+        return
+    if await get_db().staff_users.count_documents({"email": email}) > 0:
+        return
+    await create_staff_user(
+        {"full_name": full_name, "email": email, "role": "admin", "password_hash": password_hash}
+    )
 
 
 async def update_staff_user(

@@ -1,3 +1,5 @@
+import { clearAuth, getToken } from "@/lib/auth";
+
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
@@ -73,15 +75,21 @@ export interface ConversationMessage {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const response = await fetch(`${BACKEND_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
     cache: "no-store",
   });
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuth();
+      if (typeof window !== "undefined") window.location.href = "/login";
+    }
     const payload = await response.json().catch(() => null);
     throw new Error(payload?.detail || "Không thể kết nối hệ thống.");
   }
@@ -141,6 +149,7 @@ export const managementApi = {
     full_name: string;
     email: string;
     role: string;
+    password: string;
   }) =>
     request<StaffUser>("/management/users", {
       method: "POST",

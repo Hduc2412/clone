@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { managementApi } from "@/lib/managementApi";
+import { AuthUser, clearAuth, loadCurrentUser } from "@/lib/auth";
 
 const navigation = [
   { href: "/admin", label: "Tổng quan", icon: "▦" },
@@ -16,10 +18,21 @@ const navigation = [
 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
+    loadCurrentUser()
+      .then(setUser)
+      .catch(() => router.replace("/login"))
+      .finally(() => setCheckingAuth(false));
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
     const load = () =>
       managementApi
         .overview()
@@ -28,7 +41,20 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     load();
     const interval = window.setInterval(load, 30000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [user]);
+
+  if (checkingAuth || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#171b22] text-sm text-slate-300">
+        Đang kiểm tra phiên đăng nhập...
+      </div>
+    );
+  }
+
+  const logout = () => {
+    clearAuth();
+    router.replace("/login");
+  };
 
   return (
     <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
@@ -52,7 +78,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <p className="mt-1 text-xs text-slate-400">Điều dưỡng Nhật Bản</p>
         </div>
         <nav className="flex-1 space-y-1 px-4 py-6">
-          {navigation.map((item) => {
+          {navigation
+            .filter((item) => item.href !== "/admin/users" || user.role !== "consultant")
+            .map((item) => {
             const active =
               item.href === "/admin"
                 ? pathname === item.href
@@ -82,12 +110,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         <div className="border-t border-white/10 p-4">
           <div className="flex items-center gap-3 rounded-xl bg-white/5 p-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20 text-sm font-bold text-red-300">
-              QT
+              {user.full_name.split(" ").slice(-2).map((word) => word[0]).join("").toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">Quản trị local</p>
-              <p className="text-xs text-slate-400">MVP chưa đăng nhập</p>
+              <p className="truncate text-sm font-medium">{user.full_name}</p>
+              <p className="text-xs capitalize text-slate-400">{user.role}</p>
             </div>
+            <button onClick={logout} className="ml-auto text-xs text-red-300">Thoát</button>
           </div>
         </div>
       </aside>

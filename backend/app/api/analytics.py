@@ -1,7 +1,8 @@
 """
 Endpoints xem số liệu hoạt động chatbot.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.auth.security import get_current_user
 from app.services.analytics_service import (
     get_overview,
     get_today_stats,
@@ -9,7 +10,11 @@ from app.services.analytics_service import (
     get_fallback_rate,
     get_recent_leads,
 )
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
+router = APIRouter(
+    prefix="/analytics",
+    tags=["Analytics"],
+    dependencies=[Depends(get_current_user)],
+)
 
 @router.get("/overview")
 async def overview():
