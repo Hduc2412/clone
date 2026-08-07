@@ -132,6 +132,9 @@ async def process_booking_message(session, message: str) -> tuple[str, bool]:
     if started_booking:
         session.booking_step = "name"
         session.booking_data = {}
+        await _persist(session)
+        _, answer = _next_question(session.booking_data)
+        return answer, False
 
     data = session.booking_data
 

@@ -27,7 +27,7 @@ class BookingFlowTests(unittest.IsolatedAsyncioTestCase):
     ):
         workday = next_workday()
         messages = [
-            "Tôi muốn đặt lịch tư vấn",
+            "đặt lịch",
             "Nguyễn Văn Nam",
             "0912345678",
             workday.strftime("%d/%m/%Y"),
