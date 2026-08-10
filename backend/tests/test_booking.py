@@ -2,7 +2,7 @@ import unittest
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
-from app.booking.booking_service import _today, process_booking_message
+from app.booking.booking_service import _extract_plain_name, _today, process_booking_message
 from app.conversation.session_manager import Session
 
 
@@ -89,6 +89,25 @@ class BookingFlowTests(unittest.IsolatedAsyncioTestCase):
         self.session.booking_data["appointment_date"] = next_workday().isoformat()
         answer, _ = await process_booking_message(self.session, "12:30")
         self.assertIn("08:00–11:30", answer)
+
+
+class PlainNameHeuristicTests(unittest.TestCase):
+    def test_rejects_common_commands_and_conversational_phrases(self):
+        for value in (
+            "đặt lịch",
+            "tư vấn",
+            "tôi muốn đi Nhật",
+            "tôi không biết",
+            "chi phí là gì",
+            "ngày mai",
+        ):
+            with self.subTest(value=value):
+                self.assertIsNone(_extract_plain_name(value))
+
+    def test_accepts_common_vietnamese_name_formats(self):
+        self.assertEqual(_extract_plain_name("Nguyễn Văn Nam"), "Nguyễn Văn Nam")
+        self.assertEqual(_extract_plain_name("nguyen van nam"), "nguyen van nam")
+        self.assertEqual(_extract_plain_name("Văn Nam"), "Văn Nam")
 
 
 if __name__ == "__main__":
