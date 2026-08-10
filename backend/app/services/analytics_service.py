@@ -11,7 +11,7 @@ async def get_overview() -> dict:
     db = get_db()
     total_sessions = await db.sessions.count_documents({})
     total_messages = await db.messages.count_documents({})
-    total_leads = await db.leads.count_documents({})
+    total_leads = await db.managed_leads.count_documents({})
 
     return {
         "total_sessions": total_sessions,
@@ -30,7 +30,7 @@ async def get_today_stats() -> dict:
     messages_today = await db.messages.count_documents(
         {"created_at": {"$gte": start_of_day}}
     )
-    leads_today = await db.leads.count_documents(
+    leads_today = await db.managed_leads.count_documents(
         {"created_at": {"$gte": start_of_day}}
     )
 
@@ -73,9 +73,19 @@ async def get_recent_leads(limit: int = 20) -> list:
     from pymongo import DESCENDING
     cursor = (
         get_db()
-        .leads.find(
+        .managed_leads.find(
             {},
-            {"_id": 0, "session_id": 1, "name": 1, "phone": 1, "created_at": 1}
+            {
+                "_id": 0,
+                "lead_code": 1,
+                "customer_name": 1,
+                "phone": 1,
+                "source": 1,
+                "status": 1,
+                "assigned_to": 1,
+                "note": 1,
+                "created_at": 1,
+            }
         )
         .sort("created_at", DESCENDING)
         .limit(limit)

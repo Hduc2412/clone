@@ -13,6 +13,29 @@ LOCAL_TIMEZONE = timezone(timedelta(hours=7))
 YES_WORDS = {"co", "dong y", "xac nhan", "ok", "oke", "dung", "dat lich"}
 NO_WORDS = {"khong", "khong dong y", "sai", "huy", "huy lich"}
 CANCEL_PHRASES = {"huy dat lich", "khong dat nua", "thoi khong dat"}
+PLAIN_NAME_BLACKLIST = {
+    "dat lich",
+    "tu van",
+    "xac nhan",
+    "dong y",
+    "khong biet",
+    "cam on",
+    "xin chao",
+    "huy lich",
+    "ngay mai",
+    "hom nay",
+}
+NON_NAME_MARKERS = {
+    "bao nhieu",
+    "cho toi",
+    "dat lich",
+    "huy lich",
+    "la gi",
+    "toi can",
+    "toi muon",
+    "tu van",
+    "xac nhan",
+}
 
 
 def _today() -> date:
@@ -75,6 +98,18 @@ def _extract_plain_name(text: str) -> str | None:
         value,
         flags=re.UNICODE,
     ):
+        return None
+    normalized = normalize_text(value).strip()
+    if any(
+        marker in normalized
+        for marker in PLAIN_NAME_BLACKLIST | NON_NAME_MARKERS
+    ):
+        return None
+
+    words = value.split()
+    # A two-word, all-lowercase phrase is more likely a command ("dat lich")
+    # than a full name. Three-or-more-word lowercase Vietnamese names remain valid.
+    if len(words) == 2 and not any(word[:1].isupper() for word in words):
         return None
     return value
 
