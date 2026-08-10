@@ -24,7 +24,7 @@ Trạng thái: **đã có MVP local**.
 
 ## Giai đoạn 1 — Xác thực và phân quyền
 
-Ưu tiên tiếp theo: **cao nhất**.
+Trạng thái: **MVP đã hoàn thành, tiếp tục hoàn thiện ma trận quyền và audit log**.
 
 1. Chốt quyền chi tiết cho `admin`, `manager`, `consultant`.
 2. Thiết kế tài khoản, mật khẩu băm, phiên đăng nhập và refresh token.
@@ -42,13 +42,13 @@ Tiêu chí hoàn thành:
 
 ## Giai đoạn 2 — Hoàn thiện lịch hẹn
 
-1. Bộ lọc ngày, trạng thái và nhân viên phụ trách.
-2. Phân công lịch cho nhân viên.
-3. Đổi lịch có lưu lịch sử.
-4. Ghi chú kết quả cuộc gọi.
-5. Cảnh báo lịch trùng và lịch sắp tới.
-6. Nhật ký thay đổi trạng thái.
-7. Thống kê tỷ lệ xác nhận, hoàn thành và không liên hệ được.
+- [x] Bộ lọc ngày, trạng thái và nhân viên phụ trách.
+- [x] Phân công lịch cho nhân viên.
+- [x] Đổi lịch có lưu lịch sử.
+- [x] Ghi chú kết quả cuộc gọi.
+- [x] Chặn lịch trùng và cảnh báo lịch sắp tới trong 24 giờ.
+- [x] Nhật ký tạo lịch, phân công và thay đổi trạng thái.
+- [ ] Thống kê tỷ lệ xác nhận, hoàn thành và không liên hệ được.
 
 Tiêu chí hoàn thành:
 
@@ -129,9 +129,8 @@ Chỉ thực hiện sau khi local ổn định:
 
 ## Thứ tự đề xuất ngay sau bản hiện tại
 
-1. Kiểm thử giao diện quản lý trên trình duyệt.
-2. Sửa lỗi giao diện và luồng lịch nếu phát hiện.
-3. Làm Authentication + Role/Permission.
-4. Hoàn thiện lịch hẹn và phân công nhân viên.
-5. Thiết kế module hồ sơ tuyển dụng.
-6. Làm upload và version hóa cơ sở tri thức.
+1. Kiểm thử giao diện quản lý lịch hẹn trên trình duyệt.
+2. Bổ sung thống kê tỷ lệ xử lý lịch hẹn.
+3. Hoàn thiện ma trận quyền và audit log xác thực.
+4. Thiết kế module hồ sơ tuyển dụng.
+5. Làm upload và version hóa cơ sở tri thức.

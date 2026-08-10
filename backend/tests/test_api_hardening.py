@@ -1,12 +1,17 @@
 import unittest
 import uuid
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from app.api.appointments import AppointmentStatusRequest
+from app.api.appointments import (
+    AppointmentAssignmentRequest,
+    AppointmentStatusRequest,
+    validate_appointment_slot,
+)
 from app.api.chat import ChatRequest
 from app.conversation.session_manager import session_manager
 from app.core.rate_limit import InMemoryRateLimiter
@@ -36,6 +41,28 @@ class ChatRequestValidationTests(unittest.TestCase):
                 status="confirmed",
                 employee_name="Người giả mạo",
             )
+
+
+    def test_assignment_request_rejects_extra_actor_fields(self):
+        with self.assertRaises(ValidationError):
+            AppointmentAssignmentRequest(
+                assigned_to="consultant@example.com",
+                assigned_by="spoofed@example.com",
+            )
+
+    def test_reschedule_rejects_past_sunday_and_outside_working_hours(self):
+        with self.assertRaises(HTTPException):
+            validate_appointment_slot(date.today() - timedelta(days=1), "09:00")
+
+        next_sunday = date.today() + timedelta(days=(6 - date.today().weekday()) % 7)
+        if next_sunday < date.today():
+            next_sunday += timedelta(days=7)
+        with self.assertRaises(HTTPException):
+            validate_appointment_slot(next_sunday, "09:00")
+
+        next_monday = date.today() + timedelta(days=(7 - date.today().weekday()) % 7)
+        with self.assertRaises(HTTPException):
+            validate_appointment_slot(next_monday, "12:30")
 
 
 class RateLimiterTests(unittest.TestCase):

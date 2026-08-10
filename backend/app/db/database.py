@@ -54,11 +54,17 @@ async def init_db() -> None:
         [("status", ASCENDING), ("appointment_date", ASCENDING)],
     )
     await db.consultation_appointments.create_index(
+        [("assigned_to", ASCENDING), ("appointment_date", ASCENDING)],
+    )
+    await db.consultation_appointments.create_index(
         "booking_key",
         unique=True,
     )
     await db.notifications.create_index(
         [("is_read", ASCENDING), ("created_at", DESCENDING)],
+    )
+    await db.appointment_events.create_index(
+        [("appointment_code", ASCENDING), ("created_at", ASCENDING)],
     )
     await db.managed_leads.create_index("lead_code", unique=True)
     await db.managed_leads.create_index("phone")
@@ -249,10 +255,21 @@ async def create_appointment(appointment: dict[str, Any]) -> dict[str, Any]:
         "confirmed_at": None,
         "contacted_at": None,
         "result_note": None,
+        "assigned_to": None,
+        "assigned_name": None,
+        "assigned_by": None,
+        "assigned_at": None,
         "created_at": now,
         "updated_at": now,
     }
     await get_db().consultation_appointments.insert_one(document)
+    await _record_appointment_event(
+        appointment_code=document["appointment_code"],
+        action="created",
+        actor_name="Chatbot",
+        actor_email=None,
+        new_status="pending",
+    )
     await get_db().notifications.insert_one(
         {
             "type": "new_appointment",
@@ -271,9 +288,22 @@ async def create_appointment(appointment: dict[str, Any]) -> dict[str, Any]:
 
 async def list_appointments(
     status: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    assigned_to: str | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    query = {"status": status} if status else {}
+    query: dict[str, Any] = {}
+    if status:
+        query["status"] = status
+    if assigned_to:
+        query["assigned_to"] = assigned_to.strip().lower()
+    if date_from or date_to:
+        query["appointment_date"] = {}
+        if date_from:
+            query["appointment_date"]["$gte"] = date_from
+        if date_to:
+            query["appointment_date"]["$lte"] = date_to
     cursor = (
         get_db()
         .consultation_appointments.find(query, {"_id": 0, "booking_key": 0})
@@ -286,10 +316,11 @@ async def list_appointments(
 async def update_appointment_status(
     appointment_code: str,
     status: str,
-    employee_name: str,
+    actor: dict[str, Any],
     result_note: str | None = None,
 ) -> dict[str, Any] | None:
     now = _now()
+    employee_name = actor["full_name"]
     fields: dict[str, Any] = {
         "status": status,
         "updated_at": now,
@@ -307,7 +338,6 @@ async def update_appointment_status(
         "confirmed": ["pending"],
         "completed": ["confirmed"],
         "unreachable": ["confirmed"],
-        "rescheduled": ["confirmed", "unreachable"],
         "cancelled": ["pending", "confirmed", "unreachable"],
     }
     query: dict[str, Any] = {
@@ -317,12 +347,199 @@ async def update_appointment_status(
     if status == "confirmed":
         query["confirmed_by"] = None
 
-    return await get_db().consultation_appointments.find_one_and_update(
+    previous = await get_db().consultation_appointments.find_one_and_update(
         query,
         {"$set": fields},
-        return_document=ReturnDocument.AFTER,
+        return_document=ReturnDocument.BEFORE,
         projection={"_id": 0, "booking_key": 0},
     )
+    if previous is None:
+        return None
+
+    await _record_appointment_event(
+        appointment_code=appointment_code,
+        action="status_changed",
+        actor_name=employee_name,
+        actor_email=actor["email"],
+        old_status=previous.get("status"),
+        new_status=status,
+        note=result_note,
+    )
+    return await get_db().consultation_appointments.find_one(
+        {"appointment_code": appointment_code},
+        {"_id": 0, "booking_key": 0},
+    )
+
+
+async def assign_appointment(
+    appointment_code: str,
+    assignee: dict[str, Any],
+    actor: dict[str, Any],
+) -> dict[str, Any] | None:
+    now = _now()
+    previous = await get_db().consultation_appointments.find_one_and_update(
+        {
+            "appointment_code": appointment_code,
+            "status": {"$nin": ["completed", "cancelled"]},
+        },
+        {
+            "$set": {
+                "assigned_to": assignee["email"],
+                "assigned_name": assignee["full_name"],
+                "assigned_by": actor["email"],
+                "assigned_at": now,
+                "updated_at": now,
+                "updated_by": actor["full_name"],
+            }
+        },
+        return_document=ReturnDocument.BEFORE,
+        projection={"_id": 0, "booking_key": 0},
+    )
+    if previous is None:
+        return None
+
+    await _record_appointment_event(
+        appointment_code=appointment_code,
+        action="assigned",
+        actor_name=actor["full_name"],
+        actor_email=actor["email"],
+        old_status=previous.get("status"),
+        new_status=previous.get("status"),
+        details={
+            "previous_assigned_to": previous.get("assigned_to"),
+            "assigned_to": assignee["email"],
+            "assigned_name": assignee["full_name"],
+        },
+    )
+    return await get_db().consultation_appointments.find_one(
+        {"appointment_code": appointment_code},
+        {"_id": 0, "booking_key": 0},
+    )
+
+
+async def find_appointment_conflict(
+    appointment_code: str,
+    appointment_date: str,
+    appointment_time: str,
+) -> dict[str, Any] | None:
+    db = get_db()
+    appointment = await db.consultation_appointments.find_one(
+        {"appointment_code": appointment_code},
+        {"_id": 0},
+    )
+    if appointment is None:
+        return None
+
+    conflict_conditions: list[dict[str, Any]] = [{"phone": appointment["phone"]}]
+    if appointment.get("assigned_to"):
+        conflict_conditions.append({"assigned_to": appointment["assigned_to"]})
+    return await db.consultation_appointments.find_one(
+        {
+            "appointment_code": {"$ne": appointment_code},
+            "appointment_date": appointment_date,
+            "appointment_time": appointment_time,
+            "status": {"$nin": ["completed", "cancelled"]},
+            "$or": conflict_conditions,
+        },
+        {"_id": 0, "booking_key": 0},
+    )
+
+
+async def reschedule_appointment(
+    appointment_code: str,
+    appointment_date: str,
+    appointment_time: str,
+    actor: dict[str, Any],
+    note: str | None = None,
+) -> dict[str, Any] | None:
+    now = _now()
+    current = await get_db().consultation_appointments.find_one(
+        {"appointment_code": appointment_code},
+        {"phone": 1},
+    )
+    if current is None:
+        return None
+    previous = await get_db().consultation_appointments.find_one_and_update(
+        {
+            "appointment_code": appointment_code,
+            "status": {"$nin": ["completed", "cancelled"]},
+        },
+        {
+            "$set": {
+                "appointment_date": appointment_date,
+                "appointment_time": appointment_time,
+                "booking_key": f"{current['phone']}|{appointment_date}|{appointment_time}",
+                "status": "confirmed",
+                "updated_at": now,
+                "updated_by": actor["full_name"],
+            }
+        },
+        return_document=ReturnDocument.BEFORE,
+        projection={"_id": 0},
+    )
+    if previous is None:
+        return None
+
+    await _record_appointment_event(
+        appointment_code=appointment_code,
+        action="rescheduled",
+        actor_name=actor["full_name"],
+        actor_email=actor["email"],
+        old_status=previous.get("status"),
+        new_status="confirmed",
+        note=note,
+        details={
+            "previous_date": previous.get("appointment_date"),
+            "previous_time": previous.get("appointment_time"),
+            "appointment_date": appointment_date,
+            "appointment_time": appointment_time,
+        },
+    )
+    return await get_db().consultation_appointments.find_one(
+        {"appointment_code": appointment_code},
+        {"_id": 0, "booking_key": 0},
+    )
+
+
+async def _record_appointment_event(
+    appointment_code: str,
+    action: str,
+    actor_name: str,
+    actor_email: str | None,
+    old_status: str | None = None,
+    new_status: str | None = None,
+    note: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> None:
+    await get_db().appointment_events.insert_one(
+        {
+            "appointment_code": appointment_code,
+            "action": action,
+            "actor_name": actor_name,
+            "actor_email": actor_email,
+            "old_status": old_status,
+            "new_status": new_status,
+            "note": note,
+            "details": details or {},
+            "created_at": _now(),
+        }
+    )
+
+
+async def list_appointment_events(
+    appointment_code: str,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    cursor = (
+        get_db()
+        .appointment_events.find(
+            {"appointment_code": appointment_code},
+            {"_id": 0},
+        )
+        .sort("created_at", ASCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
 
 
 async def list_notifications(

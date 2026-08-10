@@ -22,7 +22,32 @@ export interface Appointment {
   appointment_time: string;
   status: string;
   confirmed_by?: string | null;
+  assigned_to?: string | null;
+  assigned_name?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
   result_note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppointmentEvent {
+  appointment_code: string;
+  action: "created" | "assigned" | "status_changed" | "rescheduled";
+  actor_name: string;
+  actor_email?: string | null;
+  old_status?: string | null;
+  new_status?: string | null;
+  note?: string | null;
+  details: {
+    previous_assigned_to?: string | null;
+    assigned_to?: string;
+    assigned_name?: string;
+    previous_date?: string;
+    previous_time?: string;
+    appointment_date?: string;
+    appointment_time?: string;
+  };
   created_at: string;
 }
 
@@ -94,10 +119,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const managementApi = {
   overview: () => request<Overview>("/management/overview"),
-  appointments: (status?: string) =>
-    request<Appointment[]>(
-      `/appointments${status ? `?status=${encodeURIComponent(status)}` : ""}`,
-    ),
+  appointments: (filters?: {
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    assignedTo?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
+    if (filters?.dateTo) params.set("date_to", filters.dateTo);
+    if (filters?.assignedTo) params.set("assigned_to", filters.assignedTo);
+    const query = params.toString();
+    return request<Appointment[]>(`/appointments${query ? `?${query}` : ""}`);
+  },
   updateAppointment: (
     code: string,
     status: string,
@@ -108,6 +143,29 @@ export const managementApi = {
       body: JSON.stringify({
         status,
         result_note: resultNote || null,
+      }),
+    }),
+  appointmentAssignees: () =>
+    request<StaffUser[]>("/appointments/assignees"),
+  assignAppointment: (code: string, assignedTo: string) =>
+    request<Appointment>(`/appointments/${code}/assignment`, {
+      method: "PATCH",
+      body: JSON.stringify({ assigned_to: assignedTo }),
+    }),
+  appointmentEvents: (code: string) =>
+    request<AppointmentEvent[]>(`/appointments/${code}/events`),
+  rescheduleAppointment: (
+    code: string,
+    appointmentDate: string,
+    appointmentTime: string,
+    note?: string,
+  ) =>
+    request<Appointment>(`/appointments/${code}/reschedule`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime,
+        note: note || null,
       }),
     }),
   notifications: (unreadOnly = false) =>
