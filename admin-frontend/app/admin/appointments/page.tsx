@@ -53,6 +53,7 @@ export default function AppointmentsPage() {
   const [events, setEvents] = useState<Record<string, AppointmentEvent[]>>({});
   const [openHistory, setOpenHistory] = useState("");
   const [canAssign, setCanAssign] = useState(false);
+  const [isConsultant, setIsConsultant] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -70,10 +71,19 @@ export default function AppointmentsPage() {
   useEffect(() => load(), [load]);
 
   useEffect(() => {
-    managementApi.appointmentAssignees().then(setAssignees).catch(() => setAssignees([]));
     loadCurrentUser()
-      .then((user) => setCanAssign(["admin", "manager"].includes(user.role)))
-      .catch(() => setCanAssign(false));
+      .then((user) => {
+        const canManageAssignments = ["admin", "manager"].includes(user.role);
+        setCanAssign(canManageAssignments);
+        setIsConsultant(user.role === "consultant");
+        if (canManageAssignments) {
+          managementApi.appointmentAssignees().then(setAssignees).catch(() => setAssignees([]));
+        }
+      })
+      .catch(() => {
+        setCanAssign(false);
+        setIsConsultant(false);
+      });
   }, []);
 
   const update = async (appointment: Appointment, nextStatus: string) => {
@@ -191,13 +201,15 @@ export default function AppointmentsPage() {
           Đến ngày
           <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400" />
         </label>
-        <label className="text-xs font-medium text-slate-500">
-          Nhân viên phụ trách
-          <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400">
-            <option value="">Tất cả nhân viên</option>
-            {assignees.map((user) => <option key={user.email} value={user.email}>{user.full_name}</option>)}
-          </select>
-        </label>
+        {!isConsultant && (
+          <label className="text-xs font-medium text-slate-500">
+            Nhân viên phụ trách
+            <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400">
+              <option value="">Tất cả nhân viên</option>
+              {assignees.map((user) => <option key={user.email} value={user.email}>{user.full_name}</option>)}
+            </select>
+          </label>
+        )}
       </section>
 
       {!loading && appointments.length === 0 ? (

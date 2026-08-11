@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError
 from app.db.database import (
     assign_appointment,
     find_appointment_conflict,
+    get_appointment_by_code,
     get_staff_user_by_email,
     list_appointment_events,
     list_appointments,
@@ -79,6 +80,24 @@ def validate_appointment_slot(appointment_date: date, appointment_time: str) -> 
         )
 
 
+async def require_appointment_access(
+    appointment_code: str,
+    current_user: dict,
+) -> dict:
+    appointment = await get_appointment_by_code(appointment_code)
+    if appointment is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lịch hẹn.")
+    if (
+        current_user["role"] == "consultant"
+        and appointment.get("assigned_to") != current_user["email"]
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn chỉ được thao tác trên lịch hẹn được giao cho mình.",
+        )
+    return appointment
+
+
 @appointment_router.get("")
 async def get_appointments(
     status: str | None = None,
@@ -86,14 +105,20 @@ async def get_appointments(
     date_to: date | None = None,
     assigned_to: str | None = Query(default=None, max_length=150),
     limit: int = Query(default=100, ge=1, le=500),
+    current_user=Depends(get_current_user),
 ):
     if date_from and date_to and date_from > date_to:
         raise HTTPException(status_code=400, detail="Ngày bắt đầu phải trước ngày kết thúc.")
+    effective_assigned_to = (
+        current_user["email"]
+        if current_user["role"] == "consultant"
+        else assigned_to
+    )
     return await list_appointments(
         status=status,
         date_from=date_from.isoformat() if date_from else None,
         date_to=date_to.isoformat() if date_to else None,
-        assigned_to=assigned_to,
+        assigned_to=effective_assigned_to,
         limit=limit,
     )
 
@@ -110,11 +135,15 @@ async def change_appointment_status(
             detail=f"Trạng thái không hợp lệ: {request.status}",
         )
 
+    await require_appointment_access(appointment_code, current_user)
     appointment = await update_appointment_status(
         appointment_code=appointment_code,
         status=request.status,
         actor=current_user,
         result_note=request.result_note,
+        required_assigned_to=(
+            current_user["email"] if current_user["role"] == "consultant" else None
+        ),
     )
     if appointment is None:
         raise HTTPException(
@@ -125,7 +154,9 @@ async def change_appointment_status(
 
 
 @appointment_router.get("/assignees")
-async def get_assignees():
+async def get_assignees(
+    _current_user=Depends(require_roles("admin", "manager")),
+):
     users = await list_staff_users(limit=500)
     return [
         user
@@ -164,6 +195,7 @@ async def change_appointment_schedule(
     current_user=Depends(get_current_user),
 ):
     appointment_date = request.appointment_date.isoformat()
+    await require_appointment_access(appointment_code, current_user)
     validate_appointment_slot(request.appointment_date, request.appointment_time)
     conflict = await find_appointment_conflict(
         appointment_code,
@@ -182,6 +214,9 @@ async def change_appointment_schedule(
             appointment_time=request.appointment_time,
             actor=current_user,
             note=request.note,
+            required_assigned_to=(
+                current_user["email"] if current_user["role"] == "consultant" else None
+            ),
         )
     except DuplicateKeyError as exc:
         raise HTTPException(status_code=409, detail="Khách hàng đã có lịch ở khung giờ này.") from exc
@@ -197,7 +232,9 @@ async def change_appointment_schedule(
 async def get_appointment_events(
     appointment_code: str,
     limit: int = Query(default=100, ge=1, le=500),
+    current_user=Depends(get_current_user),
 ):
+    await require_appointment_access(appointment_code, current_user)
     return await list_appointment_events(appointment_code, limit=limit)
 
 
@@ -205,12 +242,24 @@ async def get_appointment_events(
 async def get_notifications(
     unread_only: bool = False,
     limit: int = Query(default=100, ge=1, le=500),
+    current_user=Depends(get_current_user),
 ):
-    return await list_notifications(unread_only=unread_only, limit=limit)
+    assigned_to = (
+        current_user["email"] if current_user["role"] == "consultant" else None
+    )
+    return await list_notifications(
+        unread_only=unread_only,
+        assigned_to=assigned_to,
+        limit=limit,
+    )
 
 
 @notification_router.patch("/{appointment_code}/read")
-async def read_notification(appointment_code: str):
+async def read_notification(
+    appointment_code: str,
+    current_user=Depends(get_current_user),
+):
+    await require_appointment_access(appointment_code, current_user)
     updated = await mark_notification_read(appointment_code)
     if not updated:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông báo chưa đọc.")

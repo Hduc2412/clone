@@ -313,11 +313,19 @@ async def list_appointments(
     return await cursor.to_list(length=limit)
 
 
+async def get_appointment_by_code(appointment_code: str) -> dict[str, Any] | None:
+    return await get_db().consultation_appointments.find_one(
+        {"appointment_code": appointment_code},
+        {"_id": 0, "booking_key": 0},
+    )
+
+
 async def update_appointment_status(
     appointment_code: str,
     status: str,
     actor: dict[str, Any],
     result_note: str | None = None,
+    required_assigned_to: str | None = None,
 ) -> dict[str, Any] | None:
     now = _now()
     employee_name = actor["full_name"]
@@ -344,6 +352,8 @@ async def update_appointment_status(
         "appointment_code": appointment_code,
         "status": {"$in": allowed_previous_statuses.get(status, [])},
     }
+    if required_assigned_to:
+        query["assigned_to"] = required_assigned_to
     if status == "confirmed":
         query["confirmed_by"] = None
 
@@ -451,19 +461,26 @@ async def reschedule_appointment(
     appointment_time: str,
     actor: dict[str, Any],
     note: str | None = None,
+    required_assigned_to: str | None = None,
 ) -> dict[str, Any] | None:
     now = _now()
+    ownership_query: dict[str, Any] = {"appointment_code": appointment_code}
+    if required_assigned_to:
+        ownership_query["assigned_to"] = required_assigned_to
     current = await get_db().consultation_appointments.find_one(
-        {"appointment_code": appointment_code},
+        ownership_query,
         {"phone": 1},
     )
     if current is None:
         return None
+    update_query: dict[str, Any] = {
+        "appointment_code": appointment_code,
+        "status": {"$nin": ["completed", "cancelled"]},
+    }
+    if required_assigned_to:
+        update_query["assigned_to"] = required_assigned_to
     previous = await get_db().consultation_appointments.find_one_and_update(
-        {
-            "appointment_code": appointment_code,
-            "status": {"$nin": ["completed", "cancelled"]},
-        },
+        update_query,
         {
             "$set": {
                 "appointment_date": appointment_date,
@@ -544,9 +561,18 @@ async def list_appointment_events(
 
 async def list_notifications(
     unread_only: bool = False,
+    assigned_to: str | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
     query = {"is_read": False} if unread_only else {}
+    if assigned_to:
+        appointments = await get_db().consultation_appointments.find(
+            {"assigned_to": assigned_to},
+            {"appointment_code": 1},
+        ).to_list(length=None)
+        query["appointment_code"] = {
+            "$in": [row["appointment_code"] for row in appointments]
+        }
     cursor = (
         get_db()
         .notifications.find(query, {"_id": 0})

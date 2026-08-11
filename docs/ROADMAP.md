@@ -24,7 +24,7 @@ Trạng thái: **đã có MVP local**.
 
 ## Giai đoạn 1 — Xác thực và phân quyền
 
-Trạng thái: **MVP đã hoàn thành, tiếp tục hoàn thiện ma trận quyền và audit log**.
+Trạng thái: **MVP và quyền sở hữu lịch hẹn đã hoàn thành, tiếp tục audit log**.
 
 1. Chốt quyền chi tiết cho `admin`, `manager`, `consultant`.
 2. Thiết kế tài khoản, mật khẩu băm, phiên đăng nhập và refresh token.

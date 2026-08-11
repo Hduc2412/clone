@@ -115,6 +115,13 @@ flowchart TD
 
 Phân quyền phải được kiểm tra tại backend; ẩn nút trên giao diện không được xem là bảo mật.
 
+Quyền đối với lịch hẹn:
+
+- `admin` và `manager` xem toàn bộ lịch, phân công hoặc chuyển người phụ trách.
+- `consultant` chỉ xem và cập nhật lịch có `assigned_to` trùng email tài khoản của mình.
+- Lịch chưa phân công chỉ hiển thị cho `admin` và `manager`.
+- `consultant` không được tự nhận lịch hoặc xem lịch sử xử lý của lịch thuộc người khác.
+
 ## 7. Luồng tổng hợp Dashboard
 
 Dashboard đọc dữ liệu từ MongoDB để hiển thị:

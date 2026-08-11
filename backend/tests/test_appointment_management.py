@@ -1,10 +1,14 @@
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from fastapi import HTTPException
+
+from app.api.appointments import get_appointments, require_appointment_access
 from app.db.database import (
     assign_appointment,
     find_appointment_conflict,
     list_appointments,
+    list_notifications,
     reschedule_appointment,
     update_appointment_status,
 )
@@ -56,7 +60,11 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
 
         with patch("app.db.database.get_db", return_value=db):
             result = await update_appointment_status(
-                "LH-001", "confirmed", actor, "Đã gọi xác nhận"
+                "LH-001",
+                "confirmed",
+                actor,
+                "Đã gọi xác nhận",
+                required_assigned_to="manager@example.com",
             )
 
         self.assertEqual(result, updated)
@@ -66,6 +74,8 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event["old_status"], "pending")
         self.assertEqual(event["new_status"], "confirmed")
         self.assertEqual(event["note"], "Đã gọi xác nhận")
+        update_query = db.consultation_appointments.find_one_and_update.await_args.args[0]
+        self.assertEqual(update_query["assigned_to"], "manager@example.com")
 
     async def test_assignment_records_previous_and_new_assignee(self):
         db = MagicMock()
@@ -160,6 +170,98 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event["action"], "rescheduled")
         self.assertEqual(event["details"]["previous_time"], "09:00")
         self.assertEqual(event["details"]["appointment_time"], "14:00")
+
+    async def test_notifications_are_limited_to_assigned_appointments(self):
+        db = MagicMock()
+        appointment_cursor = MagicMock()
+        appointment_cursor.to_list = AsyncMock(
+            return_value=[{"appointment_code": "LH-001"}]
+        )
+        db.consultation_appointments.find.return_value = appointment_cursor
+        notification_cursor = make_cursor([{"appointment_code": "LH-001"}])
+        db.notifications.find.return_value = notification_cursor
+
+        with patch("app.db.database.get_db", return_value=db):
+            rows = await list_notifications(
+                unread_only=True,
+                assigned_to="consultant@example.com",
+                limit=20,
+            )
+
+        self.assertEqual(rows, [{"appointment_code": "LH-001"}])
+        db.notifications.find.assert_called_once_with(
+            {
+                "is_read": False,
+                "appointment_code": {"$in": ["LH-001"]},
+            },
+            {"_id": 0},
+        )
+
+
+class AppointmentAuthorizationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_consultant_list_is_forced_to_their_email(self):
+        consultant = {
+            "role": "consultant",
+            "email": "consultant@example.com",
+        }
+        with patch(
+            "app.api.appointments.list_appointments",
+            new=AsyncMock(return_value=[]),
+        ) as mocked_list:
+            await get_appointments(
+                status=None,
+                date_from=None,
+                date_to=None,
+                assigned_to="other@example.com",
+                limit=50,
+                current_user=consultant,
+            )
+
+        self.assertEqual(
+            mocked_list.await_args.kwargs["assigned_to"],
+            "consultant@example.com",
+        )
+
+    async def test_consultant_cannot_access_unassigned_or_other_staff_schedule(self):
+        consultant = {
+            "role": "consultant",
+            "email": "consultant@example.com",
+        }
+        forbidden_appointments = [
+            {"appointment_code": "LH-001", "assigned_to": None},
+            {"appointment_code": "LH-002", "assigned_to": "other@example.com"},
+        ]
+        for appointment in forbidden_appointments:
+            with (
+                self.subTest(appointment=appointment),
+                patch(
+                    "app.api.appointments.get_appointment_by_code",
+                    new=AsyncMock(return_value=appointment),
+                ),
+                self.assertRaises(HTTPException) as context,
+            ):
+                await require_appointment_access(
+                    appointment["appointment_code"],
+                    consultant,
+                )
+            self.assertEqual(context.exception.status_code, 403)
+
+    async def test_consultant_can_access_their_assigned_schedule(self):
+        appointment = {
+            "appointment_code": "LH-001",
+            "assigned_to": "consultant@example.com",
+        }
+        consultant = {
+            "role": "consultant",
+            "email": "consultant@example.com",
+        }
+        with patch(
+            "app.api.appointments.get_appointment_by_code",
+            new=AsyncMock(return_value=appointment),
+        ):
+            result = await require_appointment_access("LH-001", consultant)
+
+        self.assertEqual(result, appointment)
 
 
 if __name__ == "__main__":
