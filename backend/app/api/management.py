@@ -14,11 +14,11 @@ from app.db.database import (
     list_conversations,
     list_managed_leads,
     list_staff_users,
-    record_audit_log,
     update_managed_lead,
     update_staff_user,
 )
 from app.auth.security import get_current_user, hash_password, require_roles
+from app.services.audit_service import audit_action
 
 
 router = APIRouter(
@@ -83,27 +83,6 @@ def _validate_email(email: str) -> str:
     return email.lower()
 
 
-async def _audit_management(
-    http_request: Request,
-    current_user: dict,
-    action: str,
-    target_type: str,
-    target_id: str,
-    details: dict | None = None,
-) -> None:
-    await record_audit_log(
-        action=action,
-        outcome="success",
-        actor_email=current_user["email"],
-        actor_name=current_user["full_name"],
-        actor_role=current_user["role"],
-        target_type=target_type,
-        target_id=target_id,
-        ip_address=http_request.client.host if http_request.client else None,
-        details=details,
-    )
-
-
 @router.get("/overview")
 async def overview():
     return await get_management_overview()
@@ -143,7 +122,7 @@ async def create_lead(
             **request.model_dump(),
         }
     )
-    await _audit_management(http_request, current_user, "lead.created", "lead", lead_code)
+    await audit_action(http_request, "lead.created", actor=current_user, target_type="lead", target_id=lead_code)
     return lead
 
 
@@ -160,13 +139,9 @@ async def update_lead(
     lead = await update_managed_lead(lead_code, fields)
     if lead is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy lead.")
-    await _audit_management(
-        http_request,
-        current_user,
-        "lead.updated",
-        "lead",
-        lead_code,
-        {"changed_fields": sorted(fields)},
+    await audit_action(
+        http_request, "lead.updated", actor=current_user, target_type="lead",
+        target_id=lead_code, details={"changed_fields": sorted(fields)},
     )
     return lead
 
@@ -191,13 +166,9 @@ async def create_user(
     data["password_hash"] = hash_password(request.password)
     try:
         user = await create_staff_user(data)
-        await _audit_management(
-            http_request,
-            current_user,
-            "staff_user.created",
-            "staff_user",
-            data["email"],
-            {"role": data["role"]},
+        await audit_action(
+            http_request, "staff_user.created", actor=current_user,
+            target_type="staff_user", target_id=data["email"], details={"role": data["role"]},
         )
         return user
     except DuplicateKeyError as exc:
@@ -224,12 +195,9 @@ async def update_user(
     user = await update_staff_user(_validate_email(email), fields)
     if user is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
-    await _audit_management(
-        http_request,
-        current_user,
-        "staff_user.updated",
-        "staff_user",
-        _validate_email(email),
-        {"changed_fields": sorted(fields)},
+    await audit_action(
+        http_request, "staff_user.updated", actor=current_user,
+        target_type="staff_user", target_id=_validate_email(email),
+        details={"changed_fields": sorted(fields)},
     )
     return user

@@ -75,7 +75,7 @@ class CookieAuthenticationTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch("app.api.auth.get_staff_user_by_email", new=AsyncMock(return_value=user)),
             patch("app.api.auth.record_staff_login", new=AsyncMock()),
-            patch("app.api.auth.record_audit_log", new=AsyncMock()),
+            patch("app.api.auth.audit_action", new=AsyncMock()),
             patch("app.api.auth.verify_password", return_value=True),
         ):
             payload = await login(
@@ -91,11 +91,11 @@ class CookieAuthenticationTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("access_token", payload)
 
     async def test_logout_expires_auth_cookie(self):
-        request = Request({"type": "http", "client": ("127.0.0.77", 12345)})
+        request = Request(
+            {"type": "http", "client": ("127.0.0.77", 12345), "headers": []}
+        )
         response = Response()
-        user = {"email": "admin@example.com", "full_name": "Admin", "role": "admin"}
-        with patch("app.api.auth.record_audit_log", new=AsyncMock()):
-            await logout(request, response, user)
+        await logout(request, response)
         cookie = response.headers["set-cookie"]
         self.assertIn(f"{settings.auth_cookie_name}=", cookie)
         self.assertIn("Max-Age=0", cookie)
@@ -142,7 +142,7 @@ class LoginRateLimitIntegrationTests(unittest.TestCase):
                 new=AsyncMock(return_value=self.user),
             ),
             patch("app.api.auth.record_staff_login", new=AsyncMock()),
-            patch("app.api.auth.record_audit_log", new=AsyncMock()),
+            patch("app.api.auth.audit_action", new=AsyncMock()),
             patch(
                 "app.api.auth.verify_password",
                 side_effect=lambda password, _: password == self.CORRECT_PASSWORD,

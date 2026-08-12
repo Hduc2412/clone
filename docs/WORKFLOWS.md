@@ -84,6 +84,25 @@ flowchart LR
 
 Lưu ý: lịch do chatbot tạo không tự biến thành lead. Nhân viên quyết định tạo lead sau khi xác nhận nhu cầu thực tế.
 
+### Hồ sơ tuyển dụng
+
+```mermaid
+flowchart LR
+    A["Khách hàng/lead"] --> B["Tạo hồ sơ tuyển dụng"]
+    B --> C["Thu giấy tờ và sơ tuyển"]
+    C --> D["Đào tạo và phỏng vấn"]
+    D --> E["Visa và chờ xuất cảnh"]
+    E --> F["Đã xuất cảnh"]
+    C --> G["Không đạt / rút / hủy"]
+    D --> G
+    G --> H["Có thể tạo hồ sơ mới sau này"]
+```
+
+- Một khách hàng có thể có nhiều hồ sơ theo thời gian nhưng chỉ một hồ sơ đang hoạt động.
+- `admin` và `manager` tạo, phân công và xem toàn bộ hồ sơ.
+- `consultant` chỉ xem/cập nhật hồ sơ được giao và không được tự đổi người phụ trách.
+- Mỗi thay đổi lưu lịch sử riêng và đồng thời ghi vào audit log hệ thống.
+
 ## 5. Luồng quản lý tri thức
 
 ```mermaid

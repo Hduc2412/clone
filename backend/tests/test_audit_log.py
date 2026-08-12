@@ -11,6 +11,7 @@ from app.api.audit import router as audit_router
 from app.auth.security import create_access_token
 from app.core.config import settings
 from app.db.database import _sanitize_audit_details, list_audit_logs, record_audit_log
+from app.services.audit_service import audit_action
 
 
 class AuditSanitizationTests(unittest.TestCase):
@@ -30,6 +31,15 @@ class AuditSanitizationTests(unittest.TestCase):
 
 
 class AuditPersistenceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_audit_failure_does_not_break_business_flow(self):
+        request = MagicMock()
+        request.client.host = "127.0.0.1"
+        with patch(
+            "app.services.audit_service.record_audit_log",
+            new=AsyncMock(side_effect=RuntimeError("database unavailable")),
+        ):
+            await audit_action(request, "lead.updated", actor_email="admin@example.com")
+
     async def test_record_audit_log_never_persists_secret(self):
         database = MagicMock()
         database.audit_logs.insert_one = AsyncMock()
