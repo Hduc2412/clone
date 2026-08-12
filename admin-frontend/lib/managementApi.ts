@@ -51,6 +51,19 @@ export interface AppointmentEvent {
   created_at: string;
 }
 
+export interface AppointmentStats {
+  total: number;
+  pending: number;
+  confirmed: number;
+  completed: number;
+  unreachable: number;
+  cancelled: number;
+  confirmation_rate: number;
+  completion_rate: number;
+  unreachable_rate: number;
+  cancellation_rate: number;
+}
+
 export interface Notification {
   appointment_code: string;
   customer_name: string;
@@ -132,6 +145,18 @@ export const managementApi = {
     if (filters?.assignedTo) params.set("assigned_to", filters.assignedTo);
     const query = params.toString();
     return request<Appointment[]>(`/appointments${query ? `?${query}` : ""}`);
+  },
+  appointmentStats: (filters?: {
+    dateFrom?: string;
+    dateTo?: string;
+    assignedTo?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
+    if (filters?.dateTo) params.set("date_to", filters.dateTo);
+    if (filters?.assignedTo) params.set("assigned_to", filters.assignedTo);
+    const query = params.toString();
+    return request<AppointmentStats>(`/appointments/stats${query ? `?${query}` : ""}`);
   },
   updateAppointment: (
     code: string,

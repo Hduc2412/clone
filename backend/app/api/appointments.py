@@ -8,6 +8,7 @@ from app.db.database import (
     assign_appointment,
     find_appointment_conflict,
     get_appointment_by_code,
+    get_appointment_stats,
     get_staff_user_by_email,
     list_appointment_events,
     list_appointments,
@@ -120,6 +121,27 @@ async def get_appointments(
         date_to=date_to.isoformat() if date_to else None,
         assigned_to=effective_assigned_to,
         limit=limit,
+    )
+
+
+@appointment_router.get("/stats")
+async def get_appointments_stats(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    assigned_to: str | None = Query(default=None, max_length=150),
+    current_user=Depends(get_current_user),
+):
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status_code=400, detail="Ngày bắt đầu phải trước ngày kết thúc.")
+    effective_assigned_to = (
+        current_user["email"]
+        if current_user["role"] == "consultant"
+        else assigned_to
+    )
+    return await get_appointment_stats(
+        date_from=date_from.isoformat() if date_from else None,
+        date_to=date_to.isoformat() if date_to else None,
+        assigned_to=effective_assigned_to,
     )
 
 

@@ -48,7 +48,7 @@ Tiêu chí hoàn thành:
 - [x] Ghi chú kết quả cuộc gọi.
 - [x] Chặn lịch trùng và cảnh báo lịch sắp tới trong 24 giờ.
 - [x] Nhật ký tạo lịch, phân công và thay đổi trạng thái.
-- [ ] Thống kê tỷ lệ xác nhận, hoàn thành và không liên hệ được.
+- [x] Thống kê tỷ lệ xác nhận, hoàn thành, không liên hệ được và hủy lịch.
 
 Tiêu chí hoàn thành:
 
@@ -129,8 +129,7 @@ Chỉ thực hiện sau khi local ổn định:
 
 ## Thứ tự đề xuất ngay sau bản hiện tại
 
-1. Kiểm thử giao diện quản lý lịch hẹn trên trình duyệt.
-2. Bổ sung thống kê tỷ lệ xử lý lịch hẹn.
-3. Hoàn thiện ma trận quyền và audit log xác thực.
-4. Thiết kế module hồ sơ tuyển dụng.
-5. Làm upload và version hóa cơ sở tri thức.
+1. Hoàn thiện audit log xác thực và thao tác quản trị.
+2. Thiết kế module hồ sơ tuyển dụng.
+3. Liên kết khách hàng với lịch hẹn và hội thoại.
+4. Làm upload và version hóa cơ sở tri thức.

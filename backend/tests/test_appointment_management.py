@@ -3,10 +3,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.api.appointments import get_appointments, require_appointment_access
+from app.api.appointments import (
+    get_appointments,
+    get_appointments_stats,
+    require_appointment_access,
+)
 from app.db.database import (
     assign_appointment,
     find_appointment_conflict,
+    get_appointment_stats,
     list_appointments,
     list_notifications,
     reschedule_appointment,
@@ -197,6 +202,35 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
             {"_id": 0},
         )
 
+    async def test_appointment_stats_calculate_status_rates(self):
+        db = MagicMock()
+        aggregate_cursor = MagicMock()
+        aggregate_cursor.to_list = AsyncMock(
+            return_value=[
+                {"_id": "pending", "count": 2},
+                {"_id": "confirmed", "count": 3},
+                {"_id": "completed", "count": 4},
+                {"_id": "unreachable", "count": 1},
+            ]
+        )
+        db.consultation_appointments.aggregate.return_value = aggregate_cursor
+        db.consultation_appointments.count_documents = AsyncMock(return_value=8)
+
+        with patch("app.db.database.get_db", return_value=db):
+            stats = await get_appointment_stats(
+                date_from="2026-08-01",
+                date_to="2026-08-31",
+                assigned_to="consultant@example.com",
+            )
+
+        self.assertEqual(stats["total"], 10)
+        self.assertEqual(stats["confirmation_rate"], 80.0)
+        self.assertEqual(stats["completion_rate"], 40.0)
+        self.assertEqual(stats["unreachable_rate"], 10.0)
+        self.assertEqual(stats["cancellation_rate"], 0.0)
+        match_query = db.consultation_appointments.aggregate.call_args.args[0][0]["$match"]
+        self.assertEqual(match_query["assigned_to"], "consultant@example.com")
+
 
 class AppointmentAuthorizationTests(unittest.IsolatedAsyncioTestCase):
     async def test_consultant_list_is_forced_to_their_email(self):
@@ -219,6 +253,27 @@ class AppointmentAuthorizationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             mocked_list.await_args.kwargs["assigned_to"],
+            "consultant@example.com",
+        )
+
+    async def test_consultant_stats_are_forced_to_their_email(self):
+        consultant = {
+            "role": "consultant",
+            "email": "consultant@example.com",
+        }
+        with patch(
+            "app.api.appointments.get_appointment_stats",
+            new=AsyncMock(return_value={}),
+        ) as mocked_stats:
+            await get_appointments_stats(
+                date_from=None,
+                date_to=None,
+                assigned_to="other@example.com",
+                current_user=consultant,
+            )
+
+        self.assertEqual(
+            mocked_stats.await_args.kwargs["assigned_to"],
             "consultant@example.com",
         )
 

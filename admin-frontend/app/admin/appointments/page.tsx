@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Appointment,
   AppointmentEvent,
+  AppointmentStats,
   StaffUser,
   managementApi,
 } from "@/lib/managementApi";
@@ -32,6 +33,19 @@ const eventLabels: Record<string, string> = {
   rescheduled: "Đổi lịch hẹn",
 };
 
+const emptyStats: AppointmentStats = {
+  total: 0,
+  pending: 0,
+  confirmed: 0,
+  completed: 0,
+  unreachable: 0,
+  cancelled: 0,
+  confirmation_rate: 0,
+  completion_rate: 0,
+  unreachable_rate: 0,
+  cancellation_rate: 0,
+};
+
 function isUpcoming(appointment: Appointment) {
   if (["completed", "cancelled"].includes(appointment.status)) return false;
   const scheduledAt = new Date(`${appointment.appointment_date}T${appointment.appointment_time}:00`);
@@ -41,6 +55,7 @@ function isUpcoming(appointment: Appointment) {
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [stats, setStats] = useState<AppointmentStats>(emptyStats);
   const [assignees, setAssignees] = useState<StaffUser[]>([]);
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -61,9 +76,14 @@ export default function AppointmentsPage() {
   const load = useCallback(() => {
     setLoading(true);
     setError("");
-    managementApi
-      .appointments({ status, dateFrom, dateTo, assignedTo })
-      .then(setAppointments)
+    Promise.all([
+      managementApi.appointments({ status, dateFrom, dateTo, assignedTo }),
+      managementApi.appointmentStats({ dateFrom, dateTo, assignedTo }),
+    ])
+      .then(([appointmentRows, statsData]) => {
+        setAppointments(appointmentRows);
+        setStats(statsData);
+      })
       .catch((reason) => setError(reason.message))
       .finally(() => setLoading(false));
   }, [assignedTo, dateFrom, dateTo, status]);
@@ -185,6 +205,22 @@ export default function AppointmentsPage() {
         }
       />
       {error && <ErrorBanner message={error} />}
+
+      <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          ["Tổng lịch", stats.total, "Toàn bộ trong bộ lọc"],
+          ["Đã xác nhận", `${stats.confirmation_rate}%`, `${stats.confirmed} đang chờ xử lý`],
+          ["Hoàn thành", `${stats.completion_rate}%`, `${stats.completed} lịch`],
+          ["Không liên hệ", `${stats.unreachable_rate}%`, `${stats.unreachable} lịch`],
+          ["Đã hủy", `${stats.cancellation_rate}%`, `${stats.cancelled} lịch`],
+        ].map(([label, value, note]) => (
+          <article key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">{label}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-800">{loading ? "—" : value}</p>
+            <p className="mt-1 text-xs text-slate-400">{note}</p>
+          </article>
+        ))}
+      </section>
 
       <section className="mb-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
         <label className="text-xs font-medium text-slate-500">
