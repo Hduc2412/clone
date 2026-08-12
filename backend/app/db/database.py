@@ -320,6 +320,54 @@ async def get_appointment_by_code(appointment_code: str) -> dict[str, Any] | Non
     )
 
 
+async def get_appointment_stats(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    assigned_to: str | None = None,
+) -> dict[str, Any]:
+    query: dict[str, Any] = {}
+    if assigned_to:
+        query["assigned_to"] = assigned_to.strip().lower()
+    if date_from or date_to:
+        query["appointment_date"] = {}
+        if date_from:
+            query["appointment_date"]["$gte"] = date_from
+        if date_to:
+            query["appointment_date"]["$lte"] = date_to
+
+    db = get_db()
+    rows = await db.consultation_appointments.aggregate(
+        [
+            {"$match": query},
+            {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+        ]
+    ).to_list(length=None)
+    by_status = {row["_id"]: row["count"] for row in rows}
+    total = sum(by_status.values())
+    confirmed_total = await db.consultation_appointments.count_documents(
+        {**query, "confirmed_at": {"$ne": None}}
+    )
+
+    def rate(value: int) -> float:
+        return round(value * 100 / total, 1) if total else 0.0
+
+    completed = by_status.get("completed", 0)
+    unreachable = by_status.get("unreachable", 0)
+    cancelled = by_status.get("cancelled", 0)
+    return {
+        "total": total,
+        "pending": by_status.get("pending", 0),
+        "confirmed": by_status.get("confirmed", 0),
+        "completed": completed,
+        "unreachable": unreachable,
+        "cancelled": cancelled,
+        "confirmation_rate": rate(confirmed_total),
+        "completion_rate": rate(completed),
+        "unreachable_rate": rate(unreachable),
+        "cancellation_rate": rate(cancelled),
+    }
+
+
 async def update_appointment_status(
     appointment_code: str,
     status: str,
