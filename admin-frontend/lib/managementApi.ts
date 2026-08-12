@@ -93,6 +93,19 @@ export interface StaffUser {
   created_at: string;
 }
 
+export interface AuditLog {
+  action: string;
+  outcome: "success" | "failure";
+  actor_email?: string | null;
+  actor_name?: string | null;
+  actor_role?: string | null;
+  target_type?: string | null;
+  target_id?: string | null;
+  ip_address?: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface Conversation {
   session_id: string;
   message_count: number;
@@ -222,6 +235,22 @@ export const managementApi = {
       `/management/conversations/${encodeURIComponent(sessionId)}`,
     ),
   users: () => request<StaffUser[]>("/management/users"),
+  auditLogs: (filters?: {
+    actorEmail?: string;
+    action?: string;
+    outcome?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.actorEmail) params.set("actor_email", filters.actorEmail);
+    if (filters?.action) params.set("action", filters.action);
+    if (filters?.outcome) params.set("outcome", filters.outcome);
+    if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
+    if (filters?.dateTo) params.set("date_to", filters.dateTo);
+    const query = params.toString();
+    return request<AuditLog[]>(`/audit-logs${query ? `?${query}` : ""}`);
+  },
   createUser: (data: {
     full_name: string;
     email: string;

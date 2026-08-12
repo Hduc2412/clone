@@ -73,10 +73,87 @@ async def init_db() -> None:
     )
     await db.staff_users.create_index("email", unique=True)
     await db.staff_users.create_index("status")
+    await db.audit_logs.create_index([("created_at", DESCENDING)])
+    await db.audit_logs.create_index([("actor_email", ASCENDING), ("created_at", DESCENDING)])
+    await db.audit_logs.create_index([("action", ASCENDING), ("created_at", DESCENDING)])
 
     await _create_initial_admin()
 
     print("[DB] MongoDB initialized successfully.")
+
+
+SENSITIVE_AUDIT_KEYS = {
+    "password",
+    "password_hash",
+    "current_password",
+    "new_password",
+    "token",
+    "authorization",
+    "cookie",
+}
+
+
+def _sanitize_audit_details(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "[REDACTED]" if key.lower() in SENSITIVE_AUDIT_KEYS else _sanitize_audit_details(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_sanitize_audit_details(item) for item in value]
+    return value
+
+
+async def record_audit_log(
+    action: str,
+    outcome: str,
+    actor_email: str | None = None,
+    actor_name: str | None = None,
+    actor_role: str | None = None,
+    target_type: str | None = None,
+    target_id: str | None = None,
+    ip_address: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> None:
+    await get_db().audit_logs.insert_one(
+        {
+            "action": action,
+            "outcome": outcome,
+            "actor_email": actor_email,
+            "actor_name": actor_name,
+            "actor_role": actor_role,
+            "target_type": target_type,
+            "target_id": target_id,
+            "ip_address": ip_address,
+            "details": _sanitize_audit_details(details or {}),
+            "created_at": _now(),
+        }
+    )
+
+
+async def list_audit_logs(
+    actor_email: str | None = None,
+    action: str | None = None,
+    outcome: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    query: dict[str, Any] = {}
+    if actor_email:
+        query["actor_email"] = actor_email.strip().lower()
+    if action:
+        query["action"] = action
+    if outcome:
+        query["outcome"] = outcome
+    if date_from or date_to:
+        query["created_at"] = {}
+        if date_from:
+            query["created_at"]["$gte"] = date_from
+        if date_to:
+            query["created_at"]["$lte"] = date_to
+    cursor = get_db().audit_logs.find(query, {"_id": 0}).sort("created_at", DESCENDING).limit(limit)
+    return await cursor.to_list(length=limit)
 
 
 async def close_db() -> None:

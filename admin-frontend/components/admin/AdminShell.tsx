@@ -14,6 +14,7 @@ const navigation = [
   { href: "/admin/conversations", label: "Hội thoại", icon: "◌" },
   { href: "/admin/knowledge", label: "Tri thức AI", icon: "◇" },
   { href: "/admin/users", label: "Người dùng", icon: "♧" },
+  { href: "/admin/audit-logs", label: "Nhật ký hệ thống", icon: "≡" },
 ];
 
 export default function AdminShell({ children }: { children: ReactNode }) {
@@ -80,7 +81,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </div>
         <nav className="flex-1 space-y-1 px-4 py-6">
           {navigation
-            .filter((item) => item.href !== "/admin/users" || user.role !== "consultant")
+            .filter((item) => !["/admin/users", "/admin/audit-logs"].includes(item.href) || user.role !== "consultant")
             .map((item) => {
             const active =
               item.href === "/admin"
