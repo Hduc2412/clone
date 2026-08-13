@@ -15,10 +15,10 @@ from app.db.database import (
     list_notifications,
     list_staff_users,
     mark_notification_read,
-    record_audit_log,
     reschedule_appointment,
     update_appointment_status,
 )
+from app.services.audit_service import audit_action
 from app.auth.security import get_current_user, require_roles
 
 
@@ -100,26 +100,6 @@ async def require_appointment_access(
     return appointment
 
 
-async def audit_appointment_action(
-    http_request: Request,
-    current_user: dict,
-    action: str,
-    appointment_code: str,
-    details: dict | None = None,
-) -> None:
-    await record_audit_log(
-        action=action,
-        outcome="success",
-        actor_email=current_user["email"],
-        actor_name=current_user["full_name"],
-        actor_role=current_user["role"],
-        target_type="appointment",
-        target_id=appointment_code,
-        ip_address=http_request.client.host if http_request.client else None,
-        details=details,
-    )
-
-
 @appointment_router.get("")
 async def get_appointments(
     status: str | None = None,
@@ -194,9 +174,10 @@ async def change_appointment_status(
             status_code=409,
             detail="Lịch không tồn tại hoặc không thể chuyển sang trạng thái này.",
         )
-    await audit_appointment_action(
-        http_request, current_user, "appointment.status_changed", appointment_code,
-        {"status": request.status, "has_result_note": bool(request.result_note)},
+    await audit_action(
+        http_request, "appointment.status_changed", actor=current_user,
+        target_type="appointment", target_id=appointment_code,
+        details={"status": request.status, "has_result_note": bool(request.result_note)},
     )
     return appointment
 
@@ -234,9 +215,10 @@ async def change_appointment_assignment(
             status_code=409,
             detail="Lịch không tồn tại hoặc đã kết thúc nên không thể phân công.",
         )
-    await audit_appointment_action(
-        http_request, current_user, "appointment.assigned", appointment_code,
-        {"assigned_to": assignee["email"]},
+    await audit_action(
+        http_request, "appointment.assigned", actor=current_user,
+        target_type="appointment", target_id=appointment_code,
+        details={"assigned_to": assignee["email"]},
     )
     return appointment
 
@@ -279,9 +261,10 @@ async def change_appointment_schedule(
             status_code=409,
             detail="Lịch không tồn tại hoặc đã kết thúc nên không thể đổi.",
         )
-    await audit_appointment_action(
-        http_request, current_user, "appointment.rescheduled", appointment_code,
-        {"appointment_date": appointment_date, "appointment_time": request.appointment_time},
+    await audit_action(
+        http_request, "appointment.rescheduled", actor=current_user,
+        target_type="appointment", target_id=appointment_code,
+        details={"appointment_date": appointment_date, "appointment_time": request.appointment_time},
     )
     return appointment
 
