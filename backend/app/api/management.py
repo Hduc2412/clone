@@ -1,7 +1,7 @@
 import re
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
@@ -18,6 +18,7 @@ from app.db.database import (
     update_staff_user,
 )
 from app.auth.security import get_current_user, hash_password, require_roles
+from app.services.audit_service import audit_action
 
 
 router = APIRouter(
@@ -109,24 +110,39 @@ async def leads(
 
 
 @router.post("/leads", status_code=201)
-async def create_lead(request: LeadCreateRequest):
+async def create_lead(
+    request: LeadCreateRequest,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+):
     lead_code = f"LD-{secrets.token_hex(3).upper()}"
-    return await create_managed_lead(
+    lead = await create_managed_lead(
         {
             "lead_code": lead_code,
             **request.model_dump(),
         }
     )
+    await audit_action(http_request, "lead.created", actor=current_user, target_type="lead", target_id=lead_code)
+    return lead
 
 
 @router.patch("/leads/{lead_code}")
-async def update_lead(lead_code: str, request: LeadUpdateRequest):
+async def update_lead(
+    lead_code: str,
+    request: LeadUpdateRequest,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+):
     fields = request.model_dump(exclude_unset=True)
     if fields.get("status") and fields["status"] not in LEAD_STATUSES:
         raise HTTPException(status_code=400, detail="Trạng thái lead không hợp lệ.")
     lead = await update_managed_lead(lead_code, fields)
     if lead is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy lead.")
+    await audit_action(
+        http_request, "lead.updated", actor=current_user, target_type="lead",
+        target_id=lead_code, details={"changed_fields": sorted(fields)},
+    )
     return lead
 
 
@@ -138,6 +154,7 @@ async def users(limit: int = Query(default=100, ge=1, le=500)):
 @router.post("/users", status_code=201)
 async def create_user(
     request: StaffCreateRequest,
+    http_request: Request,
     current_user=Depends(require_roles("admin", "manager")),
 ):
     if request.role not in USER_ROLES:
@@ -148,7 +165,12 @@ async def create_user(
     data["email"] = _validate_email(data["email"])
     data["password_hash"] = hash_password(request.password)
     try:
-        return await create_staff_user(data)
+        user = await create_staff_user(data)
+        await audit_action(
+            http_request, "staff_user.created", actor=current_user,
+            target_type="staff_user", target_id=data["email"], details={"role": data["role"]},
+        )
+        return user
     except DuplicateKeyError as exc:
         raise HTTPException(status_code=409, detail="Email đã tồn tại.") from exc
 
@@ -157,6 +179,7 @@ async def create_user(
 async def update_user(
     email: str,
     request: StaffUpdateRequest,
+    http_request: Request,
     current_user=Depends(require_roles("admin", "manager")),
 ):
     fields = request.model_dump(exclude_unset=True)
@@ -172,4 +195,9 @@ async def update_user(
     user = await update_staff_user(_validate_email(email), fields)
     if user is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+    await audit_action(
+        http_request, "staff_user.updated", actor=current_user,
+        target_type="staff_user", target_id=_validate_email(email),
+        details={"changed_fields": sorted(fields)},
+    )
     return user

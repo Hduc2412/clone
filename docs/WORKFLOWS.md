@@ -115,6 +115,14 @@ flowchart TD
 
 Phân quyền phải được kiểm tra tại backend; ẩn nút trên giao diện không được xem là bảo mật.
 
+Nhật ký hệ thống:
+
+- Ghi đăng nhập thành công/thất bại, đăng xuất và đổi mật khẩu.
+- Ghi thao tác tạo/cập nhật tài khoản, khách hàng và lịch hẹn.
+- Chỉ `admin` và `manager` được xem; `consultant` không có quyền truy cập API.
+- Không lưu mật khẩu, token, nội dung ghi chú khách hàng hoặc giá trị dữ liệu nhạy cảm.
+- Hỗ trợ lọc theo người thao tác, hành động, kết quả và khoảng ngày.
+
 Quyền đối với lịch hẹn:
 
 - `admin` và `manager` xem toàn bộ lịch, phân công hoặc chuyển người phụ trách.

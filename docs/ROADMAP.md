@@ -24,14 +24,14 @@ Trạng thái: **đã có MVP local**.
 
 ## Giai đoạn 1 — Xác thực và phân quyền
 
-Trạng thái: **MVP và quyền sở hữu lịch hẹn đã hoàn thành, tiếp tục audit log**.
+Trạng thái: **MVP, quyền sở hữu lịch hẹn và audit log đã hoàn thành**.
 
 1. Chốt quyền chi tiết cho `admin`, `manager`, `consultant`.
 2. Thiết kế tài khoản, mật khẩu băm, phiên đăng nhập và refresh token.
 3. Làm API đăng nhập/đăng xuất/đổi mật khẩu.
 4. Bảo vệ toàn bộ API `/management`, `/appointments`, `/notifications`.
 5. Bảo vệ route `/admin` ở frontend.
-6. Thêm nhật ký đăng nhập và thao tác quan trọng.
+6. [x] Thêm nhật ký đăng nhập và thao tác quan trọng.
 7. Kiểm thử quyền truy cập theo từng vai trò.
 
 Tiêu chí hoàn thành:
@@ -129,7 +129,6 @@ Chỉ thực hiện sau khi local ổn định:
 
 ## Thứ tự đề xuất ngay sau bản hiện tại
 
-1. Hoàn thiện audit log xác thực và thao tác quản trị.
-2. Thiết kế module hồ sơ tuyển dụng.
-3. Liên kết khách hàng với lịch hẹn và hội thoại.
-4. Làm upload và version hóa cơ sở tri thức.
+1. Thiết kế module hồ sơ tuyển dụng.
+2. Liên kết khách hàng với lịch hẹn và hội thoại.
+3. Làm upload và version hóa cơ sở tri thức.

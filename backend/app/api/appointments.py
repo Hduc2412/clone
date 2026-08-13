@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from pymongo.errors import DuplicateKeyError
 
@@ -18,6 +18,7 @@ from app.db.database import (
     reschedule_appointment,
     update_appointment_status,
 )
+from app.services.audit_service import audit_action
 from app.auth.security import get_current_user, require_roles
 
 
@@ -149,6 +150,7 @@ async def get_appointments_stats(
 async def change_appointment_status(
     appointment_code: str,
     request: AppointmentStatusRequest,
+    http_request: Request,
     current_user=Depends(get_current_user),
 ):
     if request.status not in ALLOWED_STATUSES:
@@ -172,6 +174,11 @@ async def change_appointment_status(
             status_code=409,
             detail="Lịch không tồn tại hoặc không thể chuyển sang trạng thái này.",
         )
+    await audit_action(
+        http_request, "appointment.status_changed", actor=current_user,
+        target_type="appointment", target_id=appointment_code,
+        details={"status": request.status, "has_result_note": bool(request.result_note)},
+    )
     return appointment
 
 
@@ -192,6 +199,7 @@ async def get_assignees(
 async def change_appointment_assignment(
     appointment_code: str,
     request: AppointmentAssignmentRequest,
+    http_request: Request,
     current_user=Depends(require_roles("admin", "manager")),
 ):
     assignee = await get_staff_user_by_email(request.assigned_to.strip().lower())
@@ -207,6 +215,11 @@ async def change_appointment_assignment(
             status_code=409,
             detail="Lịch không tồn tại hoặc đã kết thúc nên không thể phân công.",
         )
+    await audit_action(
+        http_request, "appointment.assigned", actor=current_user,
+        target_type="appointment", target_id=appointment_code,
+        details={"assigned_to": assignee["email"]},
+    )
     return appointment
 
 
@@ -214,6 +227,7 @@ async def change_appointment_assignment(
 async def change_appointment_schedule(
     appointment_code: str,
     request: AppointmentRescheduleRequest,
+    http_request: Request,
     current_user=Depends(get_current_user),
 ):
     appointment_date = request.appointment_date.isoformat()
@@ -247,6 +261,11 @@ async def change_appointment_schedule(
             status_code=409,
             detail="Lịch không tồn tại hoặc đã kết thúc nên không thể đổi.",
         )
+    await audit_action(
+        http_request, "appointment.rescheduled", actor=current_user,
+        target_type="appointment", target_id=appointment_code,
+        details={"appointment_date": appointment_date, "appointment_time": request.appointment_time},
+    )
     return appointment
 
 

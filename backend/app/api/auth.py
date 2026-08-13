@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from app.auth.security import create_access_token, get_current_user, hash_password, verify_password
+from app.auth.security import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
 from app.db.database import get_staff_user_by_email, record_staff_login, update_staff_password
 from app.core.rate_limit import login_ip_rate_key, login_rate_key, rate_limiter
 from app.core.config import settings
+from app.services.audit_service import audit_action
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -29,6 +30,15 @@ async def login(request: LoginRequest, http_request: Request, response: Response
     user = await get_staff_user_by_email(email)
     if (user is None or user.get("status") != "active" or not user.get("password_hash")
             or not verify_password(request.password, user["password_hash"])):
+        await audit_action(
+            http_request,
+            action="auth.login",
+            outcome="failure",
+            actor_email=email,
+            target_type="staff_user",
+            target_id=email,
+            details={"reason": "invalid_credentials"},
+        )
         raise HTTPException(status_code=401, detail="Email hoặc mật khẩu không đúng.")
     await record_staff_login(email)
     rate_limiter.reset(limit_key)
@@ -42,11 +52,21 @@ async def login(request: LoginRequest, http_request: Request, response: Response
         samesite="lax",
         path="/",
     )
+    await audit_action(
+        http_request,
+        action="auth.login",
+        actor=user,
+        target_type="staff_user",
+        target_id=user["email"],
+    )
     return {"user": safe_user}
 
 
 @router.post("/logout", status_code=204)
-async def logout(response: Response):
+async def logout(
+    http_request: Request,
+    response: Response,
+):
     response.delete_cookie(
         key=settings.auth_cookie_name,
         httponly=True,
@@ -54,6 +74,22 @@ async def logout(response: Response):
         samesite="lax",
         path="/",
     )
+    token = http_request.cookies.get(settings.auth_cookie_name)
+    if not token:
+        return
+    try:
+        payload = decode_access_token(token)
+        current_user = await get_staff_user_by_email(payload["sub"])
+    except HTTPException:
+        return
+    if current_user is not None and current_user.get("status") == "active":
+        await audit_action(
+            http_request,
+            action="auth.logout",
+            actor=current_user,
+            target_type="staff_user",
+            target_id=current_user["email"],
+        )
 
 
 @router.get("/me")
@@ -64,6 +100,7 @@ async def me(user=Depends(get_current_user)):
 @router.post("/change-password")
 async def change_password(
     request: ChangePasswordRequest,
+    http_request: Request,
     current_user=Depends(get_current_user),
 ):
     user = await get_staff_user_by_email(current_user["email"])
@@ -72,4 +109,11 @@ async def change_password(
     if request.current_password == request.new_password:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải khác mật khẩu hiện tại.")
     await update_staff_password(user["email"], hash_password(request.new_password))
+    await audit_action(
+        http_request,
+        action="auth.password_changed",
+        actor=current_user,
+        target_type="staff_user",
+        target_id=current_user["email"],
+    )
     return {"message": "Đổi mật khẩu thành công."}
