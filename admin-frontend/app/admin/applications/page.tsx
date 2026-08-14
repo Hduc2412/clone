@@ -26,6 +26,24 @@ const statuses = [
   ["cancelled", "Đã hủy"],
 ];
 
+const allowedTransitions: Record<string, string[]> = {
+  draft: ["collecting_documents", "withdrawn", "cancelled"],
+  collecting_documents: ["screening", "withdrawn", "cancelled"],
+  screening: ["collecting_documents", "eligible", "rejected", "withdrawn", "cancelled"],
+  eligible: ["training", "waiting_interview", "withdrawn", "cancelled"],
+  training: ["waiting_interview", "withdrawn", "cancelled"],
+  waiting_interview: ["training", "passed", "rejected", "withdrawn", "cancelled"],
+  passed: ["visa_processing", "withdrawn", "cancelled"],
+  visa_processing: ["ready_departure", "withdrawn", "cancelled"],
+  ready_departure: ["departed", "withdrawn", "cancelled"],
+  departed: [],
+  rejected: [],
+  withdrawn: [],
+  cancelled: [],
+};
+
+const statusLabels = Object.fromEntries(statuses);
+
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<RecruitmentApplication[]>([]);
   const [leads, setLeads] = useState<ManagedLead[]>([]);
@@ -153,7 +171,7 @@ export default function ApplicationsPage() {
                     <td className="px-5 py-4"><p className="font-medium">{application.application_code}</p><p className="mt-1 text-xs text-slate-400">{application.lead_code}</p></td>
                     <td className="px-5 py-4 text-slate-500"><p>{application.destination || "Chưa có địa điểm"}</p><p className="mt-1 text-xs">Tiếng Nhật: {application.japanese_level || "Chưa cập nhật"}</p></td>
                     <td className="px-5 py-4 text-slate-500">{application.assigned_to || "Chưa phân công"}</td>
-                    <td className="px-5 py-4"><div className="flex items-center gap-3"><StatusBadge status={application.status} /><select value={application.status} onChange={(event) => updateStatus(application, event.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">{statuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div></td>
+                    <td className="px-5 py-4"><div className="flex items-center gap-3"><StatusBadge status={application.status} /><select aria-label={`Chuyển trạng thái hồ sơ ${application.application_code}`} value={application.status} disabled={(allowedTransitions[application.status] || []).length === 0} onChange={(event) => updateStatus(application, event.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:bg-slate-100"><option value={application.status}>{statusLabels[application.status] || application.status}</option>{(allowedTransitions[application.status] || []).map((value) => <option key={value} value={value}>{statusLabels[value] || value}</option>)}</select></div></td>
                   </tr>
                 ))}
               </tbody>

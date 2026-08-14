@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ.setdefault("JWT_SECRET", "test-secret-that-is-long-enough-for-application-tests")
 
@@ -14,6 +14,7 @@ from app.api.applications import (
     create_application,
     update_application,
 )
+from app.db.database import update_recruitment_application
 
 
 def http_request() -> Request:
@@ -154,7 +155,88 @@ class RecruitmentApplicationTests(unittest.IsolatedAsyncioTestCase):
                 self.consultant,
             )
         self.assertFalse(updating.await_args.args[1]["is_active"])
+        self.assertEqual(
+            updating.await_args.kwargs["owner_email"], self.consultant["email"]
+        )
+        self.assertEqual(updating.await_args.kwargs["expected_status"], "visa_processing")
         self.assertEqual(result, updated)
+
+    async def test_invalid_status_transition_is_rejected(self):
+        existing = {
+            "application_code": "HS-001",
+            "assigned_to": self.consultant["email"],
+            "status": "draft",
+        }
+        with (
+            patch(
+                "app.api.applications.get_recruitment_application",
+                new=AsyncMock(return_value=existing),
+            ),
+            patch(
+                "app.api.applications.update_recruitment_application",
+                new=AsyncMock(),
+            ) as updating,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                await update_application(
+                    "HS-001",
+                    ApplicationUpdateRequest(status="passed"),
+                    http_request(),
+                    self.consultant,
+                )
+        self.assertEqual(raised.exception.status_code, 409)
+        updating.assert_not_awaited()
+
+    async def test_atomic_owner_check_rejects_stale_assignment(self):
+        existing = {
+            "application_code": "HS-001",
+            "assigned_to": self.consultant["email"],
+            "status": "draft",
+        }
+        with (
+            patch(
+                "app.api.applications.get_recruitment_application",
+                new=AsyncMock(return_value=existing),
+            ),
+            patch(
+                "app.api.applications.update_recruitment_application",
+                new=AsyncMock(return_value=None),
+            ) as updating,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                await update_application(
+                    "HS-001",
+                    ApplicationUpdateRequest(status="collecting_documents"),
+                    http_request(),
+                    self.consultant,
+                )
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertEqual(
+            updating.await_args.kwargs["owner_email"], self.consultant["email"]
+        )
+        self.assertEqual(updating.await_args.kwargs["expected_status"], "draft")
+
+    async def test_database_update_filters_owner_and_expected_status_atomically(self):
+        collection = MagicMock()
+        collection.find_one_and_update = AsyncMock(return_value={"application_code": "HS-001"})
+        database = MagicMock()
+        database.recruitment_applications = collection
+        with patch("app.db.database.get_db", return_value=database):
+            await update_recruitment_application(
+                "HS-001",
+                {"status": "collecting_documents"},
+                expected_status="draft",
+                owner_email="CONSULTANT@EXAMPLE.COM",
+            )
+        query = collection.find_one_and_update.await_args.args[0]
+        self.assertEqual(
+            query,
+            {
+                "application_code": "HS-001",
+                "status": "draft",
+                "assigned_to": "consultant@example.com",
+            },
+        )
 
 
 if __name__ == "__main__":

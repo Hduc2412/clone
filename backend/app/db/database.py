@@ -894,11 +894,18 @@ async def create_recruitment_application(data: dict[str, Any]) -> dict[str, Any]
 async def update_recruitment_application(
     application_code: str,
     fields: dict[str, Any],
+    expected_status: str | None = None,
+    owner_email: str | None = None,
 ) -> dict[str, Any] | None:
     clean_fields = {key: value for key, value in fields.items() if value is not None}
     clean_fields["updated_at"] = _now()
+    query: dict[str, Any] = {"application_code": application_code}
+    if expected_status is not None:
+        query["status"] = expected_status
+    if owner_email is not None:
+        query["assigned_to"] = owner_email.strip().lower()
     return await get_db().recruitment_applications.find_one_and_update(
-        {"application_code": application_code},
+        query,
         {"$set": clean_fields},
         return_document=ReturnDocument.AFTER,
         projection={"_id": 0},
