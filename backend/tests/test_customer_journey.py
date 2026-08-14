@@ -1,10 +1,13 @@
+import secrets
 import unittest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
 from app.api.customer_journey import customer_journey
-from app.services.customer_journey_service import _phone_candidates
+from app.db.database import close_db, get_db, init_db
+from app.services.customer_journey_service import _phone_candidates, get_customer_journey
 
 
 class CustomerJourneyApiTests(unittest.IsolatedAsyncioTestCase):
@@ -74,6 +77,63 @@ class CustomerJourneyPhoneTests(unittest.TestCase):
         self.assertIn("0912345678", candidates)
         self.assertIn("84912345678", candidates)
         self.assertIn("+84912345678", candidates)
+
+
+class CustomerJourneyDatabaseIntegrationTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        await init_db()
+        suffix = secrets.token_hex(6)
+        self.session_id = f"journey-session-{suffix}"
+        self.lead_code = f"LD-JOURNEY-{suffix.upper()}"
+        self.phone = f"09{int(suffix[:8], 16) % 100000000:08d}"
+        self.now = datetime.now(UTC)
+        db = get_db()
+        await db.sessions.insert_one({
+            "session_id": self.session_id,
+            "booking_data": {"phone": self.phone},
+            "message_count": 2,
+            "last_active": self.now,
+            "created_at": self.now,
+        })
+        await db.messages.insert_many([
+            {
+                "session_id": self.session_id,
+                "role": "user",
+                "content": "Tôi muốn đặt lịch tư vấn",
+                "intent": "booking",
+                "created_at": self.now,
+            },
+            {
+                "session_id": self.session_id,
+                "role": "assistant",
+                "content": "Bạn vui lòng cung cấp thông tin.",
+                "intent": "booking",
+                "created_at": self.now,
+            },
+        ])
+
+    async def asyncTearDown(self):
+        db = get_db()
+        await db.messages.delete_many({"session_id": self.session_id})
+        await db.sessions.delete_many({"session_id": self.session_id})
+        await db.recruitment_applications.delete_many({"lead_code": self.lead_code})
+        await db.consultation_appointments.delete_many({"phone": self.phone})
+        await close_db()
+
+    async def test_service_finds_conversation_from_session_booking_phone(self):
+        result = await get_customer_journey({
+            "lead_code": self.lead_code,
+            "customer_name": "Khách kiểm thử",
+            "phone": self.phone,
+        })
+
+        self.assertEqual(len(result["conversations"]), 1)
+        conversation = result["conversations"][0]
+        self.assertEqual(conversation["session_id"], self.session_id)
+        self.assertEqual(
+            [message["role"] for message in conversation["messages"]],
+            ["user", "assistant"],
+        )
 
 
 if __name__ == "__main__":

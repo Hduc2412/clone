@@ -34,14 +34,17 @@ async def get_customer_journey(
             appointment_query, {"_id": 0, "booking_key": 0}
         ).sort([("appointment_date", -1), ("appointment_time", -1)]).to_list(length=100)
     )
-    chatbot_leads = await db.leads.find(
-        {"phone": phone_query}, {"_id": 0, "session_id": 1}
-    ).to_list(length=100)
-    session_ids = list({row["session_id"] for row in chatbot_leads if row.get("session_id")})
     conversations: list[dict[str, Any]] = []
-    if session_ids:
-        conversations = await db.sessions.aggregate([
-            {"$match": {"session_id": {"$in": session_ids}}},
+    appointment_session_ids = list({
+        row["conversation_id"]
+        for row in appointments
+        if row.get("conversation_id")
+    })
+    session_conditions: list[dict[str, Any]] = [{"booking_data.phone": phone_query}]
+    if appointment_session_ids:
+        session_conditions.append({"session_id": {"$in": appointment_session_ids}})
+    conversations = await db.sessions.aggregate([
+            {"$match": {"$or": session_conditions}},
             {"$sort": {"last_active": -1}},
             {"$lookup": {
                 "from": "messages",

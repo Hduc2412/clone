@@ -74,7 +74,7 @@ export default function CustomerJourneyPage() {
               ))}
             </div>
           </details>
-        )) : <EmptyState title="Chưa ghép được hội thoại" description="Hội thoại chỉ xuất hiện khi khách đã cung cấp đúng số điện thoại cho chatbot." />}
+        )) : <EmptyState title="Chưa có hội thoại liên kết" description="Hệ thống chưa tìm thấy phiên chatbot hoặc lịch tư vấn liên kết với khách hàng này." />}
       </Section>
     </>
   );
