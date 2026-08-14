@@ -7,6 +7,7 @@ from app.api.appointments import appointment_router, notification_router
 from app.api.management import router as management_router
 from app.api.auth import router as auth_router
 from app.api.audit import router as audit_router
+from app.api.applications import router as application_router
 from app.db.database import close_db, init_db
 from app.core.config import settings
 
@@ -36,6 +37,7 @@ app.include_router(notification_router)
 app.include_router(management_router)
 app.include_router(auth_router)
 app.include_router(audit_router)
+app.include_router(application_router)
 
 @app.get("/")
 def read_root():

@@ -15,6 +15,8 @@ const labels: Record<string, string> = {
   "appointment.assigned": "Phân công lịch",
   "appointment.status_changed": "Đổi trạng thái lịch",
   "appointment.rescheduled": "Đổi lịch hẹn",
+  "application.created": "Tạo hồ sơ tuyển dụng",
+  "application.updated": "Cập nhật hồ sơ tuyển dụng",
 };
 
 export default function AuditLogsPage() {

@@ -93,6 +93,22 @@ export interface StaffUser {
   created_at: string;
 }
 
+export interface RecruitmentApplication {
+  application_code: string;
+  lead_code: string;
+  customer_name: string;
+  phone: string;
+  status: string;
+  is_active: boolean;
+  assigned_to?: string | null;
+  destination?: string | null;
+  japanese_level?: string | null;
+  qualification?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditLog {
   action: string;
   outcome: "success" | "failure";
@@ -225,6 +241,30 @@ export const managementApi = {
     }),
   updateLead: (code: string, data: Partial<ManagedLead>) =>
     request<ManagedLead>(`/management/leads/${code}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  applications: (filters?: { status?: string; activeOnly?: boolean }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.activeOnly) params.set("active_only", "true");
+    const query = params.toString();
+    return request<RecruitmentApplication[]>(`/applications${query ? `?${query}` : ""}`);
+  },
+  createApplication: (data: {
+    lead_code: string;
+    assigned_to?: string;
+    destination?: string;
+    japanese_level?: string;
+    qualification?: string;
+    note?: string;
+  }) =>
+    request<RecruitmentApplication>("/applications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateApplication: (code: string, data: Partial<RecruitmentApplication>) =>
+    request<RecruitmentApplication>(`/applications/${code}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),

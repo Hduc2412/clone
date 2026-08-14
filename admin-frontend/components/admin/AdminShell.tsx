@@ -11,6 +11,7 @@ const navigation = [
   { href: "/admin", label: "Tổng quan", icon: "▦" },
   { href: "/admin/appointments", label: "Lịch hẹn", icon: "◷" },
   { href: "/admin/leads", label: "Khách hàng", icon: "♙" },
+  { href: "/admin/applications", label: "Hồ sơ tuyển dụng", icon: "▤" },
   { href: "/admin/conversations", label: "Hội thoại", icon: "◌" },
   { href: "/admin/knowledge", label: "Tri thức AI", icon: "◇" },
   { href: "/admin/users", label: "Người dùng", icon: "♧" },

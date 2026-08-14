@@ -58,12 +58,14 @@ Tiêu chí hoàn thành:
 
 ## Giai đoạn 3 — Khách hàng và hồ sơ tuyển dụng
 
-1. Chốt mô hình một khách hàng có nhiều hồ sơ/đơn theo thời gian.
-2. Mỗi khách chỉ có tối đa một hồ sơ đang hoạt động, nếu nghiệp vụ xác nhận quy tắc này.
-3. Thêm thông tin hồ sơ, trạng thái, ghi chú và người phụ trách.
+Trạng thái: **MVP hồ sơ tuyển dụng đã hoàn thành, tiếp tục liên kết dữ liệu**.
+
+1. [x] Chốt mô hình một khách hàng có nhiều hồ sơ/đơn theo thời gian.
+2. [x] Mỗi khách chỉ có tối đa một hồ sơ đang hoạt động.
+3. [x] Thêm thông tin hồ sơ, trạng thái, ghi chú và người phụ trách.
 4. Liên kết khách hàng với lịch hẹn và hội thoại.
-5. Lưu lịch sử thay đổi hồ sơ.
-6. Tìm kiếm và lọc khách hàng.
+5. [x] Lưu lịch sử thay đổi hồ sơ.
+6. [x] Tìm kiếm và lọc hồ sơ theo trạng thái.
 
 Tiêu chí hoàn thành:
 
@@ -129,6 +131,6 @@ Chỉ thực hiện sau khi local ổn định:
 
 ## Thứ tự đề xuất ngay sau bản hiện tại
 
-1. Thiết kế module hồ sơ tuyển dụng.
-2. Liên kết khách hàng với lịch hẹn và hội thoại.
+1. Liên kết khách hàng/hồ sơ với lịch hẹn và hội thoại.
+2. Bổ sung màn hình chi tiết hành trình khách hàng.
 3. Làm upload và version hóa cơ sở tri thức.

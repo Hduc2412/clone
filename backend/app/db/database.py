@@ -76,6 +76,22 @@ async def init_db() -> None:
     await db.audit_logs.create_index([("created_at", DESCENDING)])
     await db.audit_logs.create_index([("actor_email", ASCENDING), ("created_at", DESCENDING)])
     await db.audit_logs.create_index([("action", ASCENDING), ("created_at", DESCENDING)])
+    await db.recruitment_applications.create_index("application_code", unique=True)
+    await db.recruitment_applications.create_index(
+        [("lead_code", ASCENDING), ("created_at", DESCENDING)]
+    )
+    await db.recruitment_applications.create_index(
+        [("assigned_to", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)]
+    )
+    await db.recruitment_applications.create_index(
+        "lead_code",
+        unique=True,
+        name="unique_active_application_per_lead",
+        partialFilterExpression={"is_active": True},
+    )
+    await db.application_events.create_index(
+        [("application_code", ASCENDING), ("created_at", ASCENDING)]
+    )
 
     await _create_initial_admin()
 
@@ -823,6 +839,94 @@ async def update_managed_lead(
         return_document=ReturnDocument.AFTER,
         projection={"_id": 0},
     )
+
+
+async def get_managed_lead(lead_code: str) -> dict[str, Any] | None:
+    return await get_db().managed_leads.find_one(
+        {"lead_code": lead_code},
+        {"_id": 0},
+    )
+
+
+async def list_recruitment_applications(
+    status: str | None = None,
+    lead_code: str | None = None,
+    assigned_to: str | None = None,
+    active_only: bool = False,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    query: dict[str, Any] = {}
+    if status:
+        query["status"] = status
+    if lead_code:
+        query["lead_code"] = lead_code
+    if assigned_to:
+        query["assigned_to"] = assigned_to.strip().lower()
+    if active_only:
+        query["is_active"] = True
+    cursor = (
+        get_db()
+        .recruitment_applications.find(query, {"_id": 0})
+        .sort("updated_at", DESCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
+async def get_recruitment_application(application_code: str) -> dict[str, Any] | None:
+    return await get_db().recruitment_applications.find_one(
+        {"application_code": application_code},
+        {"_id": 0},
+    )
+
+
+async def create_recruitment_application(data: dict[str, Any]) -> dict[str, Any]:
+    now = _now()
+    document = {
+        **data,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await get_db().recruitment_applications.insert_one(document)
+    return {key: value for key, value in document.items() if key != "_id"}
+
+
+async def update_recruitment_application(
+    application_code: str,
+    fields: dict[str, Any],
+    expected_status: str | None = None,
+    owner_email: str | None = None,
+) -> dict[str, Any] | None:
+    clean_fields = {key: value for key, value in fields.items() if value is not None}
+    clean_fields["updated_at"] = _now()
+    query: dict[str, Any] = {"application_code": application_code}
+    if expected_status is not None:
+        query["status"] = expected_status
+    if owner_email is not None:
+        query["assigned_to"] = owner_email.strip().lower()
+    return await get_db().recruitment_applications.find_one_and_update(
+        query,
+        {"$set": clean_fields},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0},
+    )
+
+
+async def create_application_event(data: dict[str, Any]) -> None:
+    await get_db().application_events.insert_one({**data, "created_at": _now()})
+
+
+async def list_application_events(
+    application_code: str,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    cursor = (
+        get_db()
+        .application_events.find({"application_code": application_code}, {"_id": 0})
+        .sort("created_at", ASCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
 
 
 async def list_staff_users(limit: int = 100) -> list[dict[str, Any]]:
