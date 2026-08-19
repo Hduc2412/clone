@@ -58,14 +58,15 @@ Tiêu chí hoàn thành:
 
 ## Giai đoạn 3 — Khách hàng và hồ sơ tuyển dụng
 
-Trạng thái: **MVP hồ sơ tuyển dụng đã hoàn thành, tiếp tục liên kết dữ liệu**.
+Trạng thái: **MVP hồ sơ tuyển dụng và hành trình khách hàng đã hoàn thành**.
 
 1. [x] Chốt mô hình một khách hàng có nhiều hồ sơ/đơn theo thời gian.
 2. [x] Mỗi khách chỉ có tối đa một hồ sơ đang hoạt động.
 3. [x] Thêm thông tin hồ sơ, trạng thái, ghi chú và người phụ trách.
-4. Liên kết khách hàng với lịch hẹn và hội thoại.
+4. [x] Liên kết khách hàng với lịch hẹn và hội thoại.
 5. [x] Lưu lịch sử thay đổi hồ sơ.
 6. [x] Tìm kiếm và lọc hồ sơ theo trạng thái.
+7. [x] Chuẩn hóa và chặn trùng khách hàng theo số điện thoại ở tầng database.
 
 Tiêu chí hoàn thành:
 

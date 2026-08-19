@@ -2,7 +2,7 @@ import re
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pymongo.errors import DuplicateKeyError
 
 from app.db.database import (
@@ -19,6 +19,7 @@ from app.db.database import (
 )
 from app.auth.security import get_current_user, hash_password, require_roles
 from app.services.audit_service import audit_action
+from app.core.phone import normalize_vietnamese_phone
 
 
 router = APIRouter(
@@ -55,6 +56,11 @@ class LeadCreateRequest(BaseModel):
     source: str = Field(default="manual", max_length=50)
     assigned_to: str | None = Field(default=None, max_length=100)
 
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value: str) -> str:
+        return normalize_vietnamese_phone(value)
+
 
 class LeadUpdateRequest(BaseModel):
     customer_name: str | None = Field(default=None, min_length=2, max_length=100)
@@ -62,6 +68,11 @@ class LeadUpdateRequest(BaseModel):
     status: str | None = None
     assigned_to: str | None = Field(default=None, max_length=100)
     note: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value: str | None) -> str | None:
+        return normalize_vietnamese_phone(value) if value is not None else None
 
 
 class StaffCreateRequest(BaseModel):
@@ -116,12 +127,18 @@ async def create_lead(
     current_user=Depends(get_current_user),
 ):
     lead_code = f"LD-{secrets.token_hex(3).upper()}"
-    lead = await create_managed_lead(
-        {
-            "lead_code": lead_code,
-            **request.model_dump(),
-        }
-    )
+    try:
+        lead = await create_managed_lead(
+            {
+                "lead_code": lead_code,
+                **request.model_dump(),
+            }
+        )
+    except DuplicateKeyError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Số điện thoại đã thuộc một khách hàng khác.",
+        ) from exc
     await audit_action(http_request, "lead.created", actor=current_user, target_type="lead", target_id=lead_code)
     return lead
 
@@ -136,7 +153,13 @@ async def update_lead(
     fields = request.model_dump(exclude_unset=True)
     if fields.get("status") and fields["status"] not in LEAD_STATUSES:
         raise HTTPException(status_code=400, detail="Trạng thái lead không hợp lệ.")
-    lead = await update_managed_lead(lead_code, fields)
+    try:
+        lead = await update_managed_lead(lead_code, fields)
+    except DuplicateKeyError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Số điện thoại đã thuộc một khách hàng khác.",
+        ) from exc
     if lead is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy lead.")
     await audit_action(
