@@ -5,8 +5,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from pymongo import ASCENDING, DESCENDING, ReturnDocument
+from pymongo import ASCENDING, DESCENDING, ReturnDocument, UpdateOne
 from app.core.config import settings
+from app.core.phone import normalize_vietnamese_phone
 
 
 _client: AsyncIOMotorClient | None = None
@@ -67,7 +68,14 @@ async def init_db() -> None:
         [("appointment_code", ASCENDING), ("created_at", ASCENDING)],
     )
     await db.managed_leads.create_index("lead_code", unique=True)
+    await _prepare_managed_lead_phone_index(db)
     await db.managed_leads.create_index("phone")
+    await db.managed_leads.create_index(
+        "phone_normalized",
+        unique=True,
+        name="unique_managed_lead_phone",
+        partialFilterExpression={"phone_normalized": {"$type": "string"}},
+    )
     await db.managed_leads.create_index(
         [("status", ASCENDING), ("created_at", DESCENDING)]
     )
@@ -96,6 +104,54 @@ async def init_db() -> None:
     await _create_initial_admin()
 
     print("[DB] MongoDB initialized successfully.")
+
+
+async def _prepare_managed_lead_phone_index(db: AsyncIOMotorDatabase) -> None:
+    """Normalize legacy lead phones, but refuse to guess how duplicates should merge."""
+    rows = await db.managed_leads.find(
+        {}, {"_id": 1, "lead_code": 1, "phone": 1}
+    ).to_list(length=None)
+    grouped: dict[str, list[str]] = {}
+    normalized_rows: list[tuple[Any, str]] = []
+    invalid_codes: list[str] = []
+    for row in rows:
+        code = row.get("lead_code", str(row.get("_id")))
+        try:
+            phone = normalize_vietnamese_phone(row.get("phone", ""))
+        except ValueError:
+            invalid_codes.append(code)
+            continue
+        grouped.setdefault(phone, []).append(code)
+        normalized_rows.append((row["_id"], phone))
+
+    duplicate_groups = {
+        phone: codes for phone, codes in grouped.items() if len(codes) > 1
+    }
+    if invalid_codes or duplicate_groups:
+        problems: list[str] = []
+        if invalid_codes:
+            problems.append(f"số điện thoại không hợp lệ: {', '.join(invalid_codes)}")
+        if duplicate_groups:
+            duplicates = "; ".join(
+                f"{phone} ({', '.join(codes)})"
+                for phone, codes in sorted(duplicate_groups.items())
+            )
+            problems.append(f"khách hàng trùng số: {duplicates}")
+        raise RuntimeError(
+            "Không thể tạo unique index cho khách hàng; "
+            + " | ".join(problems)
+            + ". Hãy hợp nhất hoặc sửa dữ liệu thủ công rồi khởi động lại."
+        )
+
+    operations = [
+        UpdateOne(
+            {"_id": row_id},
+            {"$set": {"phone": phone, "phone_normalized": phone}},
+        )
+        for row_id, phone in normalized_rows
+    ]
+    if operations:
+        await db.managed_leads.bulk_write(operations, ordered=False)
 
 
 SENSITIVE_AUDIT_KEYS = {
@@ -804,7 +860,7 @@ async def list_managed_leads(
     query = {"status": status} if status else {}
     cursor = (
         get_db()
-        .managed_leads.find(query, {"_id": 0})
+        .managed_leads.find(query, {"_id": 0, "phone_normalized": 0})
         .sort("created_at", DESCENDING)
         .limit(limit)
     )
@@ -813,14 +869,21 @@ async def list_managed_leads(
 
 async def create_managed_lead(data: dict[str, Any]) -> dict[str, Any]:
     now = _now()
+    phone = normalize_vietnamese_phone(data["phone"])
     document = {
         **data,
+        "phone": phone,
+        "phone_normalized": phone,
         "status": data.get("status", "new"),
         "created_at": now,
         "updated_at": now,
     }
     await get_db().managed_leads.insert_one(document)
-    return {key: value for key, value in document.items() if key != "_id"}
+    return {
+        key: value
+        for key, value in document.items()
+        if key not in {"_id", "phone_normalized"}
+    }
 
 
 async def update_managed_lead(
@@ -832,19 +895,23 @@ async def update_managed_lead(
         for key, value in fields.items()
         if value is not None
     }
+    if "phone" in fields:
+        phone = normalize_vietnamese_phone(fields["phone"])
+        fields["phone"] = phone
+        fields["phone_normalized"] = phone
     fields["updated_at"] = _now()
     return await get_db().managed_leads.find_one_and_update(
         {"lead_code": lead_code},
         {"$set": fields},
         return_document=ReturnDocument.AFTER,
-        projection={"_id": 0},
+        projection={"_id": 0, "phone_normalized": 0},
     )
 
 
 async def get_managed_lead(lead_code: str) -> dict[str, Any] | None:
     return await get_db().managed_leads.find_one(
         {"lead_code": lead_code},
-        {"_id": 0},
+        {"_id": 0, "phone_normalized": 0},
     )
 
 

@@ -96,8 +96,8 @@ export default function LeadsPage() {
           <Field
             name="phone"
             label="Số điện thoại"
-            placeholder="0912345678"
-            pattern="0[0-9]{9,10}"
+            placeholder="0912345678 hoặc +84 912 345 678"
+            inputMode="tel"
           />
           <label className="text-sm font-medium text-slate-600">
             Nguồn
@@ -198,12 +198,14 @@ function Field({
   label,
   placeholder,
   pattern,
+  inputMode,
   required = true,
 }: {
   name: string;
   label: string;
   placeholder: string;
   pattern?: string;
+  inputMode?: "tel";
   required?: boolean;
 }) {
   return (
@@ -213,6 +215,7 @@ function Field({
         required={required}
         name={name}
         pattern={pattern}
+        inputMode={inputMode}
         className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
         placeholder={placeholder}
       />
