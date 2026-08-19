@@ -139,6 +139,21 @@ export interface ConversationMessage {
   created_at: string;
 }
 
+export interface CustomerJourneyConversation extends Conversation {
+  messages: ConversationMessage[];
+}
+
+export interface CustomerJourney {
+  lead: ManagedLead;
+  applications: RecruitmentApplication[];
+  appointments: Appointment[];
+  conversations: CustomerJourneyConversation[];
+  events: {
+    applications: Array<Record<string, unknown>>;
+    appointments: AppointmentEvent[];
+  };
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${BACKEND_URL}${path}`, {
     ...options,
@@ -244,6 +259,10 @@ export const managementApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  customerJourney: (code: string) =>
+    request<CustomerJourney>(
+      `/management/leads/${encodeURIComponent(code)}/journey`,
+    ),
   applications: (filters?: { status?: string; activeOnly?: boolean }) => {
     const params = new URLSearchParams();
     if (filters?.status) params.set("status", filters.status);

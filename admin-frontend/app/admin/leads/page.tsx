@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { ManagedLead, managementApi } from "@/lib/managementApi";
 import {
   EmptyState,
@@ -146,7 +147,12 @@ export default function LeadsPage() {
                 {leads.map((lead) => (
                   <tr key={lead.lead_code} className="hover:bg-slate-50/70">
                     <td className="px-5 py-4">
-                      <p className="font-medium">{lead.customer_name}</p>
+                      <Link
+                        href={`/admin/leads/${encodeURIComponent(lead.lead_code)}`}
+                        className="font-medium hover:text-[#cb1d1e] hover:underline"
+                      >
+                        {lead.customer_name}
+                      </Link>
                       <p className="mt-1 text-xs text-slate-400">
                         {lead.lead_code}
                       </p>
