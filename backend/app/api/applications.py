@@ -10,10 +10,16 @@ from app.db.database import (
     create_recruitment_application,
     get_managed_lead,
     get_recruitment_application,
-    get_staff_user_by_email,
     list_application_events,
     list_recruitment_applications,
     update_recruitment_application,
+)
+from app.services import score_service
+from app.services.assignment import (
+    can_access,
+    ensure_can_assign,
+    is_privileged,
+    validate_assignee,
 )
 from app.services.audit_service import audit_action
 
@@ -71,12 +77,6 @@ class ApplicationUpdateRequest(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
 
 
-def _can_access(application: dict, current_user: dict) -> bool:
-    return current_user["role"] in {"admin", "manager"} or (
-        application.get("assigned_to") == current_user["email"]
-    )
-
-
 def _validate_status_transition(current_status: str, next_status: str) -> None:
     if next_status == current_status:
         return
@@ -85,16 +85,6 @@ def _validate_status_transition(current_status: str, next_status: str) -> None:
             status_code=409,
             detail=f"Không thể chuyển hồ sơ từ {current_status} sang {next_status}.",
         )
-
-
-async def _validate_assignee(email: str | None) -> str | None:
-    if not email:
-        return None
-    normalized = email.strip().lower()
-    user = await get_staff_user_by_email(normalized)
-    if user is None or user.get("status") != "active":
-        raise HTTPException(status_code=400, detail="Nhân viên phụ trách không hợp lệ.")
-    return normalized
 
 
 async def _record_event(
@@ -125,7 +115,7 @@ async def applications(
 ):
     if status and status not in APPLICATION_STATUSES:
         raise HTTPException(status_code=400, detail="Trạng thái hồ sơ không hợp lệ.")
-    if current_user["role"] == "consultant":
+    if not is_privileged(current_user):
         assigned_to = current_user["email"]
     return await list_recruitment_applications(
         status=status,
@@ -144,7 +134,7 @@ async def application_detail(
     application = await get_recruitment_application(application_code)
     if application is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ tuyển dụng.")
-    if not _can_access(application, current_user):
+    if not can_access(application, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được truy cập hồ sơ này.")
     return application
 
@@ -157,7 +147,7 @@ async def application_history(
     application = await get_recruitment_application(application_code)
     if application is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ tuyển dụng.")
-    if not _can_access(application, current_user):
+    if not can_access(application, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được truy cập hồ sơ này.")
     return await list_application_events(application_code)
 
@@ -171,7 +161,7 @@ async def create_application(
     lead = await get_managed_lead(payload.lead_code)
     if lead is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng/lead.")
-    assigned_to = await _validate_assignee(payload.assigned_to or lead.get("assigned_to"))
+    assigned_to = await validate_assignee(payload.assigned_to or lead.get("assigned_to"))
     application_code = f"HS-{secrets.token_hex(3).upper()}"
     document = {
         **payload.model_dump(),
@@ -208,7 +198,7 @@ async def update_application(
     existing = await get_recruitment_application(application_code)
     if existing is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ tuyển dụng.")
-    if not _can_access(existing, current_user):
+    if not can_access(existing, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được cập nhật hồ sơ này.")
     fields = payload.model_dump(exclude_unset=True)
     if fields.get("status") and fields["status"] not in APPLICATION_STATUSES:
@@ -216,9 +206,8 @@ async def update_application(
     if fields.get("status"):
         _validate_status_transition(existing["status"], fields["status"])
     if "assigned_to" in fields:
-        if current_user["role"] not in {"admin", "manager"}:
-            raise HTTPException(status_code=403, detail="Chỉ Admin/Manager được phân công hồ sơ.")
-        fields["assigned_to"] = await _validate_assignee(fields["assigned_to"])
+        ensure_can_assign(current_user, "Chỉ Admin/Manager được phân công hồ sơ.")
+        fields["assigned_to"] = await validate_assignee(fields["assigned_to"])
     if fields.get("status"):
         fields["is_active"] = fields["status"] not in CLOSED_STATUSES
     try:
@@ -226,9 +215,7 @@ async def update_application(
             application_code,
             fields,
             expected_status=existing["status"],
-            owner_email=(
-                current_user["email"] if current_user["role"] == "consultant" else None
-            ),
+            owner_email=None if is_privileged(current_user) else current_user["email"],
         )
     except DuplicateKeyError as exc:
         raise HTTPException(
@@ -240,6 +227,17 @@ async def update_application(
             status_code=409,
             detail="Hồ sơ đã thay đổi hoặc không còn được giao cho bạn. Vui lòng tải lại.",
         )
+    # Xuất cảnh là đích của cả chuỗi tư vấn, nên là mốc duy nhất trong vòng đời
+    # hồ sơ có điểm. Các bước giữa chỉ là đi qua, chấm điểm từng bước sẽ thành
+    # thưởng cho việc bấm nút.
+    if fields.get("status") == "departed":
+        await score_service.award(
+            staff_email=existing.get("assigned_to"),
+            action="application.departed",
+            reference_type="recruitment_application",
+            reference_code=application_code,
+        )
+
     changed_fields = sorted(key for key in fields if key != "is_active")
     event_details = {"changed_fields": changed_fields}
     if "status" in fields:

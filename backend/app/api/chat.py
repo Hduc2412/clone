@@ -1,7 +1,7 @@
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Path
 from pydantic import BaseModel, Field, field_validator
 from app.services.chat_service import process_message
 from app.conversation.session_manager import session_manager
@@ -14,7 +14,16 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
-    session_id: UUID | None = Field(default=None)
+    session_id: str | None = Field(default=None)
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parsed = UUID(value)
+        # Preserve legacy CV hex IDs; rewriting them disconnects their documents.
+        return parsed.hex if len(value) == 32 else str(parsed)
 
     @field_validator("message")
     @classmethod
@@ -30,6 +39,9 @@ class ChatResponse(BaseModel):
     sources: list
     session_id: str
     intent: str = "chung"
+    # True khi hệ thống không đủ căn cứ để trả lời và phải dùng câu dự phòng.
+    # Frontend dựa vào đây để hiển thị khác đi, và Analytics đếm tỷ lệ fallback.
+    is_fallback: bool = False
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -41,17 +53,15 @@ async def chat(request: ChatRequest, http_request: Request):
 
 
 @router.delete("/chat/session/{session_id}", status_code=204)
-async def clear_session(session_id: UUID):
-    sid = str(session_id)
+async def clear_session(session_id: str = Path(pattern=r"^(?:[a-fA-F0-9]{32}|[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12})$")):
+    sid = ChatRequest.validate_session(session_id)
     session_manager.delete(sid)
     await delete_session_data(sid)
 
 
 @router.get("/chat/session/{session_id}")
-async def get_session_info(session_id: UUID):
-    session = session_manager.get(str(session_id))
+async def get_session_info(session_id: str = Path(pattern=r"^(?:[a-fA-F0-9]{32}|[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12})$")):
+    session = session_manager.get(ChatRequest.validate_session(session_id))
     if not session:
         raise HTTPException(status_code=404, detail="Session không tồn tại hoặc đã hết hạn")
     return session.summary()
-
-

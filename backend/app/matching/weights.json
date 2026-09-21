@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "note": "Trọng số xếp hạng mềm. Tổng phải đúng 100. Sửa file này là đổi cách xếp hạng, không phải sửa mã nguồn.",
+  "weights": {
+    "region": 40,
+    "employer_type": 30,
+    "salary": 20,
+    "cost": 10
+  },
+  "rules": {
+    "region": {
+      "same_prefecture": 40,
+      "same_region": 25,
+      "different": 0,
+      "unknown": 0
+    },
+    "employer_type": {
+      "match": 30,
+      "different": 0,
+      "unknown": 0
+    },
+    "salary": {
+      "meets": 20,
+      "near": 10,
+      "below": 0,
+      "unknown": 0
+    },
+    "cost": {
+      "within": 10,
+      "unknown": 5,
+      "over": 0
+    }
+  },
+  "params": {
+    "salary_near_numerator": 9,
+    "salary_near_denominator": 10
+  }
+}

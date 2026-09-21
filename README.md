@@ -10,6 +10,10 @@ lưu dữ liệu nghiệp vụ và Qdrant để lưu vector.
 - [Phạm vi và định hướng](docs/PROJECT_SCOPE.md)
 - [Workflow nghiệp vụ](docs/WORKFLOWS.md)
 - [Kế hoạch triển khai](docs/ROADMAP.md)
+- [Bộ tài liệu thiết kế hệ thống](docs/design/00_INDEX.md) — requirements, use case,
+  workflow, database, API, frontend, AI pipeline, kiến trúc, task breakdown
+- [Chạy bằng Docker](docs/DOCKER.md)
+- [Kiểm thử](docs/KIEM_THU.md)
 
 ## Thành phần
 
@@ -76,6 +80,7 @@ MONGODB_DB_NAME=xkld_chatbot
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION_NAME=xkld_knowledge
 MIN_RETRIEVAL_SCORE=0.65
+SUPPORT_PHONE=0971.716.939
 JWT_SECRET=replace_with_a_long_random_secret
 JWT_EXPIRE_MINUTES=480
 INITIAL_ADMIN_EMAIL=admin@example.com
@@ -92,14 +97,29 @@ cd backend
 .\venv\Scripts\python.exe -m app.auth.create_password_hash
 ```
 
-Frontend mặc định gọi `http://localhost:8000`. Nếu backend dùng địa chỉ khác,
+Frontend mặc định gọi `http://localhost:8020`. Nếu backend dùng địa chỉ khác,
 tạo `frontend/.env.local` và `admin-frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8020
 ```
 
+## Chạy bằng Docker
+
+Cách nhanh nhất để dựng cả hệ thống trên một máy sạch:
+
+```bash
+cp backend/.env.example backend/.env   # rồi điền GEMINI_API_KEY, JWT_SECRET, hash mật khẩu
+docker volume create qdrant_data       # bỏ qua nếu volume đã có
+docker compose up -d --build
+```
+
+Website ở <http://localhost>, hệ thống quản trị ở <http://localhost:8080>,
+backend ở <http://localhost:8020>. Chi tiết và ba chỗ dễ vấp: [docs/DOCKER.md](docs/DOCKER.md).
+
 ## Chạy trên máy cá nhân
+
+Dùng cách này khi đang phát triển, vì có nạp lại nóng.
 
 ### 1. MongoDB
 
@@ -132,11 +152,16 @@ cd backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python -m uvicorn main:app --reload
+python -m uvicorn main:app --reload --port 8020
 ```
 
-Backend chạy tại `http://localhost:8000`; tài liệu API ở
-`http://localhost:8000/docs`.
+Backend chạy tại `http://localhost:8020`; tài liệu API ở
+`http://localhost:8020/docs`.
+
+Dự án dùng bộ cổng riêng để không đụng ứng dụng khác trên máy phát triển:
+backend `8020`, website khách hàng `3100`, hệ thống quản trị `3101`. Đổi cổng
+backend thì phải đổi kèm `NEXT_PUBLIC_BACKEND_URL` cho cả hai frontend; đổi cổng
+frontend thì phải đổi kèm `CORS_ORIGINS` trong `backend/.env`.
 
 ### 4. Frontend
 
@@ -148,7 +173,7 @@ npm ci
 npm run dev
 ```
 
-Frontend chạy tại `http://localhost:3000`.
+Frontend chạy tại `http://localhost:3100`.
 
 ### 5. Website quản lý nội bộ
 
@@ -160,8 +185,8 @@ npm ci
 npm run dev
 ```
 
-Website quản lý chạy tại `http://localhost:3001`; đăng nhập tại
-`http://localhost:3001/login`.
+Website quản lý chạy tại `http://localhost:3101`; đăng nhập tại
+`http://localhost:3101/login`.
 
 ## API chính
 
@@ -220,7 +245,7 @@ Backend:
 
 ```powershell
 cd backend
-.\venv\Scripts\python.exe -m unittest discover -s tests -v
+.\venv\Scripts\python.exe -m unittest discover -s tests -t . -v
 ```
 
 Frontend:

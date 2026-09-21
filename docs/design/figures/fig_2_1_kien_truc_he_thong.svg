@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="950" viewBox="0 0 1440 950" font-family="JetBrains Mono, Consolas, Menlo, monospace">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2dd4bf"/>
+    </marker>
+    <marker id="ard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a94ab"/>
+    </marker>
+  </defs>
+
+  <rect width="1440" height="950" fill="#0e1a29"/>
+
+  <!-- ===== header ===== -->
+  <text x="40" y="48" fill="#4f8296" font-size="17" letter-spacing="6">SƠ ĐỒ HỆ THỐNG</text>
+  <text x="1400" y="48" fill="#3d5a72" font-size="13" text-anchor="end">Fig. 2.1 — bốn khối · ba mặt phẳng tin cậy</text>
+
+  <!-- ============ MẶT PHẲNG ỨNG VIÊN ============ -->
+  <rect x="36" y="86" width="364" height="544" rx="10" fill="none" stroke="#22364c" stroke-dasharray="5 5"/>
+  <text x="52" y="112" fill="#4d6d8c" font-size="11">MẶT PHẲNG ỨNG VIÊN</text>
+  <text x="52" y="128" fill="#3d5a72" font-size="9.5">công khai · không cần tài khoản</text>
+
+  <rect x="56" y="142" width="324" height="468" rx="8" fill="#0f2a30" stroke="#2dd4bf"/>
+  <text x="76" y="170" fill="#5eead4" font-size="13" font-weight="bold">KHỐI 1 · KÊNH TIẾP NHẬN</text>
+  <text x="76" y="188" fill="#5c8798" font-size="10">Nơi ứng viên gặp hệ thống</text>
+
+  <rect x="76" y="204" width="284" height="196" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="94" y="230" fill="#9fe8de" font-size="12" font-weight="bold">Khách hàng làm được gì</text>
+  <text x="94" y="253" fill="#8fa9bf" font-size="10">· trò chuyện tư vấn</text>
+  <text x="94" y="270" fill="#8fa9bf" font-size="10">· gửi CV</text>
+  <text x="94" y="287" fill="#8fa9bf" font-size="10">· xem các đơn được gợi ý</text>
+  <text x="94" y="304" fill="#8fa9bf" font-size="10">· chọn đơn và xác nhận đăng ký</text>
+  <text x="94" y="321" fill="#8fa9bf" font-size="10">· đặt lịch hẹn tư vấn</text>
+  <text x="94" y="345" fill="#5c7a91" font-size="10" font-style="italic">truy cập ẩn danh, không đăng nhập</text>
+  <text x="94" y="369" fill="#5c7a91" font-size="10" font-style="italic">mọi thông tin gửi lên đều coi là</text>
+  <text x="94" y="386" fill="#5c7a91" font-size="10" font-style="italic">chưa đáng tin cho tới khi kiểm tra</text>
+
+  <rect x="76" y="418" width="284" height="112" rx="6" fill="#2b2410" stroke="#d99a3a" stroke-dasharray="6 4"/>
+  <text x="94" y="444" fill="#f0b860" font-size="11.5" font-weight="bold">CHƯA CHỐT TRONG GIAI ĐOẠN NÀY</text>
+  <text x="94" y="467" fill="#cbb489" font-size="10">Cấu trúc website, vị trí chatbot</text>
+  <text x="94" y="484" fill="#cbb489" font-size="10">và UI/UX chưa được thống nhất.</text>
+  <text x="94" y="508" fill="#8a7550" font-size="10" font-style="italic">Khối này chỉ xác định khả năng</text>
+  <text x="94" y="521" fill="#8a7550" font-size="10" font-style="italic">nghiệp vụ, chưa phải đặc tả giao diện.</text>
+
+  <text x="94" y="558" fill="#5c7a91" font-size="10" font-style="italic">không giữ token nội bộ</text>
+  <text x="94" y="575" fill="#5c7a91" font-size="10" font-style="italic">không gọi được API quản trị</text>
+
+  <!-- ============ MẶT PHẲNG XỬ LÝ ============ -->
+  <rect x="424" y="86" width="576" height="826" rx="10" fill="none" stroke="#22364c" stroke-dasharray="5 5"/>
+  <text x="440" y="112" fill="#4d6d8c" font-size="11">MẶT PHẲNG XỬ LÝ</text>
+  <text x="440" y="128" fill="#3d5a72" font-size="9.5">chỉ hệ thống gọi tới · mọi câu trả lời phải qua bước kiểm chứng</text>
+
+  <!-- KHỐI 2 -->
+  <rect x="444" y="142" width="536" height="464" rx="8" fill="#0f2a1e" stroke="#2f9e5f"/>
+  <text x="464" y="170" fill="#86efac" font-size="13" font-weight="bold">KHỐI 2 · LÕI XỬ LÝ</text>
+  <text x="464" y="188" fill="#5f8c72" font-size="10">Nơi diễn ra toàn bộ nghiệp vụ tự động</text>
+
+  <rect x="464" y="204" width="248" height="82" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="482" y="228" fill="#b7e8c4" font-size="11.5" font-weight="bold">Tiếp nhận câu hỏi</text>
+  <text x="482" y="249" fill="#8fa9bf" font-size="10">giữ ngữ cảnh cuộc</text>
+  <text x="482" y="266" fill="#8fa9bf" font-size="10">trò chuyện nhiều lượt</text>
+
+  <rect x="728" y="204" width="248" height="82" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="746" y="228" fill="#b7e8c4" font-size="11.5" font-weight="bold">Đọc hồ sơ CV</text>
+  <text x="746" y="249" fill="#8fa9bf" font-size="10">rút thông tin có nguồn</text>
+  <text x="746" y="266" fill="#8fa9bf" font-size="10">hỏi lại để xác nhận</text>
+
+  <rect x="464" y="296" width="248" height="82" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="482" y="320" fill="#b7e8c4" font-size="11.5" font-weight="bold">Tra cứu tài liệu</text>
+  <text x="482" y="341" fill="#8fa9bf" font-size="10">trả lời theo tài liệu</text>
+  <text x="482" y="358" fill="#8fa9bf" font-size="10">chính thức của công ty</text>
+
+  <rect x="728" y="296" width="248" height="82" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="746" y="320" fill="#b7e8c4" font-size="11.5" font-weight="bold">Kiểm chứng</text>
+  <text x="746" y="341" fill="#8fa9bf" font-size="10">chặn câu không nguồn</text>
+  <text x="746" y="358" fill="#8fa9bf" font-size="10">trước khi gửi đi</text>
+
+  <rect x="464" y="388" width="512" height="94" rx="6" fill="#2b2410" stroke="#fbbf24"/>
+  <text x="482" y="412" fill="#fcd34d" font-size="12" font-weight="bold">ĐỐI CHIẾU ĐƠN HÀNG · TẤT ĐỊNH</text>
+  <text x="482" y="433" fill="#cbb489" font-size="10">1 · lọc điều kiện bắt buộc: tiếng Nhật, bằng cấp, tuổi, hạn nộp</text>
+  <text x="482" y="450" fill="#cbb489" font-size="10">2 · xếp theo nguyện vọng: khu vực, loại hình cơ sở, mức lương</text>
+  <text x="482" y="467" fill="#cbb489" font-size="10">3 · giải thích từng tiêu chí đạt hay chưa đạt</text>
+
+  <rect x="464" y="492" width="512" height="62" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="482" y="516" fill="#b7e8c4" font-size="11.5" font-weight="bold">Sinh phiếu tóm tắt tư vấn · tạo đăng ký sơ bộ</text>
+  <text x="482" y="537" fill="#8fa9bf" font-size="10">chỉ tạo sau khi ứng viên tự chọn đơn và xác nhận rõ ràng</text>
+
+  <rect x="464" y="562" width="512" height="30" rx="6" fill="#1b1a35" stroke="#a78bfa" stroke-dasharray="6 4"/>
+  <text x="482" y="582" fill="#c4b5fd" font-size="10">Dịch vụ ngôn ngữ ngoài — chỉ diễn đạt câu trả lời, không ra quyết định</text>
+
+  <!-- KHỐI 3 -->
+  <rect x="444" y="626" width="536" height="272" rx="8" fill="#10223a" stroke="#4a8cd8"/>
+  <text x="464" y="654" fill="#93c5fd" font-size="13" font-weight="bold">KHỐI 3 · KHO DỮ LIỆU</text>
+  <text x="464" y="672" fill="#5c7fa8" font-size="10">Nơi lưu mọi thứ — Lõi xử lý ghi vào, Phân hệ quản trị đọc lên</text>
+
+  <rect x="464" y="684" width="512" height="132" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="482" y="708" fill="#bcd9f5" font-size="11.5" font-weight="bold">MongoDB · dữ liệu nghiệp vụ</text>
+  <text x="482" y="729" fill="#8fa9bf" font-size="10">job_orders · managed_leads · candidate_profiles</text>
+  <text x="482" y="746" fill="#8fa9bf" font-size="10">recruitment_applications · application_assignments</text>
+  <text x="482" y="763" fill="#8fa9bf" font-size="10">consultation_reports (phiếu tóm tắt tư vấn)</text>
+  <text x="482" y="780" fill="#8fa9bf" font-size="10">employee_score_events · notifications · audit_logs</text>
+  <text x="482" y="801" fill="#5c7a91" font-size="10" font-style="italic">giữ quan hệ giữa khách, đơn, hồ sơ đăng ký và nhân viên</text>
+
+  <rect x="464" y="826" width="248" height="62" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="482" y="850" fill="#bcd9f5" font-size="11.5" font-weight="bold">Qdrant · vector tri thức</text>
+  <text x="482" y="871" fill="#8fa9bf" font-size="10">không lưu trạng thái</text>
+
+  <rect x="728" y="826" width="248" height="62" rx="6" fill="#13273c" stroke="#2a4a60"/>
+  <text x="746" y="850" fill="#bcd9f5" font-size="11.5" font-weight="bold">File store · CV gốc</text>
+  <text x="746" y="871" fill="#8fa9bf" font-size="10">giữ bản gốc để đối chiếu</text>
+
+  <!-- ============ MẶT PHẲNG QUẢN TRỊ ============ -->
+  <rect x="1024" y="86" width="380" height="408" rx="10" fill="none" stroke="#22364c" stroke-dasharray="5 5"/>
+  <text x="1040" y="112" fill="#4d6d8c" font-size="11">MẶT PHẲNG QUẢN TRỊ</text>
+  <text x="1040" y="128" fill="#3d5a72" font-size="9.5">nhân viên công ty · bắt buộc đăng nhập</text>
+
+  <rect x="1044" y="142" width="340" height="332" rx="8" fill="#1b1a35" stroke="#a78bfa"/>
+  <text x="1064" y="170" fill="#c4b5fd" font-size="13" font-weight="bold">KHỐI 4 · PHÂN HỆ QUẢN TRỊ</text>
+  <text x="1064" y="188" fill="#7c74a8" font-size="10">Nơi nhân viên làm việc</text>
+
+  <rect x="1064" y="204" width="300" height="196" rx="6" fill="#13273c" stroke="#3a3560"/>
+  <text x="1082" y="228" fill="#d8ccff" font-size="11.5" font-weight="bold">Nhân viên làm gì</text>
+  <text x="1082" y="251" fill="#8fa9bf" font-size="10">· màn hình tổng quan</text>
+  <text x="1082" y="268" fill="#8fa9bf" font-size="10">· hàng đợi phiếu chờ tiếp nhận</text>
+  <text x="1082" y="285" fill="#8fa9bf" font-size="10">· hồ sơ ứng viên tập trung</text>
+  <text x="1082" y="302" fill="#8fa9bf" font-size="10">· lịch hẹn và kết quả cuộc gọi</text>
+  <text x="1082" y="319" fill="#8fa9bf" font-size="10">· danh mục đơn tuyển dụng</text>
+  <text x="1082" y="336" fill="#8fa9bf" font-size="10">· trạng thái hồ sơ đăng ký</text>
+  <text x="1082" y="353" fill="#8fa9bf" font-size="10">· nhân viên, phân công và điểm</text>
+  <text x="1082" y="370" fill="#8fa9bf" font-size="10">· tri thức, thông báo, nhật ký</text>
+  <text x="1082" y="391" fill="#5c7a91" font-size="10" font-style="italic">ba vai trò, mọi thao tác ghi nhật ký</text>
+
+  <text x="1064" y="424" fill="#8b7fd6" font-size="10" font-style="italic">Quyền nhận hay loại ứng viên</text>
+  <text x="1064" y="441" fill="#8b7fd6" font-size="10" font-style="italic">thuộc về nhân viên, không phải hệ thống.</text>
+
+  <!-- ============ NGUỒN DỮ LIỆU THÔ ============ -->
+  <rect x="1024" y="720" width="380" height="140" rx="8" fill="#2a2011" stroke="#d99a3a"/>
+  <text x="1044" y="748" fill="#f0b860" font-size="12.5" font-weight="bold">NGUỒN DỮ LIỆU</text>
+  <text x="1044" y="772" fill="#bfa579" font-size="10">· tài liệu chính sách: cẩm nang tuyển</text>
+  <text x="1044" y="789" fill="#bfa579" font-size="10">  dụng, chi phí, thủ tục, hợp đồng, FAQ</text>
+  <text x="1044" y="810" fill="#bfa579" font-size="10">· danh mục đơn tuyển dụng do bộ phận</text>
+  <text x="1044" y="827" fill="#bfa579" font-size="10">  nghiệp vụ nhập hoặc nhập hàng loạt</text>
+  <text x="1044" y="848" fill="#8a7550" font-size="10" font-style="italic">nạp qua quy trình riêng, không ghi thẳng</text>
+
+  <!-- ============ MŨI TÊN ============ -->
+  <path d="M400,300 H436" stroke="#2dd4bf" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+  <text x="415" y="283" fill="#5c8798" font-size="9" text-anchor="middle">hỏi ·</text>
+  <text x="415" y="294" fill="#5c8798" font-size="9" text-anchor="middle">gửi CV</text>
+
+  <path d="M712,606 V620" stroke="#2dd4bf" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+
+  <path d="M980,700 H1214 V480" stroke="#2dd4bf" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+  <text x="1224" y="596" fill="#5c8798" font-size="10">đọc lên —</text>
+  <text x="1224" y="612" fill="#5c8798" font-size="10">không phải đọc lại</text>
+  <text x="1224" y="628" fill="#5c8798" font-size="10">cả cuộc trò chuyện</text>
+
+  <path d="M1024,790 H988" stroke="#7a94ab" stroke-width="1.6" fill="none" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+
+  <!-- ============ RANH GIỚI AN TOÀN ============ -->
+  <rect x="36" y="656" width="364" height="160" rx="8" fill="#14202f" stroke="#2a4a60"/>
+  <text x="56" y="684" fill="#8fb4cc" font-size="12" font-weight="bold">RANH GIỚI QUAN TRỌNG NHẤT</text>
+  <text x="56" y="708" fill="#8fa9bf" font-size="10">Mặt phẳng ứng viên không có đường đi</text>
+  <text x="56" y="725" fill="#8fa9bf" font-size="10">trực tiếp tới mặt phẳng quản trị.</text>
+  <text x="56" y="749" fill="#8fa9bf" font-size="10">Dữ liệu chỉ chuyển giao gián tiếp qua</text>
+  <text x="56" y="766" fill="#8fa9bf" font-size="10">kho dữ liệu — khung chat công khai</text>
+  <text x="56" y="783" fill="#8fa9bf" font-size="10">không thể xem hay sửa dữ liệu nội bộ.</text>
+  <text x="56" y="804" fill="#5c7a91" font-size="10" font-style="italic">Đó là lý do Khối 3 nằm ở mặt phẳng xử lý.</text>
+
+  <!-- ============ CHÚ GIẢI ============ -->
+  <path d="M56,848 H100" stroke="#2dd4bf" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="112" y="852" fill="#5c8798" font-size="10">luồng chính</text>
+  <path d="M56,872 H100" stroke="#7a94ab" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ard)"/>
+  <text x="112" y="876" fill="#5c8798" font-size="10">nạp dữ liệu</text>
+  <rect x="56" y="890" width="13" height="13" rx="3" fill="#2b2410" stroke="#fbbf24"/>
+  <text x="80" y="901" fill="#5c8798" font-size="10">tất định — quyết định bằng quy tắc, giải trình được</text>
+  <rect x="56" y="912" width="13" height="13" rx="3" fill="#1b1a35" stroke="#a78bfa"/>
+  <text x="80" y="923" fill="#5c8798" font-size="10">xác suất — chỉ dùng để diễn đạt, luôn có kiểm chứng</text>
+</svg>

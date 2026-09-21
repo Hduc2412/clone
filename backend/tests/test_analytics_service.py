@@ -2,7 +2,13 @@ import unittest
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.analytics_service import get_overview, get_recent_leads, get_today_stats
+from app.conversation.fallback_messages import ALL_FALLBACKS, RATE_LIMITED
+from app.services.analytics_service import (
+    get_fallback_rate,
+    get_overview,
+    get_recent_leads,
+    get_today_stats,
+)
 
 
 class AnalyticsLeadSchemaTests(unittest.IsolatedAsyncioTestCase):
@@ -47,3 +53,40 @@ class AnalyticsLeadSchemaTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("customer_name", projection)
         self.assertNotIn("session_id", projection)
         self.assertNotIn("name", projection)
+
+
+class FallbackRateTests(unittest.IsolatedAsyncioTestCase):
+    """Đếm fallback theo cờ, không dò chuỗi trong nội dung tin nhắn."""
+
+    async def test_counts_every_kind_of_fallback(self):
+        db = MagicMock()
+        db.messages.count_documents = AsyncMock(side_effect=[100, 25])
+
+        with patch("app.services.analytics_service.get_db", return_value=db):
+            result = await get_fallback_rate()
+
+        self.assertEqual(result["fallback_count"], 25)
+        self.assertEqual(result["fallback_rate_percent"], 25.0)
+
+        query = db.messages.count_documents.await_args_list[1].args[0]
+        self.assertEqual(query["role"], "assistant")
+        # nhánh 1: tin nhắn mới đã có cờ
+        self.assertIn({"is_fallback": True}, query["$or"])
+        # nhánh 2: tin nhắn cũ chưa có cờ thì đối chiếu theo nội dung
+        legacy = query["$or"][1]
+        self.assertEqual(legacy["is_fallback"], {"$exists": False})
+        self.assertIn(RATE_LIMITED, legacy["content"]["$in"])
+        self.assertEqual(len(legacy["content"]["$in"]), len(ALL_FALLBACKS))
+
+    async def test_zero_messages_does_not_divide_by_zero(self):
+        db = MagicMock()
+        db.messages.count_documents = AsyncMock(side_effect=[0, 0])
+
+        with patch("app.services.analytics_service.get_db", return_value=db):
+            result = await get_fallback_rate()
+
+        self.assertEqual(result["fallback_rate_percent"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

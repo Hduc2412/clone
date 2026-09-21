@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.db.database import (
     create_managed_lead,
+    get_managed_lead,
     create_staff_user,
     get_management_overview,
     get_staff_user_by_email,
@@ -18,6 +19,12 @@ from app.db.database import (
     update_staff_user,
 )
 from app.auth.security import get_current_user, hash_password, require_roles
+from app.services.assignment import (
+    can_access,
+    ensure_can_assign,
+    is_privileged,
+    validate_assignee,
+)
 from app.services.audit_service import audit_action
 from app.core.phone import normalize_vietnamese_phone
 
@@ -115,9 +122,17 @@ async def conversation_detail(session_id: str):
 @router.get("/leads")
 async def leads(
     status: str | None = None,
+    assigned_to: str | None = Query(default=None, max_length=150),
     limit: int = Query(default=100, ge=1, le=500),
+    current_user=Depends(get_current_user),
 ):
-    return await list_managed_leads(status=status, limit=limit)
+    # Nhân viên tư vấn chỉ được thấy khách hàng của mình; danh sách khách kèm
+    # số điện thoại nên không để lộ sang người không phụ trách.
+    if not is_privileged(current_user):
+        assigned_to = current_user["email"]
+    return await list_managed_leads(
+        status=status, assigned_to=assigned_to, limit=limit
+    )
 
 
 @router.post("/leads", status_code=201)
@@ -127,13 +142,10 @@ async def create_lead(
     current_user=Depends(get_current_user),
 ):
     lead_code = f"LD-{secrets.token_hex(3).upper()}"
+    payload = request.model_dump()
+    payload["assigned_to"] = await validate_assignee(payload.get("assigned_to"))
     try:
-        lead = await create_managed_lead(
-            {
-                "lead_code": lead_code,
-                **request.model_dump(),
-            }
-        )
+        lead = await create_managed_lead({"lead_code": lead_code, **payload})
     except DuplicateKeyError as exc:
         raise HTTPException(
             status_code=409,
@@ -153,6 +165,15 @@ async def update_lead(
     fields = request.model_dump(exclude_unset=True)
     if fields.get("status") and fields["status"] not in LEAD_STATUSES:
         raise HTTPException(status_code=400, detail="Trạng thái lead không hợp lệ.")
+
+    existing = await get_managed_lead(lead_code)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lead.")
+    if not can_access(existing, current_user):
+        raise HTTPException(status_code=403, detail="Bạn không được cập nhật khách hàng này.")
+    if "assigned_to" in fields:
+        ensure_can_assign(current_user, "Chỉ Admin/Manager được phân công khách hàng.")
+        fields["assigned_to"] = await validate_assignee(fields["assigned_to"])
     try:
         lead = await update_managed_lead(lead_code, fields)
     except DuplicateKeyError as exc:

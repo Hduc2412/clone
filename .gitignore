@@ -8,9 +8,18 @@ __pycache__/
 .env
 *.env
 
+# Kết quả nghiệm thu là ảnh chụp của một lần chạy trên một máy, không phải mã
+# nguồn. Đưa vào kho thì mỗi lần ai đó chạy lại là một lần xung đột vô nghĩa.
+backend/tests/fixtures/chatbot/ket_qua_gan_nhat.json
+
 # Debug files
 debug.html
 *.log
+
+# Hồ sơ gốc ứng viên tải lên. Tuyệt đối không đưa vào kho mã: đây là dữ liệu cá
+# nhân của người thật (họ tên, số điện thoại, ngày sinh), và lịch sử git thì xóa
+# đi rất khó — lỡ commit một lần là còn nằm đó mãi.
+backend/storage/
 
 # Local databases and runtime data
 *.db

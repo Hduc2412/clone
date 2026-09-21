@@ -1,47 +1,110 @@
-import os
-from dataclasses import dataclass
-from pathlib import Path
+"""Cấu hình ứng dụng, đọc từ biến môi trường và file .env.
 
-from dotenv import load_dotenv
+Dùng `pydantic_settings` thay cho dataclass thuần để cấu hình được kiểm tra ngay
+lúc khởi động. Thiếu `GEMINI_API_KEY` hoặc `JWT_SECRET` thì ứng dụng phải chết
+ngay với thông báo rõ ràng, thay vì chạy tiếp rồi lỗi mơ hồ ở request đầu tiên —
+lúc đó rất khó lần ngược về nguyên nhân thật.
+
+Tên thuộc tính giữ nguyên như bản cũ để các module đang dùng (`auth/security.py`,
+`db/database.py`, `llm/gemini.py`, `rag/retriever.py`) không phải sửa theo.
+"""
+from pathlib import Path
+from typing import Annotated
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(dotenv_path=BACKEND_DIR / ".env")
 
 
-def _as_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _origins() -> tuple[str, ...]:
-    value = os.getenv(
-        "CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:3001",
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=BACKEND_DIR / ".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
     )
-    return tuple(origin.strip() for origin in value.split(",") if origin.strip())
 
+    # --- Bắt buộc: thiếu là không khởi động được ---
+    gemini_api_key: str = Field(min_length=20)
+    jwt_secret: str = Field(min_length=32)
 
-@dataclass
-class Settings:
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "").strip()
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001").strip()
-    mongodb_uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017").strip()
-    mongodb_db_name: str = os.getenv("MONGODB_DB_NAME", "xkld_chatbot").strip()
-    qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333").strip()
-    qdrant_collection_name: str = os.getenv("QDRANT_COLLECTION_NAME", "xkld_knowledge").strip()
-    min_retrieval_score: float = float(os.getenv("MIN_RETRIEVAL_SCORE", "0.65"))
-    jwt_secret: str = os.getenv("JWT_SECRET", "").strip()
-    jwt_expire_minutes: int = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
-    auth_cookie_name: str = os.getenv("AUTH_COOKIE_NAME", "xkld_admin_session").strip()
-    auth_cookie_secure: bool = _as_bool("AUTH_COOKIE_SECURE")
-    cors_origins: tuple[str, ...] = _origins()
-    initial_admin_email: str = os.getenv("INITIAL_ADMIN_EMAIL", "").strip().lower()
-    initial_admin_name: str = os.getenv("INITIAL_ADMIN_NAME", "Quản trị viên").strip()
-    initial_admin_password_hash: str = os.getenv("INITIAL_ADMIN_PASSWORD_HASH", "").strip()
+    # --- Mô hình ngôn ngữ ---
+    gemini_model: str = "gemini-2.5-flash"
+    # Model riêng cho các tác vụ trả về JSON có schema (trích xuất CV, diễn giải
+    # kết quả đối chiếu). Tách biến để đổi model cho nhánh này mà không đụng chat.
+    gemini_json_model: str = "gemini-2.5-flash"
+    gemini_timeout_seconds: float = 60.0
+    embedding_model: str = "gemini-embedding-001"
+
+    # --- Dữ liệu ---
+    mongodb_uri: str = "mongodb://localhost:27017"
+    mongodb_db_name: str = "xkld_chatbot"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection_name: str = "xkld_knowledge"
+    # Sàn tuyệt đối cho đoạn hợp nhất. Xem `app/rag/retriever.py` để biết con số
+    # này chọn theo phép đo nào, và vì sao nó không thể làm hết việc.
+    min_retrieval_score: float = 0.65
+
+    # Số hotline công ty. Trước đây hard-code ở 4 nơi (validator, prompt, chat
+    # service); đổi số mà sót một chỗ là chatbot đọc sai số cho khách.
+    support_phone: str = "0971.716.939"
+
+    # --- Xác thực ---
+    jwt_expire_minutes: int = 480
+    auth_cookie_name: str = "xkld_admin_session"
+    auth_cookie_secure: bool = False
+    initial_admin_email: str = ""
+    initial_admin_name: str = "Quản trị viên"
+    initial_admin_password_hash: str = ""
+
+    # --- Lưu trữ file ứng viên ---
+    storage_path: Path = BACKEND_DIR / "storage"
+    max_upload_mb: int = 10
+    # Số trang tối đa đem đi nhận dạng chữ khi CV là bản scan. Giới hạn để một
+    # hồ sơ dài không đốt hết hạn mức gọi mô hình.
+    cv_ocr_max_pages: int = 5
+
+    # --- Đối chiếu đơn hàng ---
+    # Tắt cờ này thì phần diễn giải bằng mô hình ngôn ngữ bị bỏ qua và hệ thống
+    # dùng câu ghép sẵn. Điểm số không đổi vì điểm do quy tắc tính, không do mô hình.
+    llm_explanations_enabled: bool = True
+    matching_weights_path: Path | None = None
+    score_rules_path: Path | None = None
+
+    # --- Web ---
+    # Cổng 8020 thay vì 8000 mặc định của uvicorn, để không đụng ứng dụng khác
+    # trên máy phát triển. Đổi số ở đây thì phải đổi kèm NEXT_PUBLIC_BACKEND_URL
+    # của cả hai frontend, nếu không trình duyệt vẫn gọi vào cổng cũ.
+    api_host: str = "127.0.0.1"
+    api_port: int = 8020
+
+    cors_origins: Annotated[tuple[str, ...], NoDecode] = (
+        "http://localhost:3100",
+        "http://localhost:3101",
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        """Nhận chuỗi phân tách bằng dấu phẩy thay vì bắt người dùng viết JSON."""
+        if isinstance(value, str):
+            return tuple(item.strip() for item in value.split(",") if item.strip())
+        return value
+
+    @field_validator("initial_admin_email", mode="before")
+    @classmethod
+    def _normalize_admin_email(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
+
+    @property
+    def cv_storage_path(self) -> Path:
+        return self.storage_path / "cv"
 
 
 settings = Settings()

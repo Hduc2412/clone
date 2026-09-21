@@ -5,10 +5,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from pymongo.errors import DuplicateKeyError
 
 from app.db.database import (
+    REFERENCE_APPLICATION,
     assign_appointment,
     find_appointment_conflict,
     get_appointment_by_code,
     get_appointment_stats,
+    get_notification_by_reference,
+    get_recruitment_application,
     get_staff_user_by_email,
     list_appointment_events,
     list_appointments,
@@ -18,6 +21,8 @@ from app.db.database import (
     reschedule_appointment,
     update_appointment_status,
 )
+from app.services import score_service
+from app.services.assignment import can_access
 from app.services.audit_service import audit_action
 from app.auth.security import get_current_user, require_roles
 
@@ -174,6 +179,15 @@ async def change_appointment_status(
             status_code=409,
             detail="Lịch không tồn tại hoặc không thể chuyển sang trạng thái này.",
         )
+    # Ghi điểm cho người thật sự gọi. Lấy theo `assigned_to` của lịch chứ không
+    # theo người đang đăng nhập: quản lý ghi hộ kết quả thì điểm vẫn phải thuộc
+    # về tư vấn viên đã bỏ công gọi.
+    await score_service.award_appointment_result(
+        staff_email=appointment.get("assigned_to"),
+        appointment_code=appointment_code,
+        status=request.status,
+        note=request.result_note,
+    )
     await audit_action(
         http_request, "appointment.status_changed", actor=current_user,
         target_type="appointment", target_id=appointment_code,
@@ -295,13 +309,33 @@ async def get_notifications(
     )
 
 
-@notification_router.patch("/{appointment_code}/read")
+@notification_router.patch("/{reference_code}/read")
 async def read_notification(
-    appointment_code: str,
+    reference_code: str,
     current_user=Depends(get_current_user),
 ):
-    await require_appointment_access(appointment_code, current_user)
-    updated = await mark_notification_read(appointment_code)
+    """Đánh dấu đã đọc. Quy tắc ai được đọc phụ thuộc loại nghiệp vụ.
+
+    Đường dẫn giữ nguyên hình dạng cũ, chỉ đổi tên tham số: trước đây mã ở đây
+    luôn là mã lịch hẹn, nay có thể là mã hồ sơ đăng ký. Kiểm tra quyền theo đúng
+    loại của bản ghi được trỏ tới, thay vì mặc định coi mọi thứ là lịch hẹn.
+    """
+    notification = await get_notification_by_reference(reference_code)
+    if notification is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy thông báo.")
+
+    if notification.get("reference_type") == REFERENCE_APPLICATION:
+        application = await get_recruitment_application(reference_code)
+        if application is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ đăng ký.")
+        # Hồ sơ chưa ai nhận thì ai cũng tắt được thông báo của nó — nó là việc
+        # chung. Đã có người nhận thì theo quy tắc phân quyền thường lệ.
+        if application.get("assigned_to") and not can_access(application, current_user):
+            raise HTTPException(status_code=403, detail="Hồ sơ này do người khác phụ trách.")
+    else:
+        await require_appointment_access(reference_code, current_user)
+
+    updated = await mark_notification_read(reference_code)
     if not updated:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông báo chưa đọc.")
-    return {"appointment_code": appointment_code, "is_read": True}
+    return {"reference_code": reference_code, "is_read": True}

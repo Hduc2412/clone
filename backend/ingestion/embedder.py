@@ -23,6 +23,7 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 
 # Import từ đúng path sau khi migrate
 from ingestion.image_reader import read_image_content, get_best_image_url
+from app.rag.indexing import text_for_embedding
 from app.rag.taxonomy import infer_topic, normalize_text
 
 # ============================================================
@@ -52,26 +53,42 @@ HEADERS = {
 
 WEBSITE_SECTIONS = {
     "chi_phi": {
-        "url": "https://xklddieuduong.vn/?product_cat=quy-trinh-chi-phi-don",
+        "url": "https://xklddieuduong.vn/?danh-muc=quy-trinh-chi-phi-don",
         "title": "Chi phí đơn điều dưỡng",
         "filter_keywords": ["chi phí", "đóng phí", "tiền", "phí"],  # chỉ lấy bài có keyword này trong title
     },
     "quy_trinh": {
-        "url": "https://xklddieuduong.vn/?product_cat=quy-trinh-chi-phi-don",
+        "url": "https://xklddieuduong.vn/?danh-muc=quy-trinh-chi-phi-don",
         "title": "Quy trình đi Nhật",
         "filter_keywords": ["quy trình", "vấn đề", "các bước", "thủ tục"],
     },
     "don_hang": {
-        "url": "https://xklddieuduong.vn/?product_cat=don-hang",
+        "url": "https://xklddieuduong.vn/?danh-muc=don-hang",
         "title": "Hỏi đáp về điều dưỡng",
         "filter_keywords": [],  # lấy hết
     },
     "lop_hoc": {
-        "url": "https://xklddieuduong.vn/?product_cat=lop-hoc-ki-tuc-xa",
+        "url": "https://xklddieuduong.vn/?danh-muc=lop-hoc-ki-tuc-xa",
         "title": "Lớp học và ký túc xá",
         "filter_keywords": [],  # lấy hết
     },
 }
+
+# Năm danh mục còn lại trên menu website **cố ý không thu thập**. Khảo sát ngày
+# 17/09/2026:
+#
+#     ?danh-muc=hoc-vien-tai-nhat     57 bài — "Đón tiếp em X", "Liên hoan", ảnh sự kiện
+#     ?danh-muc=dang-ky-don           84 bài — "Nguyễn Văn A – tỉnh B đăng ký đi Nhật"
+#     ?danh-muc=phong-van-va-nhap-hoc         — cùng dạng
+#     ?danh-muc=hoc-vien-xuat-canh            — cùng dạng
+#
+# Toàn bài PR và ảnh kỷ niệm, không có một dòng chính sách nào. Nạp vào thì kho
+# phồng lên hơn năm lần bằng nội dung không ai hỏi tới, và mỗi câu hỏi thật sẽ
+# phải cạnh tranh với hàng trăm bài "đón tiếp em X" — làm việc tìm kiếm tệ đi chứ
+# không tốt lên.
+#
+# Danh mục **Hỏi đáp** (`don-hang`, 13 bài) là nơi duy nhất có nội dung nghiệp vụ,
+# và cả 13 bài đó đã nằm trong kho.
 
 # ============================================================
 # BƯỚC 1: CRAWL
@@ -334,7 +351,7 @@ def run_embedding_pipeline():
             points = []
             post_failed = False
             for i, chunk in enumerate(chunks):
-                enriched_chunk = f"{post['title']}\n{chunk}"
+                enriched_chunk = text_for_embedding(post["title"], chunk)
                 vector = create_embedding(gemini_client, enriched_chunk)
                 if not vector:
                     post_failed = True

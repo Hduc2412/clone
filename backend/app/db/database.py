@@ -13,9 +13,31 @@ from app.core.phone import normalize_vietnamese_phone
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
 
+# Các trường được phép xóa về rỗng. Router gọi model_dump(exclude_unset=True),
+# nên một key mang giá trị None nghĩa là client cố ý muốn xóa trường đó —
+# khác hẳn với "không gửi trường này". Những trường không nằm trong danh sách
+# dưới đây phải luôn có giá trị (trạng thái, số điện thoại, vai trò…), nên None
+# với chúng bị bỏ qua thay vì ghi đè làm hỏng bản ghi.
+APPLICATION_NULLABLE_FIELDS = frozenset(
+    {"assigned_to", "destination", "japanese_level", "qualification", "note"}
+)
+MANAGED_LEAD_NULLABLE_FIELDS = frozenset({"assigned_to", "note"})
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _keep_allowed_nulls(
+    fields: dict[str, Any],
+    nullable: frozenset[str],
+) -> dict[str, Any]:
+    """Giữ None cho trường được phép xóa, bỏ None cho những trường còn lại."""
+    return {
+        key: value
+        for key, value in fields.items()
+        if value is not None or key in nullable
+    }
 
 
 def get_db() -> AsyncIOMotorDatabase:
@@ -29,7 +51,12 @@ async def init_db() -> None:
     global _client, _db
 
     if _client is None:
-        _client = AsyncIOMotorClient(settings.mongodb_uri)
+        # tz_aware=True: MongoDB luu datetime theo UTC, nhung driver mac dinh tra
+        # ve datetime tran khong mang mui gio. FastAPI se serialise no thanh chuoi
+        # kieu "2026-09-16T14:40:12" khong co hau to Z, va trinh duyet doc chuoi do
+        # nhu GIO DIA PHUONG. Hau qua: mot ho so vua dang ky xong hien la "7 gio
+        # truoc" tren man hinh quan tri, dung bang do lech mui gio Viet Nam.
+        _client = AsyncIOMotorClient(settings.mongodb_uri, tz_aware=True)
         _db = _client[settings.mongodb_db_name]
 
     db = get_db()
@@ -38,6 +65,7 @@ async def init_db() -> None:
     await db.messages.create_index(
         [("session_id", ASCENDING), ("created_at", ASCENDING)]
     )
+    await db.messages.create_index([("role", ASCENDING), ("is_fallback", ASCENDING)])
     await db.sessions.create_index("session_id", unique=True)
     await db.sessions.create_index("last_active")
     await db.leads.create_index([("session_id", ASCENDING), ("created_at", DESCENDING)])
@@ -64,6 +92,10 @@ async def init_db() -> None:
     await db.notifications.create_index(
         [("is_read", ASCENDING), ("created_at", DESCENDING)],
     )
+    await db.notifications.create_index(
+        [("reference_type", ASCENDING), ("reference_code", ASCENDING)],
+    )
+    await _backfill_notification_references(db)
     await db.appointment_events.create_index(
         [("appointment_code", ASCENDING), ("created_at", ASCENDING)],
     )
@@ -100,6 +132,12 @@ async def init_db() -> None:
     await db.application_events.create_index(
         [("application_code", ASCENDING), ("created_at", ASCENDING)]
     )
+
+    # Index của các nghiệp vụ mới do chính module đó khai báo. Import tại chỗ vì
+    # những module ấy lấy `get_db` từ file này, khai báo ở đầu file sẽ tạo vòng lặp.
+    from app.db.indexes import ensure_domain_indexes
+
+    await ensure_domain_indexes(db)
 
     await _create_initial_admin()
 
@@ -261,8 +299,13 @@ async def save_message(
     role: str,
     content: str,
     intent: str = "chung",
+    is_fallback: bool = False,
 ) -> None:
-    """Save one chat message into MongoDB."""
+    """Save one chat message into MongoDB.
+
+    `is_fallback` đánh dấu câu trả lời dự phòng ngay lúc sinh ra, để Analytics
+    đếm đúng thay vì phải dò chuỗi trong nội dung tin nhắn.
+    """
     now = _now()
     await get_db().messages.insert_one(
         {
@@ -270,6 +313,7 @@ async def save_message(
             "role": role,
             "content": content,
             "intent": intent,
+            "is_fallback": is_fallback,
             "created_at": now,
         }
     )
@@ -423,6 +467,10 @@ async def create_appointment(appointment: dict[str, Any]) -> dict[str, Any]:
         {
             "type": "new_appointment",
             "title": "Lịch tư vấn mới",
+            # `appointment_code` giữ lại cho phần cũ đang đọc trường này; hai
+            # trường `reference_*` mới là thứ mọi nghiệp vụ dùng chung.
+            "reference_type": REFERENCE_APPOINTMENT,
+            "reference_code": document["appointment_code"],
             "appointment_code": document["appointment_code"],
             "customer_name": document["customer_name"],
             "phone": document["phone"],
@@ -756,20 +804,89 @@ async def list_appointment_events(
     return await cursor.to_list(length=limit)
 
 
+REFERENCE_APPOINTMENT = "appointment"
+REFERENCE_APPLICATION = "application"
+
+
+async def create_notification(
+    *,
+    notification_type: str,
+    title: str,
+    reference_type: str,
+    reference_code: str,
+    detail: dict[str, Any] | None = None,
+) -> None:
+    """Tạo một thông báo cho bất kỳ nghiệp vụ nào.
+
+    Trước đây thông báo chỉ sinh ra từ luồng đặt lịch, nên `appointment_code` vừa
+    là khóa tra cứu vừa là khóa đánh dấu đã đọc. Nghiệp vụ thứ hai xuất hiện là
+    lộ ra vấn đề: một thông báo không có mã lịch hẹn thì **không ai tắt được**,
+    và chuông đỏ nằm đó vĩnh viễn.
+
+    Cặp `reference_type` + `reference_code` thay cho khóa cũ. Kiểu tham chiếu
+    quyết định luôn quy tắc ai được xem, nên thêm nghiệp vụ mới chỉ cần thêm một
+    nhánh, không phải sửa lại toàn bộ.
+    """
+    await get_db().notifications.insert_one(
+        {
+            "type": notification_type,
+            "title": title,
+            "reference_type": reference_type,
+            "reference_code": reference_code,
+            "detail": detail or {},
+            "is_read": False,
+            "created_at": _now(),
+        }
+    )
+
+
+async def _backfill_notification_references(db: AsyncIOMotorDatabase) -> None:
+    """Gắn tham chiếu chung cho các thông báo lịch hẹn tạo trước thay đổi này.
+
+    Không backfill thì bộ lọc mới bỏ sót đúng những thông báo cũ, và nhân viên
+    thấy chuông tự nhiên rỗng đi sau một lần cập nhật.
+    """
+    await db.notifications.update_many(
+        {"reference_code": {"$exists": False}, "appointment_code": {"$exists": True}},
+        [
+            {
+                "$set": {
+                    "reference_type": REFERENCE_APPOINTMENT,
+                    "reference_code": "$appointment_code",
+                }
+            }
+        ],
+    )
+
+
 async def list_notifications(
     unread_only: bool = False,
     assigned_to: str | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    query = {"is_read": False} if unread_only else {}
+    query: dict[str, Any] = {"is_read": False} if unread_only else {}
     if assigned_to:
-        appointments = await get_db().consultation_appointments.find(
+        db = get_db()
+        appointments = await db.consultation_appointments.find(
             {"assigned_to": assigned_to},
             {"appointment_code": 1},
         ).to_list(length=None)
-        query["appointment_code"] = {
-            "$in": [row["appointment_code"] for row in appointments]
-        }
+        # Hồ sơ đăng ký: thấy hồ sơ của mình, và thấy cả hồ sơ **chưa ai nhận** —
+        # phần việc chưa của ai thì ai cũng phải nhìn thấy mới có người nhận.
+        applications = await db.recruitment_applications.find(
+            {"$or": [{"assigned_to": assigned_to}, {"assigned_to": None}]},
+            {"application_code": 1},
+        ).to_list(length=None)
+        query["$or"] = [
+            {
+                "reference_type": REFERENCE_APPOINTMENT,
+                "reference_code": {"$in": [row["appointment_code"] for row in appointments]},
+            },
+            {
+                "reference_type": REFERENCE_APPLICATION,
+                "reference_code": {"$in": [row["application_code"] for row in applications]},
+            },
+        ]
     cursor = (
         get_db()
         .notifications.find(query, {"_id": 0})
@@ -779,12 +896,30 @@ async def list_notifications(
     return await cursor.to_list(length=limit)
 
 
-async def mark_notification_read(appointment_code: str) -> bool:
+async def mark_notification_read(reference_code: str) -> bool:
+    """Đánh dấu đã đọc theo mã tham chiếu, bất kể thông báo thuộc nghiệp vụ nào."""
     result = await get_db().notifications.update_many(
-        {"appointment_code": appointment_code},
+        {
+            "$or": [
+                {"reference_code": reference_code},
+                {"appointment_code": reference_code},
+            ]
+        },
         {"$set": {"is_read": True, "read_at": _now()}},
     )
     return result.modified_count > 0
+
+
+async def get_notification_by_reference(reference_code: str) -> dict[str, Any] | None:
+    return await get_db().notifications.find_one(
+        {
+            "$or": [
+                {"reference_code": reference_code},
+                {"appointment_code": reference_code},
+            ]
+        },
+        {"_id": 0},
+    )
 
 
 async def get_management_overview() -> dict[str, Any]:
@@ -856,8 +991,13 @@ async def list_conversations(limit: int = 100) -> list[dict[str, Any]]:
 async def list_managed_leads(
     status: str | None = None,
     limit: int = 100,
+    assigned_to: str | None = None,
 ) -> list[dict[str, Any]]:
-    query = {"status": status} if status else {}
+    query: dict[str, Any] = {}
+    if status:
+        query["status"] = status
+    if assigned_to:
+        query["assigned_to"] = assigned_to.strip().lower()
     cursor = (
         get_db()
         .managed_leads.find(query, {"_id": 0, "phone_normalized": 0})
@@ -890,11 +1030,7 @@ async def update_managed_lead(
     lead_code: str,
     fields: dict[str, Any],
 ) -> dict[str, Any] | None:
-    fields = {
-        key: value
-        for key, value in fields.items()
-        if value is not None
-    }
+    fields = _keep_allowed_nulls(fields, MANAGED_LEAD_NULLABLE_FIELDS)
     if "phone" in fields:
         phone = normalize_vietnamese_phone(fields["phone"])
         fields["phone"] = phone
@@ -905,6 +1041,22 @@ async def update_managed_lead(
         {"$set": fields},
         return_document=ReturnDocument.AFTER,
         projection={"_id": 0, "phone_normalized": 0},
+    )
+
+
+async def get_managed_lead_by_phone(phone: str) -> dict[str, Any] | None:
+    """Tra khách hàng theo số điện thoại đã chuẩn hóa.
+
+    Dùng khi ứng viên tự đăng ký: người gọi điện tuần trước và người vừa đăng ký
+    hôm nay có thể là một, và phải nhận ra điều đó thì lịch sử liên hệ mới liền
+    mạch. Tra theo `phone_normalized` vì đó là trường mang index duy nhất.
+    """
+    normalized = normalize_vietnamese_phone(phone)
+    if not normalized:
+        return None
+    return await get_db().managed_leads.find_one(
+        {"phone_normalized": normalized},
+        {"_id": 0, "phone_normalized": 0},
     )
 
 
@@ -940,6 +1092,33 @@ async def list_recruitment_applications(
     return await cursor.to_list(length=limit)
 
 
+async def list_unassigned_registrations(
+    session_id: str | None = None,
+    include_assigned: bool = False,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Hồ sơ do ứng viên tự đăng ký.
+
+    Mặc định chỉ lấy những hồ sơ **chưa ai nhận** — đó là định nghĩa của hàng đợi.
+    `list_recruitment_applications` không diễn đạt được điều kiện này, vì tham số
+    `assigned_to` của nó bỏ qua giá trị rỗng, mà "chưa giao cho ai" lại chính là
+    giá trị rỗng.
+    """
+    query: dict[str, Any] = {"source": "self_registration"}
+    if not include_assigned:
+        query["assigned_to"] = None
+        query["is_active"] = True
+    if session_id:
+        query["session_id"] = session_id
+    cursor = (
+        get_db()
+        .recruitment_applications.find(query, {"_id": 0})
+        .sort("created_at", ASCENDING if not include_assigned else DESCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
 async def get_recruitment_application(application_code: str) -> dict[str, Any] | None:
     return await get_db().recruitment_applications.find_one(
         {"application_code": application_code},
@@ -963,14 +1142,19 @@ async def update_recruitment_application(
     fields: dict[str, Any],
     expected_status: str | None = None,
     owner_email: str | None = None,
+    unassigned_only: bool = False,
 ) -> dict[str, Any] | None:
-    clean_fields = {key: value for key, value in fields.items() if value is not None}
+    clean_fields = _keep_allowed_nulls(fields, APPLICATION_NULLABLE_FIELDS)
     clean_fields["updated_at"] = _now()
     query: dict[str, Any] = {"application_code": application_code}
     if expected_status is not None:
         query["status"] = expected_status
     if owner_email is not None:
         query["assigned_to"] = owner_email.strip().lower()
+    if unassigned_only:
+        # Điều kiện nằm trong chính câu cập nhật, không kiểm tra rồi mới ghi. Hai
+        # nhân viên bấm nhận cùng lúc thì chỉ một người khớp điều kiện này.
+        query["assigned_to"] = None
     return await get_db().recruitment_applications.find_one_and_update(
         query,
         {"$set": clean_fields},
@@ -1063,11 +1247,9 @@ async def update_staff_user(
     email: str,
     fields: dict[str, Any],
 ) -> dict[str, Any] | None:
-    fields = {
-        key: value
-        for key, value in fields.items()
-        if value is not None
-    }
+    # Tài khoản nội bộ không có trường nào được phép xóa về rỗng: họ tên, vai trò
+    # và trạng thái đều phải luôn có giá trị.
+    fields = _keep_allowed_nulls(fields, frozenset())
     fields["updated_at"] = _now()
     return await get_db().staff_users.find_one_and_update(
         {"email": email},

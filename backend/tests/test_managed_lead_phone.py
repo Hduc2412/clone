@@ -66,9 +66,16 @@ class ManagedLeadPhoneApiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_update_duplicate_returns_conflict(self):
         request = LeadUpdateRequest(phone="+84 912 345 678")
-        with patch(
-            "app.api.management.update_managed_lead",
-            new=AsyncMock(side_effect=DuplicateKeyError("duplicate")),
+        existing = {"lead_code": "LD-001", "assigned_to": None}
+        with (
+            patch(
+                "app.api.management.get_managed_lead",
+                new=AsyncMock(return_value=existing),
+            ),
+            patch(
+                "app.api.management.update_managed_lead",
+                new=AsyncMock(side_effect=DuplicateKeyError("duplicate")),
+            ),
         ):
             with self.assertRaises(HTTPException) as context:
                 await update_lead("LD-001", request, self.http_request, self.actor)
@@ -89,6 +96,27 @@ class ManagedLeadPhoneDatabaseTests(unittest.IsolatedAsyncioTestCase):
             {"lead_code": {"$in": [self.first_code, self.second_code]}}
         )
         await close_db()
+
+    async def test_can_clear_assignee_and_note_but_not_status(self):
+        await create_managed_lead({
+            "lead_code": self.first_code,
+            "customer_name": "Khách A",
+            "phone": self.phone,
+            "source": "test",
+            "assigned_to": "consultant@example.com",
+            "note": "ghi chú cũ",
+        })
+
+        cleared = await update_managed_lead(
+            self.first_code,
+            {"assigned_to": None, "note": None},
+        )
+        self.assertIsNone(cleared["assigned_to"])
+        self.assertIsNone(cleared["note"])
+
+        # status phải luôn có giá trị: gửi None thì bị bỏ qua, không ghi đè
+        kept = await update_managed_lead(self.first_code, {"status": None})
+        self.assertEqual(kept["status"], cleared["status"])
 
     async def test_unique_index_blocks_equivalent_phone_formats(self):
         first = await create_managed_lead({

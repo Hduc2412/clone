@@ -1,6 +1,9 @@
 import math
 import re
+import threading
 import time
+from collections import OrderedDict
+
 import requests
 from app.core.config import settings
 
@@ -127,7 +130,67 @@ def generate_response(prompt: str) -> str:
         return "Lỗi Gemini: Không nhận được nội dung trả lời"
     return parts[0]["text"]
 
-def create_embedding(text: str) -> list | None:
+# Hai vai khác nhau, hai không gian vector khác nhau. Câu hỏi của người dùng nhúng
+# kiểu QUERY, còn đoạn tài liệu nằm trong kho phải nhúng kiểu DOCUMENT. Dùng lẫn
+# thì vẫn ra vector và vẫn tính được độ gần nghĩa, nên hỏng mà không báo lỗi —
+# chỉ thấy điểm thấp đi và đoạn đúng tụt hạng.
+#
+# Đo trên một đoạn thật: cùng câu hỏi, đoạn nhúng kiểu QUERY được 0,6423, nhúng
+# đúng kiểu DOCUMENT được 0,7006. Chênh 0,06 — vừa đúng khoảng làm đoạn đúng rơi
+# khỏi ngưỡng lọc.
+TASK_QUERY = "RETRIEVAL_QUERY"
+TASK_DOCUMENT = "RETRIEVAL_DOCUMENT"
+
+
+# Nhớ đệm vector của câu hỏi.
+#
+# Mỗi lượt chat đi ra Internet **hai lần**: một lần nhúng câu hỏi, một lần sinh
+# chữ. Đo trên máy thật: nhúng mất ~700 ms trong tổng 3,1–3,9 s, tức khoảng một
+# phần năm thời gian chờ — cho một việc mà cùng một câu hỏi luôn ra cùng một kết
+# quả.
+#
+# Trong lĩnh vực này khách hỏi đi hỏi lại đúng mấy câu (chi phí, điều kiện, lương),
+# nên tỷ lệ trúng đệm sẽ cao. Mỗi vector 3072 chiều ≈ 24KB, nên 256 mục ≈ 6MB —
+# đủ nhỏ để nằm trong tiến trình, đủ lớn để phủ hết các câu hay gặp.
+#
+# Đệm nằm trong bộ nhớ tiến trình nên chạy nhiều worker thì mỗi worker có đệm
+# riêng. Chấp nhận được: đệm lạnh chỉ có nghĩa là chậm bằng lúc chưa có đệm.
+_CACHE_SIZE = 256
+_embedding_cache: "OrderedDict[tuple[str, str], list]" = OrderedDict()
+_cache_lock = threading.Lock()
+
+
+def clear_embedding_cache() -> None:
+    """Xoá đệm. Dùng trong kiểm thử, và khi kho tri thức vừa được nhúng lại."""
+    with _cache_lock:
+        _embedding_cache.clear()
+
+
+def _cache_get(key: tuple[str, str]) -> list | None:
+    with _cache_lock:
+        vector = _embedding_cache.get(key)
+        if vector is None:
+            return None
+        _embedding_cache.move_to_end(key)
+        # Trả bản sao: người gọi sửa vào danh sách trả về thì mục trong đệm hỏng
+        # theo, và lỗi đó sẽ hiện ra ở một câu hỏi khác hẳn.
+        return list(vector)
+
+
+def _cache_put(key: tuple[str, str], vector: list) -> None:
+    with _cache_lock:
+        _embedding_cache[key] = list(vector)
+        _embedding_cache.move_to_end(key)
+        while len(_embedding_cache) > _CACHE_SIZE:
+            _embedding_cache.popitem(last=False)
+
+
+def create_embedding(text: str, task_type: str = TASK_QUERY) -> list | None:
+    key = ((text or "").strip(), task_type)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{settings.embedding_model}:embedContent"
@@ -135,12 +198,16 @@ def create_embedding(text: str) -> list | None:
     payload = {
         "model": f"models/{settings.embedding_model}",
         "content": {"parts": [{"text": text}]},
-        "taskType": "RETRIEVAL_QUERY",
+        "taskType": task_type,
     }
     data = _post_with_retry(url, payload, label="Gemini embedding")
 
     if "error" in data:
         print(f"Loi embedding: {data['error']['message']}")
+        # Không nhớ đệm lần hỏng. Nhớ lại thì một trục trặc mạng thoáng qua sẽ
+        # biến thành câu hỏi đó hỏng vĩnh viễn cho tới khi khởi động lại.
         return None
 
-    return data["embedding"]["values"]
+    vector = data["embedding"]["values"]
+    _cache_put(key, vector)
+    return vector

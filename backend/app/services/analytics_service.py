@@ -4,6 +4,7 @@ Query MongoDB để tổng hợp số liệu hoạt động chatbot.
 """
 
 from datetime import UTC, datetime, timedelta
+from app.conversation.fallback_messages import ALL_FALLBACKS
 from app.db.database import get_db
 
 async def get_overview() -> dict:
@@ -53,12 +54,24 @@ async def get_intent_distribution() -> dict:
     return [{"intent": r["_id"], "count": r["count"]} for r in results]
 
 async def get_fallback_rate() -> dict:
-    """Tỷ lệ câu trả lời rơi vào fallback."""
+    """Tỷ lệ câu trả lời rơi vào fallback.
+
+    Đếm theo cờ `is_fallback` được gắn ngay lúc sinh câu trả lời. Cách cũ dò
+    chuỗi "Xin lỗi, tôi không tìm thấy" chỉ bắt được một trong bốn câu dự phòng,
+    nên bỏ sót cả ca bị bộ kiểm chứng chặn lẫn ca quá tải — đúng những ca đáng
+    theo dõi nhất. Tin nhắn cũ chưa có cờ thì vẫn đối chiếu theo nội dung.
+    """
     db = get_db()
     total_bot_messages = await db.messages.count_documents({"role": "assistant"})
     fallback_messages = await db.messages.count_documents({
         "role": "assistant",
-        "content": {"$regex": "Xin lỗi, tôi không tìm thấy"}
+        "$or": [
+            {"is_fallback": True},
+            {
+                "is_fallback": {"$exists": False},
+                "content": {"$in": list(ALL_FALLBACKS)},
+            },
+        ],
     })
     rate = round(fallback_messages / total_bot_messages * 100, 1) if total_bot_messages else 0
     

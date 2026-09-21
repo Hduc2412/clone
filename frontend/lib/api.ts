@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8020";
 
 export interface Source {
   title: string;
@@ -21,6 +21,8 @@ export interface ChatResponse {
   session_id: string;
   intent: string;
   sources: Source[];
+  /** True khi hệ thống không đủ căn cứ để trả lời và phải dùng câu dự phòng. */
+  is_fallback?: boolean;
 }
 
 export async function sendMessage(

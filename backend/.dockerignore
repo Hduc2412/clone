@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Bí mật đi qua biến môi trường của compose, không nướng vào ảnh.
+.env
+.env.*
+# CV thật của ứng viên. Không bao giờ nằm trong ảnh Docker.
+storage/
+*.log

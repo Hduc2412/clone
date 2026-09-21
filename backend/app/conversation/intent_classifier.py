@@ -2,12 +2,14 @@
 Intent Classifier — Sprint 2
 Phân loại câu hỏi của user thuộc nhóm nào.
 """
+import re
+
 from app.rag.taxonomy import normalize_text
 
 INTENT_PATTERNS = {
     "chi_phi": [
         "chi phí", "học phí", "tổng phí", "giá đơn",
-        "đặt cọc", "phí", "vay", "trả góp", "khoản",
+        "đặt cọc", "tiền cọc", "cọc", "phí", "vay", "trả góp", "khoản",
         "hoàn tiền", "trả lại tiền", "phỏng vấn không đỗ"
     ],
     "dieu_kien": [
@@ -20,7 +22,7 @@ INTENT_PATTERNS = {
     ],
     "luong_thuong": [
         "lương", "thu nhập", "kiếm được", "tiền lương",
-        "trợ cấp", "phụ cấp", "thu nhập"
+        "trợ cấp", "phụ cấp"
     ],
     "thoi_gian": [
         "bao lâu", "thời gian", "mấy tháng", "mấy năm",
@@ -74,13 +76,38 @@ INTENT_PATTERNS_NODIAC = {
     for intent, keywords in INTENT_PATTERNS.items()
 }
 
+def _tokens(text: str) -> list[str]:
+    """Cắt câu đã bỏ dấu thành từng tiếng."""
+    return re.findall(r"[a-z0-9]+", normalize_text(text))
+
+
+def _contains(haystack: list[str], needle: list[str]) -> bool:
+    """Dãy tiếng `needle` có nằm liền nhau trong `haystack` không.
+
+    So theo **tiếng trọn vẹn**, không so chuỗi con. Bản cũ dùng `in` trên chuỗi
+    nên "phí" khớp cả trong "phía", "khoản" khớp trong "khoảng", và câu
+    "Công ty ở phía bắc có chi nhánh không?" bị xếp vào nhóm chi phí.
+
+    Cách này không chữa được mọi nhầm lẫn: "lương" trong "sống lương thiện" vẫn
+    là một tiếng có thật, nên vẫn khớp. Đó là giới hạn của việc phân loại bằng
+    từ khóa, không phải thứ sửa được bằng cách so khớp chặt hơn.
+    """
+    if not needle:
+        return False
+    return any(
+        haystack[i : i + len(needle)] == needle
+        for i in range(len(haystack) - len(needle) + 1)
+    )
+
+
 def classify(query: str) -> str:
-    query_normalized = normalize_text(query)
+    query_tokens = _tokens(query)
     scores = {intent: 0 for intent in INTENT_PATTERNS}
 
     for intent, keywords in INTENT_PATTERNS_NODIAC.items():
-        for keyword in keywords:
-            if keyword in query_normalized:
+        # `set` để một từ khóa viết lặp trong bảng không được tính hai lần.
+        for keyword in set(keywords):
+            if _contains(query_tokens, keyword.split()):
                 scores[intent] += 1
 
     best_intent = max(

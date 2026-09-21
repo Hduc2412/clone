@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Message, sendMessage } from "@/lib/api";
+import { getSessionId } from "@/lib/journeySession";
 
 const STORAGE_KEY = "xkld-chat-state-v1";
 const INITIAL_MESSAGES: Message[] = [
@@ -41,18 +42,36 @@ export function useChat() {
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
+      const activeId = getSessionId();
+      setSessionId(activeId);
       if (stored) {
         const parsed = JSON.parse(stored) as StoredChat;
-        if (Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+        if (parsed.sessionId === activeId && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
           setMessages(parsed.messages);
         }
-        setSessionId(parsed.sessionId);
       }
     } catch {
       sessionStorage.removeItem(STORAGE_KEY);
     } finally {
       setHydrated(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const reset = () => {
+      setSessionId(getSessionId());
+      setMessages(INITIAL_MESSAGES);
+      setInput("");
+    };
+    window.addEventListener("xkld-journey-reset", reset);
+    const storageReset = (event: StorageEvent) => {
+      if (event.key === "xkld-candidate-session" || event.key === null) reset();
+    };
+    window.addEventListener("storage", storageReset);
+    return () => {
+      window.removeEventListener("xkld-journey-reset", reset);
+      window.removeEventListener("storage", storageReset);
+    };
   }, []);
 
   useEffect(() => {
@@ -63,7 +82,8 @@ export function useChat() {
 
   async function handleSend() {
     const query = input.trim();
-    if (!query || loading) return;
+    if (!query || loading || !hydrated) return;
+    const activeId = getSessionId();
 
     setMessages((previous) => [
       ...previous,
@@ -73,7 +93,8 @@ export function useChat() {
     setLoading(true);
 
     try {
-      const response = await sendMessage(query, sessionId);
+      const response = await sendMessage(query, activeId);
+      if (getSessionId() !== activeId) return;
       setSessionId(response.session_id);
 
       const currentTopic = INTENT_TO_TOPIC[response.intent];
@@ -96,6 +117,7 @@ export function useChat() {
         },
       ]);
     } catch {
+      if (getSessionId() !== activeId) return;
       setMessages((previous) => [
         ...previous,
         {

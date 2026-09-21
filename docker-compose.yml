@@ -1,0 +1,127 @@
+# Đóng gói toàn hệ thống: sáu dịch vụ, một lệnh.
+#
+#   docker compose up -d --build
+#
+# Địa chỉ sau khi lên:
+#   http://localhost         website khách hàng
+#   http://localhost:8080    hệ thống quản trị
+#   http://localhost:8020    backend, cũng là địa chỉ trình duyệt gọi thẳng tới
+#
+# Xem `docs/DOCKER.md` để biết những bước chuẩn bị phải làm trước lần chạy đầu.
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  qdrant:
+    image: qdrant/qdrant
+    restart: unless-stopped
+    ports:
+      # Mở ra ngoài để chạy được `ingestion/embedder.py` từ máy thật mà không
+      # phải vào trong container.
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      # `format: raw` là bắt buộc, không phải trang trí. Mặc định Compose nội suy
+      # `$` trong file env, mà chuỗi băm mật khẩu quản trị lại có dạng
+      # `pbkdf2_sha256$600000$muoi$bam` — ba dấu `$` đó bị nuốt mất, tài khoản
+      # quản trị đầu tiên được tạo với chuỗi băm hỏng, và triệu chứng duy nhất là
+      # "sai mật khẩu" với mật khẩu đúng. Kiểm bằng:
+      #   docker compose config | grep INITIAL_ADMIN_PASSWORD_HASH
+      - path: ./backend/.env
+        format: raw
+    environment:
+      # Ba giá trị này phải đè lên `.env`. File đó viết cho máy phát triển, trỏ
+      # tới `localhost` — mà trong mạng của compose, `localhost` của container
+      # backend chính là nó, không phải MongoDB.
+      MONGODB_URI: mongodb://mongodb:27017
+      QDRANT_URL: http://qdrant:6333
+      # Nguồn gọi vào: hai cổng của nginx, cộng hai cổng dev để lập trình viên
+      # vẫn chạy `npm run dev` cạnh bộ container này được.
+      CORS_ORIGINS: http://localhost,http://localhost:8080,http://localhost:3100,http://localhost:3101
+    ports:
+      - "8020:8020"
+    volumes:
+      # CV ứng viên gửi lên. Không có dòng này thì `docker compose down` là mất
+      # sạch bản gốc mà nhân viên cần đối chiếu.
+      - backend_storage:/app/storage
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8020/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  website:
+    build:
+      context: ./frontend
+      args:
+        # Địa chỉ trình duyệt của khách sẽ gọi tới, không phải tên container:
+        # đoạn mã này chạy trên máy khách, nơi `backend:8020` không giải được.
+        NEXT_PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:8020}
+    restart: unless-stopped
+    environment:
+      # Địa chỉ cho những lời gọi phát ra **từ container**, tức phần dựng sẵn
+      # trên máy chủ: trang danh sách đơn và trang chi tiết đơn. Trong container,
+      # `localhost:8020` là chính nó chứ không phải backend, nên thiếu dòng này
+      # thì trang đơn hàng lên bình thường nhưng luôn rỗng — đúng cái trạng thái
+      # "chưa có đơn nào" mà người xem sẽ tin là thật.
+      #
+      # Khác `NEXT_PUBLIC_BACKEND_URL` ở chỗ nó đọc lúc chạy, không nướng vào ảnh,
+      # nên đổi rồi khởi động lại là xong.
+      BACKEND_INTERNAL_URL: http://backend:8020
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  admin:
+    build:
+      context: ./admin-frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:8020}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - website
+      - admin
+
+volumes:
+  mongo_data:
+  backend_storage:
+  qdrant_data:
+    # Volume này đã tồn tại và đang giữ kho tri thức đã lập chỉ mục. Khai
+    # `external` để compose dùng lại chứ không tạo một volume rỗng mang tên
+    # `xkld-chatbot_qdrant_data` — nhầm chỗ này là chatbot lên nhưng không trả
+    # lời được câu nào, và triệu chứng trông hệt như lỗi mô hình.
+    external: true

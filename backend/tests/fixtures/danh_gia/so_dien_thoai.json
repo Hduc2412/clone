@@ -1,0 +1,91 @@
+{
+  "mo_ta": "Đo bộ trích số điện thoại. Nửa sau của bộ là các câu KHÔNG chứa số điện thoại nhưng có chuỗi số dễ nhầm — năm sinh, chiều cao, mức lương, mã đơn, số nhà, số máy bàn. Bắt nhầm một con số thành số liên hệ thì nhân viên gọi vào số không tồn tại, nên phần âm tính quan trọng ngang phần dương tính.",
+  "muc_tieu": "≥ 95% theo docs/design/07 §7",
+  "so_cau": 20,
+  "co_so": 11,
+  "khong_co_so": 9,
+  "cau_hoi": [
+    {
+      "cau": "Số em là 0912345678 nhé",
+      "so_mong_doi": "0912345678"
+    },
+    {
+      "cau": "Anh gọi em qua 090 123 4567 ạ",
+      "so_mong_doi": "0901234567"
+    },
+    {
+      "cau": "sdt cua em: 0987.654.321",
+      "so_mong_doi": "0987654321"
+    },
+    {
+      "cau": "Liên hệ +84912345678",
+      "so_mong_doi": "0912345678"
+    },
+    {
+      "cau": "Số 84 987 654 321",
+      "so_mong_doi": "0987654321"
+    },
+    {
+      "cau": "Em dùng 03 5678 9012",
+      "so_mong_doi": "0356789012"
+    },
+    {
+      "cau": "0971-716-939 là số công ty đúng không ạ?",
+      "so_mong_doi": "0971716939"
+    },
+    {
+      "cau": "Cho em xin số 0866 777 888",
+      "so_mong_doi": "0866777888"
+    },
+    {
+      "cau": "Em không nhớ số, để em hỏi lại",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Em sinh năm 2003, cao 160cm",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Em có 5 năm kinh nghiệm",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Lương 190000 yên một tháng",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Số nhà 123 đường Lê Lợi",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Mã đơn DH-0001",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Em thi JLPT ngày 07/12/2025",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Gọi em số 0912345678 hoặc 0987654321 đều được",
+      "so_mong_doi": "0912345678"
+    },
+    {
+      "cau": "SĐT: 0912345678. Email: a@b.vn",
+      "so_mong_doi": "0912345678"
+    },
+    {
+      "cau": "so cua em la khong chin mot hai ba bon nam sau bay tam",
+      "so_mong_doi": null
+    },
+    {
+      "cau": "Đơn hàng mã 0246273 tuyển 15 người",
+      "so_mong_doi": null,
+      "ghi_chu": "Chuỗi số dài không phải số điện thoại"
+    },
+    {
+      "cau": "0912345678",
+      "so_mong_doi": "0912345678"
+    }
+  ],
+  "ghi_chu_sua": "Ca 'số máy bàn Hà Nội' ban đầu viết sai: chuỗi 0246 273 0246 có 11 chữ số, không phải số máy bàn hợp lệ nào. Đã thay bằng một ca âm tính rõ ràng."
+}

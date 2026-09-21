@@ -1,0 +1,534 @@
+{
+  "mo_ta": "Bộ câu hỏi gán nhãn ý định, dùng để đo độ chính xác của bộ phân loại. Nhãn do người gán, không sinh từ chính bộ phân loại — nếu lấy đầu ra của nó làm đáp án thì phép đo luôn ra 100% và không nói lên điều gì.",
+  "muc_tieu": "≥ 85% theo docs/design/07 §7",
+  "nhan_hop_le": [
+    "booking",
+    "chi_phi",
+    "chung",
+    "cong_viec",
+    "dieu_kien",
+    "hoc_tap",
+    "ky_tuc_xa",
+    "lead",
+    "luong_thuong",
+    "phong_van",
+    "quy_trinh",
+    "thoi_gian"
+  ],
+  "so_cau": 100,
+  "cau_hoi": [
+    {
+      "cau": "Đi Nhật diện điều dưỡng tốn tổng cộng bao nhiêu tiền ạ?",
+      "y_dinh": "chi_phi",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Chi phí trọn gói là bao nhiêu vậy anh chị?",
+      "y_dinh": "chi_phi",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em phải đặt cọc trước bao nhiêu?",
+      "y_dinh": "chi_phi",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Nhà em khó khăn, có được vay vốn không?",
+      "y_dinh": "chi_phi",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Có hình thức trả góp học phí không ạ?",
+      "y_dinh": "chi_phi",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Nếu phỏng vấn không đỗ thì có được hoàn tiền không?",
+      "y_dinh": "chi_phi",
+      "do_kho": "kho",
+      "y_dinh_chap_nhan_them": [
+        "phong_van"
+      ]
+    },
+    {
+      "cau": "Em đóng rồi mà đổi ý thì công ty trả lại tiền chứ?",
+      "y_dinh": "chi_phi",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Ngoài học phí còn khoản nào phát sinh nữa không?",
+      "y_dinh": "chi_phi",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "di nhat mat bao nhieu tien",
+      "y_dinh": "chi_phi",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "hoc phi bao nhieu a",
+      "y_dinh": "chi_phi",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Tổng phí đơn hàng Tokyo là bao nhiêu?",
+      "y_dinh": "chi_phi",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Em muốn biết giá đơn viện dưỡng lão",
+      "y_dinh": "chi_phi",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Phí khám sức khỏe có nằm trong tổng phí không?",
+      "y_dinh": "chi_phi",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Chi phí có bao gồm vé máy bay chưa ạ?",
+      "y_dinh": "chi_phi",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Đóng tiền làm mấy đợt vậy?",
+      "y_dinh": "chi_phi",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Điều kiện tham gia chương trình là gì ạ?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em cần có bằng gì mới đi được?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Bao nhiêu tuổi thì được tham gia?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em 35 tuổi rồi còn đi được không?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Cận thị 5 độ có ảnh hưởng gì không ạ?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Yêu cầu sức khỏe thế nào?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em học trung cấp điều dưỡng có đủ tiêu chuẩn không?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Cần kinh nghiệm mấy năm mới nộp được?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "dieu kien di nhat la gi",
+      "y_dinh": "dieu_kien",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "em can gi de tham gia",
+      "y_dinh": "dieu_kien",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Có hình xăm nhỏ ở tay thì sao ạ?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Nam có được tuyển không hay chỉ nữ?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Chiều cao cân nặng có yêu cầu gì không?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Em chưa tốt nghiệp có nộp trước được không?",
+      "y_dinh": "dieu_kien",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Quy trình đăng ký gồm những bước nào?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em phải làm thủ tục gì trước tiên?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Các bước từ lúc nộp đến lúc bay là gì?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Bắt đầu từ đâu ạ?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Hồ sơ cần chuẩn bị những giấy tờ gì?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "quy trinh nhu the nao",
+      "y_dinh": "quy_trinh",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "cac buoc lam ho so",
+      "y_dinh": "quy_trinh",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Sau khi trúng tuyển thì làm gì tiếp?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "trung",
+      "y_dinh_chap_nhan_them": [
+        "cong_viec"
+      ]
+    },
+    {
+      "cau": "Thủ tục xin visa do ai lo?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Em nộp hồ sơ ở đâu?",
+      "y_dinh": "quy_trinh",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Mức lương điều dưỡng tại Nhật là bao nhiêu?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Một tháng em kiếm được khoảng bao nhiêu?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Thu nhập thực nhận sau khi trừ chi phí là bao nhiêu?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "kho",
+      "y_dinh_chap_nhan_them": [
+        "chi_phi"
+      ]
+    },
+    {
+      "cau": "Có phụ cấp gì thêm không ạ?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Làm thêm giờ có được tính tiền không?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "luong bao nhieu mot thang",
+      "y_dinh": "luong_thuong",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "thu nhap co cao khong",
+      "y_dinh": "luong_thuong",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Lương có tăng theo năm không?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Trợ cấp nhà ở là bao nhiêu?",
+      "y_dinh": "luong_thuong",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Thời gian đào tạo và xuất cảnh mất bao lâu?",
+      "y_dinh": "thoi_gian",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Bao lâu thì em được bay ạ?",
+      "y_dinh": "thoi_gian",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Học tiếng mất mấy tháng?",
+      "y_dinh": "thoi_gian",
+      "do_kho": "trung",
+      "y_dinh_chap_nhan_them": [
+        "hoc_tap"
+      ]
+    },
+    {
+      "cau": "Khi nào có đơn hàng mới?",
+      "y_dinh": "thoi_gian",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Hợp đồng kéo dài mấy năm?",
+      "y_dinh": "thoi_gian",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "bao lau thi duoc di",
+      "y_dinh": "thoi_gian",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "thoi gian dao tao may thang",
+      "y_dinh": "thoi_gian",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Thời hạn nộp hồ sơ đơn này đến khi nào?",
+      "y_dinh": "thoi_gian",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Công việc hằng ngày của điều dưỡng bên đó là gì?",
+      "y_dinh": "cong_viec",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em sẽ làm những gì ở viện dưỡng lão?",
+      "y_dinh": "cong_viec",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Công việc có vất vả lắm không ạ?",
+      "y_dinh": "cong_viec",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Hộ lý và điều dưỡng khác nhau chỗ nào?",
+      "y_dinh": "cong_viec",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "cong viec hang ngay lam gi",
+      "y_dinh": "cong_viec",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Một ca trực kéo dài bao nhiêu tiếng?",
+      "y_dinh": "cong_viec",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Có phải trực đêm không ạ?",
+      "y_dinh": "cong_viec",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Phỏng vấn gồm những phần nào?",
+      "y_dinh": "phong_van",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em trượt phỏng vấn thì có được thi lại không?",
+      "y_dinh": "phong_van",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Thi tuyển có khó không ạ?",
+      "y_dinh": "phong_van",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Phỏng vấn bằng tiếng Nhật hay tiếng Việt?",
+      "y_dinh": "phong_van",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "phong van co kho khong",
+      "y_dinh": "phong_van",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Ai là người phỏng vấn em?",
+      "y_dinh": "phong_van",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Trong thời gian học có được hỗ trợ gì không?",
+      "y_dinh": "hoc_tap",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Lớp học tiếng Nhật học mấy buổi một tuần?",
+      "y_dinh": "hoc_tap",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Trung tâm học ở đâu ạ?",
+      "y_dinh": "hoc_tap",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Em chưa biết tiếng Nhật có học được không?",
+      "y_dinh": "hoc_tap",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "hoc tieng nhat o dau",
+      "y_dinh": "hoc_tap",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Học viên được hỗ trợ ăn ở trong lúc học không?",
+      "y_dinh": "hoc_tap",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Giáo viên là người Việt hay người Nhật?",
+      "y_dinh": "hoc_tap",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Ký túc xá dành cho học viên như thế nào?",
+      "y_dinh": "ky_tuc_xa",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Chỗ ở bên Nhật công ty lo hay tự thuê?",
+      "y_dinh": "ky_tuc_xa",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Mấy người một phòng ạ?",
+      "y_dinh": "ky_tuc_xa",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "ki tuc xa co mat phi khong",
+      "y_dinh": "ky_tuc_xa",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Nơi ở có gần chỗ làm không?",
+      "y_dinh": "ky_tuc_xa",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Em muốn đặt lịch tư vấn",
+      "y_dinh": "booking",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Cho em hẹn lịch gặp trực tiếp với ạ",
+      "y_dinh": "booking",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Anh chị gọi lại cho em được không?",
+      "y_dinh": "booking",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Em muốn hẹn tư vấn chiều mai",
+      "y_dinh": "booking",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "dat lich tu van giup em",
+      "y_dinh": "booking",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Gọi cho tôi số 0912345678 nhé",
+      "y_dinh": "booking",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Em muốn đăng ký để được tư vấn",
+      "y_dinh": "lead",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em quan tâm chương trình này ạ",
+      "y_dinh": "lead",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Em muốn đi Nhật làm điều dưỡng",
+      "y_dinh": "lead",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Cho em xin thông tin liên hệ với",
+      "y_dinh": "lead",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "em muon tham gia chuong trinh",
+      "y_dinh": "lead",
+      "do_kho": "khong dau"
+    },
+    {
+      "cau": "Em muốn apply đơn này",
+      "y_dinh": "lead",
+      "do_kho": "trung"
+    },
+    {
+      "cau": "Chào anh chị ạ",
+      "y_dinh": "chung",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Cảm ơn nhiều nhé",
+      "y_dinh": "chung",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Alo có ai ở đây không?",
+      "y_dinh": "chung",
+      "do_kho": "de"
+    },
+    {
+      "cau": "ok em hiểu rồi",
+      "y_dinh": "chung",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Dạ vâng ạ",
+      "y_dinh": "chung",
+      "do_kho": "de"
+    },
+    {
+      "cau": "Công ty mình thành lập năm nào?",
+      "y_dinh": "chung",
+      "do_kho": "kho"
+    },
+    {
+      "cau": "Văn phòng ở đâu ạ?",
+      "y_dinh": "chung",
+      "do_kho": "kho"
+    }
+  ],
+  "ghi_chu_nhan_thay_the": "Bốn câu có thêm trường `y_dinh_chap_nhan_them`. Đó là những câu nằm giữa hai nhóm và cả hai cách gán đều hợp lý — ví dụ 'hoàn tiền khi trượt phỏng vấn' vừa là chi phí vừa là phỏng vấn. Tính chúng là sai thì con số đo được phản ánh tranh cãi về nhãn chứ không phản ánh chất lượng bộ phân loại."
+}

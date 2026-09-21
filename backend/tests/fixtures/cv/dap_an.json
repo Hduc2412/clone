@@ -1,0 +1,113 @@
+[
+  {
+    "file": "01_nguyen_thi_mai.pdf",
+    "format": "pdf",
+    "layout": "chuan",
+    "note": "CV một cột, bố cục sạch. Trường hợp dễ nhất. Sửa 17/09/2026: care_experience đổi False -> True. CV nêu thực tập ba tháng tại khoa Nội kèm đầu việc 'hỗ trợ vệ sinh cá nhân và cho người bệnh ăn uống'. Đáp án cũ hiểu trường này là 'đã đi làm chính thức', nhưng phiếu tóm tắt in ra là 'Từng chăm sóc người bệnh' — trả lời Không cho người đã làm đúng việc đó là nói sai với nhân viên tư vấn.",
+    "expected": {
+      "full_name": "Nguyễn Thị Mai",
+      "birth_year": 2003,
+      "gender": "nu",
+      "education_level": "cao_dang",
+      "major": "Điều dưỡng",
+      "japanese_level": "N4",
+      "experience_years": 0,
+      "care_experience": true,
+      "phone": "0912345678",
+      "desired_prefecture": "Tokyo",
+      "desired_employer_type": "vien_duong_lao"
+    },
+    "size_bytes": 64258
+  },
+  {
+    "file": "02_tran_van_hung.pdf",
+    "format": "pdf",
+    "layout": "chuan",
+    "note": "Trình độ cao, có kinh nghiệm lâm sàng. Hợp diện EPA.",
+    "expected": {
+      "full_name": "Trần Văn Hùng",
+      "birth_year": 1999,
+      "gender": "nam",
+      "education_level": "dai_hoc",
+      "japanese_level": "N3",
+      "experience_years": 4,
+      "care_experience": true,
+      "phone": "0987654321",
+      "desired_employer_type": "benh_vien",
+      "salary_expectation_jpy": 190000
+    },
+    "size_bytes": 63994
+  },
+  {
+    "file": "03_le_thi_hoa.docx",
+    "format": "docx",
+    "layout": "chuan",
+    "note": "Chưa học tiếng Nhật. Chỉ hợp đơn thực tập sinh yêu cầu N5.",
+    "expected": {
+      "full_name": "Lê Thị Hoa",
+      "birth_year": 2007,
+      "gender": "nu",
+      "education_level": "trung_cap",
+      "japanese_level": "chua_hoc",
+      "experience_years": 0,
+      "care_experience": false,
+      "phone": "0356789012"
+    },
+    "size_bytes": 35811
+  },
+  {
+    "file": "04_pham_minh_tuan.pdf",
+    "format": "pdf",
+    "layout": "bang",
+    "note": "Bố cục bảng hai cột. Ba mươi tám tuổi, quá tuổi của phần lớn đơn.",
+    "expected": {
+      "full_name": "Phạm Minh Tuấn",
+      "birth_year": 1988,
+      "gender": "nam",
+      "education_level": "cao_dang",
+      "japanese_level": "N4",
+      "experience_years": 13,
+      "care_experience": true,
+      "phone": "0934567890",
+      "desired_employer_type": "vien_duong_lao"
+    },
+    "size_bytes": 63576
+  },
+  {
+    "file": "05_vu_thi_lan.pdf",
+    "format": "pdf",
+    "layout": "chuan",
+    "note": "Thiếu năm sinh và giới tính. Kiểm nhánh CHƯA RÕ không loại đơn.",
+    "expected": {
+      "full_name": "Vũ Thị Lan",
+      "birth_year": null,
+      "gender": null,
+      "education_level": "cao_dang",
+      "japanese_level": "N4",
+      "experience_years": 2,
+      "phone": "0978111222",
+      "desired_prefecture": "Osaka"
+    },
+    "size_bytes": 57323
+  },
+  {
+    "file": "06_dang_thi_ngoc_scan.pdf",
+    "format": "pdf_scan",
+    "layout": "chuan",
+    "note": "Bản scan, không có lớp chữ, phải nhận dạng bằng ảnh. Ghi 'N4 trở lên, đang ôn N3' để kiểm chuỗi nhiều mức.",
+    "expected": {
+      "full_name": "Đặng Thị Ngọc",
+      "birth_year": 2002,
+      "gender": "nu",
+      "education_level": "cao_dang",
+      "japanese_level": "N4",
+      "experience_years": 2,
+      "care_experience": true,
+      "phone": "0901234567",
+      "desired_region_group": "kanto",
+      "desired_employer_type": "vien_duong_lao",
+      "budget_vnd": 120000000
+    },
+    "size_bytes": 63224
+  }
+]

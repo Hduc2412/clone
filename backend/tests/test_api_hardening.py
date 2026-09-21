@@ -23,7 +23,7 @@ class ChatRequestValidationTests(unittest.TestCase):
         session_id = uuid.uuid4()
         request = ChatRequest(message="  Xin chào  ", session_id=str(session_id))
         self.assertEqual(request.message, "Xin chào")
-        self.assertEqual(request.session_id, session_id)
+        self.assertEqual(uuid.UUID(request.session_id), session_id)
 
     def test_blank_long_and_invalid_session_are_rejected(self):
         invalid_payloads = [

@@ -176,14 +176,26 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event["details"]["previous_time"], "09:00")
         self.assertEqual(event["details"]["appointment_time"], "14:00")
 
-    async def test_notifications_are_limited_to_assigned_appointments(self):
+    async def test_notifications_are_limited_to_what_the_consultant_handles(self):
+        """Tư vấn viên chỉ thấy thông báo của việc mình phụ trách.
+
+        Thêm một nhánh so với trước: hồ sơ đăng ký **chưa ai nhận** cũng hiện, vì
+        phần việc chưa của ai thì ai cũng phải nhìn thấy mới có người nhận.
+        """
         db = MagicMock()
         appointment_cursor = MagicMock()
         appointment_cursor.to_list = AsyncMock(
             return_value=[{"appointment_code": "LH-001"}]
         )
         db.consultation_appointments.find.return_value = appointment_cursor
-        notification_cursor = make_cursor([{"appointment_code": "LH-001"}])
+
+        application_cursor = MagicMock()
+        application_cursor.to_list = AsyncMock(
+            return_value=[{"application_code": "HS-001"}]
+        )
+        db.recruitment_applications.find.return_value = application_cursor
+
+        notification_cursor = make_cursor([{"reference_code": "LH-001"}])
         db.notifications.find.return_value = notification_cursor
 
         with patch("app.db.database.get_db", return_value=db):
@@ -193,14 +205,20 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
                 limit=20,
             )
 
-        self.assertEqual(rows, [{"appointment_code": "LH-001"}])
-        db.notifications.find.assert_called_once_with(
-            {
-                "is_read": False,
-                "appointment_code": {"$in": ["LH-001"]},
-            },
-            {"_id": 0},
+        self.assertEqual(rows, [{"reference_code": "LH-001"}])
+        query, projection = db.notifications.find.call_args.args
+        self.assertEqual(projection, {"_id": 0})
+        self.assertFalse(query["is_read"])
+        self.assertEqual(
+            query["$or"],
+            [
+                {"reference_type": "appointment", "reference_code": {"$in": ["LH-001"]}},
+                {"reference_type": "application", "reference_code": {"$in": ["HS-001"]}},
+            ],
         )
+        # Hồ sơ chưa ai nhận phải nằm trong điều kiện tra cứu.
+        application_query = db.recruitment_applications.find.call_args.args[0]
+        self.assertIn({"assigned_to": None}, application_query["$or"])
 
     async def test_appointment_stats_calculate_status_rates(self):
         db = MagicMock()

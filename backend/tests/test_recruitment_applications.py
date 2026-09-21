@@ -83,7 +83,7 @@ class RecruitmentApplicationTests(unittest.IsolatedAsyncioTestCase):
             patch("app.api.applications.secrets.token_hex", return_value="001"),
             patch("app.api.applications.get_managed_lead", new=AsyncMock(return_value=lead)),
             patch(
-                "app.api.applications.get_staff_user_by_email",
+                "app.services.assignment.get_staff_user_by_email",
                 new=AsyncMock(return_value={"status": "active"}),
             ),
             patch(
@@ -237,6 +237,73 @@ class RecruitmentApplicationTests(unittest.IsolatedAsyncioTestCase):
                 "assigned_to": "consultant@example.com",
             },
         )
+
+    async def test_database_update_keeps_explicit_nulls(self):
+        """Gỡ người phụ trách và xóa ghi chú phải thực sự ghi xuống database."""
+        collection = MagicMock()
+        collection.find_one_and_update = AsyncMock(return_value={"application_code": "HS-001"})
+        database = MagicMock()
+        database.recruitment_applications = collection
+        with patch("app.db.database.get_db", return_value=database):
+            await update_recruitment_application(
+                "HS-001",
+                {"assigned_to": None, "note": None},
+            )
+        set_fields = collection.find_one_and_update.await_args.args[1]["$set"]
+        self.assertIn("assigned_to", set_fields)
+        self.assertIsNone(set_fields["assigned_to"])
+        self.assertIn("note", set_fields)
+        self.assertIsNone(set_fields["note"])
+
+    async def test_database_update_never_nulls_status(self):
+        """status luôn phải có giá trị — None phải bị bỏ qua, không được ghi đè."""
+        collection = MagicMock()
+        collection.find_one_and_update = AsyncMock(return_value={"application_code": "HS-001"})
+        database = MagicMock()
+        database.recruitment_applications = collection
+        with patch("app.db.database.get_db", return_value=database):
+            await update_recruitment_application("HS-001", {"status": None, "note": None})
+        set_fields = collection.find_one_and_update.await_args.args[1]["$set"]
+        self.assertNotIn("status", set_fields)
+        self.assertIn("note", set_fields)
+
+    async def test_manager_can_unassign_application(self):
+        """Nhật ký báo đã đổi assigned_to thì database cũng phải đổi thật."""
+        existing = {
+            "application_code": "HS-001",
+            "assigned_to": "consultant@example.com",
+            "status": "draft",
+        }
+        collection = MagicMock()
+        collection.find_one_and_update = AsyncMock(return_value={"application_code": "HS-001"})
+        database = MagicMock()
+        database.recruitment_applications = collection
+        events: list[dict] = []
+
+        async def capture_event(data):
+            events.append(data)
+
+        with (
+            patch(
+                "app.api.applications.get_recruitment_application",
+                new=AsyncMock(return_value=existing),
+            ),
+            patch("app.api.applications.create_application_event", new=capture_event),
+            patch("app.api.applications.audit_action", new=AsyncMock()),
+            patch("app.db.database.get_db", return_value=database),
+        ):
+            await update_application(
+                "HS-001",
+                ApplicationUpdateRequest(assigned_to=None),
+                http_request(),
+                self.manager,
+            )
+
+        set_fields = collection.find_one_and_update.await_args.args[1]["$set"]
+        self.assertIn("assigned_to", set_fields)
+        self.assertIsNone(set_fields["assigned_to"])
+        # nhật ký và dữ liệu phải khớp nhau
+        self.assertEqual(events[0]["details"]["changed_fields"], ["assigned_to"])
 
 
 if __name__ == "__main__":

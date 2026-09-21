@@ -49,3 +49,14 @@ urllib3==2.7.0
 uvicorn==0.47.0
 websockets==16.0
 motor==3.7.1
+
+# --- Phần nghiệp vụ: đơn tuyển dụng, hồ sơ ứng viên, đọc CV ---
+# Sáu gói dưới đây đang được cài trên máy nhưng trước đó chưa khai báo ở đây, nên
+# `pip install -r requirements.txt` trên một bản clone mới cho ra ứng dụng chết
+# ngay lúc khởi động: `app/core/config.py` import `pydantic_settings` ở dòng đầu.
+pydantic-settings==2.15.0
+python-multipart==0.0.32
+openpyxl==3.1.5
+pymupdf==1.28.2
+python-docx==1.2.0
+pillow==12.2.0

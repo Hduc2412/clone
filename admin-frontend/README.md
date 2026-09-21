@@ -10,10 +10,12 @@ npm ci
 npm run dev
 ```
 
-Mặc định hệ thống quản lý chạy tại `http://localhost:3001` và gọi FastAPI tại
-`http://localhost:8000`.
+Mặc định hệ thống quản lý chạy tại `http://localhost:3101` và gọi FastAPI tại
+`http://localhost:8020`.
 
-Nếu backend dùng địa chỉ khác, tạo `.env.local` từ `.env.example`.
+Nếu backend dùng địa chỉ khác, tạo `.env.local` từ `.env.example`. Muốn đổi cổng
+của chính app này thì chạy `npm run dev -- -p 4001`; đặt `PORT` trong `.env.local`
+không có tác dụng vì Next chọn cổng trước khi nạp file `.env`.
 
 ## Các trang
 
