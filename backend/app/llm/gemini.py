@@ -125,10 +125,27 @@ def generate_response(prompt: str) -> str:
             return "Lỗi Gemini: Câu trả lời bị giới hạn độ dài (MAX_TOKENS)"
         candidate = candidates[0]
 
+    # Gộp **mọi** part có chữ, không chỉ part đầu.
+    #
+    # Gemini 2.5 Flash luôn trả về đúng một part, nên lấy `parts[0]` chạy đúng
+    # suốt và lỗi nằm im. Đo thử gemini-3.8-flash ngày 21/09/2026: cùng một câu
+    # hỏi, model chia câu trả lời thành nhiều part, và bản cũ trả về mỗi mẩu đầu
+    # — khách nhận được "Nơi làm việc do từng đơn hàng quy định và" rồi hết.
+    #
+    # Hỏng kiểu này không báo lỗi: câu vẫn là tiếng Việt, vẫn đúng ngữ pháp ở
+    # chỗ bị cắt, chỉ là cụt. Bộ kiểm chứng cũng không bắt được vì nó dài hơn
+    # ngưỡng tối thiểu.
+    #
+    # Bỏ qua part suy luận (`thought`): đó là phần nháp của model, không phải
+    # câu trả lời cho khách.
     parts = candidate.get("content", {}).get("parts", [])
-    if not parts or not parts[0].get("text"):
+    text = "".join(
+        part["text"] for part in parts
+        if part.get("text") and not part.get("thought")
+    )
+    if not text:
         return "Lỗi Gemini: Không nhận được nội dung trả lời"
-    return parts[0]["text"]
+    return text
 
 # Hai vai khác nhau, hai không gian vector khác nhau. Câu hỏi của người dùng nhúng
 # kiểu QUERY, còn đoạn tài liệu nằm trong kho phải nhúng kiểu DOCUMENT. Dùng lẫn

@@ -17,6 +17,7 @@ kiểm, mà một ca chạy tự động mỗi lần thì hơn hẳn một scrip
 
 Chạy:  venv\\Scripts\\python.exe -m scripts.danh_gia_chat_luong
 """
+import sys
 import json
 import os
 from pathlib import Path
@@ -119,7 +120,7 @@ def bao_phan_chua_do() -> list[dict]:
     return []
 
 
-def main() -> None:
+def main() -> int:
     print("ĐO CHẤT LƯỢNG HỆ THỐNG — theo docs/design/07 §7")
 
     bang = [do_y_dinh(), do_so_dien_thoai()]
@@ -138,6 +139,14 @@ def main() -> None:
     print("Tất cả hạng mục đo được đều đạt." if tat_ca_dat
           else "Có hạng mục chưa đạt mục tiêu — xem chi tiết ở trên.")
 
+    # Mã thoát phải nói cùng một điều với màn hình.
+    #
+    # Bản cũ luôn thoát 0, kể cả khi bảng in ra "KHÔNG". Ai chạy script này
+    # trong một chuỗi lệnh — hay đọc kết quả của CI — sẽ thấy "thành công"
+    # trong khi có hạng mục chưa đạt mục tiêu. Một phép đo nói dối về chính
+    # nó thì tệ hơn là không đo.
+    return 0 if tat_ca_dat else 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
