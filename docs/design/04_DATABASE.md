@@ -343,7 +343,7 @@ Payload index: `topic` (keyword), `document_id` (keyword), `source` (keyword).
 | M1 | Đổi `managed_leads` thành `candidates` | Trung bình | Script copy sang collection mới, giữ collection cũ 1 tuần rồi mới xóa |
 | M2 | Thêm `candidate_id` vào `sessions`, `messages`, `consultation_appointments` | Thấp | Backfill theo `phone_normalized` |
 | M3 | Chuẩn hóa `leads.status` về 4 giá trị | Thấp | Ánh xạ giá trị cũ, log bản ghi không ánh xạ được |
-| M4 | Đổi taxonomy `topic` trong Qdrant sang 10 nhóm intent | **Cao** | Phải re-embed lại 32 bài. Xem [10_GAP_ANALYSIS](10_GAP_ANALYSIS.md) |
+| M4 | Đổi taxonomy `topic` trong Qdrant sang 10 nhóm intent | **Cao** | Phải re-embed lại 32 bài. Kho đang phục vụ đã dùng taxonomy này |
 | M5 | Tạo index mới | Thấp | Thêm vào `init_db()`, chạy tự động lúc khởi động |
 
 Toàn bộ script migration đặt tại `backend/scripts/migrations/`, đánh số tăng dần,

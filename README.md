@@ -7,9 +7,7 @@ lưu dữ liệu nghiệp vụ và Qdrant để lưu vector.
 
 ## Tài liệu dự án
 
-- [Phạm vi và định hướng](docs/PROJECT_SCOPE.md)
-- [Workflow nghiệp vụ](docs/WORKFLOWS.md)
-- [Kế hoạch triển khai](docs/ROADMAP.md)
+- [Phạm vi phát triển](docs/SCOPE_PHAT_TRIEN.md)
 - [Bộ tài liệu thiết kế hệ thống](docs/design/00_INDEX.md) — requirements, use case,
   workflow, database, API, frontend, AI pipeline, kiến trúc, task breakdown
 - [Chạy bằng Docker](docs/DOCKER.md)

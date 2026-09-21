@@ -168,9 +168,10 @@ xkld-chatbot/
 │
 └── docs/
     ├── design/                   # bộ tài liệu này
-    ├── PROJECT_SCOPE.md
-    ├── WORKFLOWS.md
-    └── ROADMAP.md
+    ├── handoff/                  # tài liệu bàn giao giữa hai phần
+    ├── SCOPE_PHAT_TRIEN.md
+    ├── KIEM_THU.md
+    └── DOCKER.md
 ```
 
 ## 4. Docker Compose

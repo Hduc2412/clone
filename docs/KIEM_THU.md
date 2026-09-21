@@ -1,6 +1,6 @@
 # Kiểm thử hệ thống
 
-Lần chạy gần nhất: 21/09/2026. **562 ca kiểm thử backend và 5 ca frontend, tất cả đạt**, thời gian chạy khoảng 5 giây.
+Lần chạy gần nhất: 21/09/2026. **617 ca kiểm thử backend và 5 ca frontend, tất cả đạt**, thời gian chạy khoảng 15 giây.
 
 ```bash
 cd backend
@@ -57,10 +57,14 @@ bản giả lập, nên chạy được cả khi hết hạn mức gọi mô hì
 | `test_intent_classifier` | 10 | Phân loại ý định câu hỏi | Đạt |
 | `test_retriever_selection` | 9 | Chọn đoạn đem vào ngữ cảnh: sàn tuyệt đối và dải tương đối | Đạt |
 | `test_journey_profile` | 12 | Nối hội thoại với hồ sơ ứng viên: trích xuất theo quy tắc, ghi nguồn `chat`, không đè thông tin đã xác nhận | Đạt |
-| **Tổng** | **562** | | **Đạt** |
+| `test_candidate_portal` | 21 | Hệ khách hàng: hai loại token không dùng lẫn được, ứng viên chỉ thấy hồ sơ của mình, danh sách trường được phép | Đạt |
+| `test_password_resets` | 16 | Quên mật khẩu: không dò được ai đã đăng ký, phân quyền xử lý, bắt buộc đổi sau khi đặt lại | Đạt |
+| `test_job_lookup` | 13 | Chatbot tra cứu đơn theo mã trong hội thoại | Đạt |
+| **Tổng** | **617** | | **Đạt** |
 
 **285 ca cho danh mục đơn hàng và bộ đối chiếu**, **101 ca** cho đọc CV, đăng ký sơ bộ, hàng đợi
-và điểm nhân viên, **176 ca** còn lại cho phần hội thoại, truy xuất tri thức và nền hệ thống.
+và điểm nhân viên, **37 ca** cho hệ khách hàng và luồng mật khẩu, **194 ca** còn lại cho phần hội
+thoại, truy xuất tri thức và nền hệ thống.
 
 Ngoài ra website có **5 ca** chạy bằng `node --test` cho phần mã phiên dùng chung giữa khung
 chat và luồng hồ sơ: `cd frontend && npm test`.
@@ -240,7 +244,7 @@ Lần chạy gần nhất: 18 đơn đã xét, 9 đạt, đơn đứng đầu 10
 
 ## 3. Chín lỗi thật do kiểm thử phát hiện
 
-Phần này đáng chú ý hơn con số 562, vì nó cho thấy bộ kiểm thử có tác dụng thật.
+Phần này đáng chú ý hơn con số 617, vì nó cho thấy bộ kiểm thử có tác dụng thật.
 
 | Lỗi | Nếu lọt ra thì sao | Ca chặn |
 |---|---|---|
@@ -334,7 +338,7 @@ ra điều gì vừa hỏng, không phải mở mã nguồn ra đọc mới bi�
 
 ## 5. Những phần chưa có kiểm thử tự động
 
-Nói rõ để không hiểu nhầm con số 562 là đã phủ hết hệ thống.
+Nói rõ để không hiểu nhầm con số 617 là đã phủ hết hệ thống.
 
 | Phần | Hiện trạng | Dự kiến |
 |---|---|---|
