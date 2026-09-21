@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 480
     auth_cookie_name: str = "xkld_admin_session"
     auth_cookie_secure: bool = False
+    # Mật khẩu mặc định khi cấp tài khoản hoặc đặt lại mật khẩu, cho cả ứng viên
+    # lẫn nhân viên. Đây là một dãy **ai cũng biết**, nên nó chỉ an toàn nhờ hai
+    # điều đi kèm, và cả hai đều bắt buộc: tài khoản bị chặn ngay sau khi đăng
+    # nhập cho tới khi tự đặt mật khẩu mới, và mọi trang khác không mở được
+    # trước đó. Bỏ một trong hai là để ngỏ mọi tài khoản vừa được cấp.
+    default_password: str = "12345678"
     # Cookie riêng cho hệ khách hàng. Phải khác tên cookie của nhân viên: dùng
     # chung một tên thì đăng nhập bên này đá văng phiên bên kia, và tệ hơn là
     # một token có thể bị đem thử ở nhầm cửa.

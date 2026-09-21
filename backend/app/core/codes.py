@@ -17,6 +17,7 @@ PREFIX_RECOMMENDATION = "RL"   # nhật ký giới thiệu
 PREFIX_SCORE_EVENT = "SE"      # sự kiện điểm nhân viên
 PREFIX_ASSIGNMENT = "AS"       # lượt phân công
 PREFIX_LEAD = "LD"             # khách hàng
+PREFIX_RESET = "YC"            # yêu cầu đặt lại mật khẩu
 
 
 def new_code(prefix: str, nbytes: int = 3) -> str:

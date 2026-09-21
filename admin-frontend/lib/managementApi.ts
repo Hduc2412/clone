@@ -85,6 +85,18 @@ export interface ManagedLead {
   created_at: string;
 }
 
+export interface PasswordResetRequest {
+  code: string;
+  subject_type: "candidate" | "staff";
+  subject_id: string;
+  full_name: string | null;
+  note: string | null;
+  status: string;
+  created_at: string;
+  handled_by: string | null;
+  handled_at: string | null;
+}
+
 export interface StaffUser {
   full_name: string;
   email: string;
@@ -834,6 +846,23 @@ export const managementApi = {
    * rõ và không gửi lại được. Nhân viên đang gọi điện thì đọc luôn cho ứng viên;
    * lỡ mất thì bấm lại, sinh mật khẩu khác.
    */
+  /** Yêu cầu quên mật khẩu đang chờ. Tư vấn viên chỉ thấy của ứng viên. */
+  passwordResetRequests: (status = "pending") =>
+    request<{ items: PasswordResetRequest[]; count: number }>(
+      `/yeu-cau-mat-khau?status=${encodeURIComponent(status)}`,
+    ),
+  /**
+   * Đặt mật khẩu về dãy mặc định và bắt người đó đổi ở lần đăng nhập tới.
+   * Yêu cầu của nhân viên chỉ Quản lý/Quản trị viên xử lý được.
+   */
+  handlePasswordReset: (code: string) =>
+    request<{
+      message: string;
+      subject_type: string;
+      subject_id: string;
+      full_name: string | null;
+      default_password: string;
+    }>(`/yeu-cau-mat-khau/${encodeURIComponent(code)}/dat-lai`, { method: "POST" }),
   grantPortalAccess: (code: string) =>
     request<{
       phone: string;

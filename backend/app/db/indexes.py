@@ -15,6 +15,7 @@ from app.db import (
     consultation_reports,
     employee_scores,
     job_orders,
+    password_resets,
     recommendation_logs,
 )
 
@@ -28,6 +29,7 @@ _MODULES = (
     consultation_reports,
     employee_scores,
     recommendation_logs,
+    password_resets,
 )
 
 

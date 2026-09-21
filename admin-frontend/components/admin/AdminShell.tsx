@@ -19,6 +19,7 @@ const navigation = [
   { href: "/admin/conversations", label: "Hội thoại", icon: "◌" },
   { href: "/admin/knowledge", label: "Tri thức AI", icon: "◇" },
   { href: "/admin/staff-scores", label: "Điểm hiệu suất", icon: "★" },
+  { href: "/admin/password-resets", label: "Đặt lại mật khẩu", icon: "⚿" },
   { href: "/admin/users", label: "Người dùng", icon: "♧" },
   { href: "/admin/audit-logs", label: "Nhật ký hệ thống", icon: "≡" },
 ];

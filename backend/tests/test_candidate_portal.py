@@ -5,6 +5,7 @@ vào nhau**: token của ứng viên không mở được cửa quản trị, to
 không mở được cửa khách hàng, và một ứng viên không đọc được hồ sơ của người
 khác dù có đổi mã trên thanh địa chỉ.
 """
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -14,6 +15,7 @@ from app.api import candidate_auth, portal
 from app.api.candidate_auth import ChangePasswordRequest, LoginRequest
 from app.auth import candidate_security
 from app.auth.security import create_access_token, decode_access_token, hash_password
+from app.core.config import settings
 from app.db import candidate_accounts as accounts
 
 
@@ -251,18 +253,28 @@ class DataBoundaryTests(unittest.IsolatedAsyncioTestCase):
         listed.assert_not_awaited()
 
 
-class InitialPasswordTests(unittest.TestCase):
-    def test_the_generated_password_avoids_characters_that_sound_alike(self):
-        """Mật khẩu này được đọc qua điện thoại, không phải chép từ màn hình."""
-        for _ in range(50):
-            password = accounts.generate_initial_password()
-            self.assertEqual(len(password), accounts.INITIAL_PASSWORD_LENGTH)
-            for confusing in "01OIl":
-                self.assertNotIn(confusing, password)
+class DefaultPasswordTests(unittest.TestCase):
+    """Mật khẩu mặc định là dãy ai cũng biết, nên nó phải luôn đi kèm bắt buộc đổi."""
 
-    def test_two_accounts_never_get_the_same_password(self):
-        generated = {accounts.generate_initial_password() for _ in range(200)}
-        self.assertEqual(len(generated), 200)
+    def test_the_default_password_comes_from_configuration(self):
+        """Đổi dãy mặc định là sửa cấu hình, không phải sửa mã nguồn."""
+        self.assertEqual(accounts.default_password(), settings.default_password)
+
+    def test_a_new_account_always_owes_a_password_change(self):
+        """Đây là thứ duy nhất bù lại việc mật khẩu ban đầu không phải bí mật."""
+        with patch.object(accounts, "get_db") as fake_db:
+            fake_db.return_value = {accounts.COLLECTION: AsyncMock()}
+            created = asyncio.run(
+                accounts.create_account(
+                    phone=PHONE,
+                    lead_code="LD-0001",
+                    full_name="Nguyễn Thị Lan",
+                    password=accounts.default_password(),
+                    created_by="tu.van@example.com",
+                )
+            )
+        self.assertTrue(created["must_change_password"])
+        self.assertNotIn(accounts.default_password(), created["password_hash"])
 
 
 if __name__ == "__main__":

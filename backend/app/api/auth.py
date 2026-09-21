@@ -1,8 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from app.auth.security import create_access_token, decode_access_token, get_current_user, hash_password, verify_password
-from app.db.database import get_staff_user_by_email, record_staff_login, update_staff_password
+from app.auth.security import (
+    create_access_token,
+    decode_access_token,
+    get_user_pending_password,
+    hash_password,
+    verify_password,
+)
+from app.db.database import (
+    clear_staff_password_flag,
+    get_staff_user_by_email,
+    record_staff_login,
+    update_staff_password,
+)
 from app.core.rate_limit import login_ip_rate_key, login_rate_key, rate_limiter
 from app.core.config import settings
 from app.services.audit_service import audit_action
@@ -93,7 +104,7 @@ async def logout(
 
 
 @router.get("/me")
-async def me(user=Depends(get_current_user)):
+async def me(user=Depends(get_user_pending_password)):
     return user
 
 
@@ -101,7 +112,7 @@ async def me(user=Depends(get_current_user)):
 async def change_password(
     request: ChangePasswordRequest,
     http_request: Request,
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_user_pending_password),
 ):
     user = await get_staff_user_by_email(current_user["email"])
     if user is None or not verify_password(request.current_password, user.get("password_hash", "")):
@@ -109,6 +120,9 @@ async def change_password(
     if request.current_password == request.new_password:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải khác mật khẩu hiện tại.")
     await update_staff_password(user["email"], hash_password(request.new_password))
+    # Xóa nợ đổi mật khẩu. Thiếu dòng này thì người vừa đổi vẫn bị chặn ở mọi
+    # trang, và họ sẽ đổi mật khẩu vòng thứ hai mà vẫn không vào được.
+    await clear_staff_password_flag(user["email"])
     await audit_action(
         http_request,
         action="auth.password_changed",

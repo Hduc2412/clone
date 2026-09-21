@@ -98,13 +98,22 @@ export default function LoginForm() {
           </Button>
         </form>
 
-        <p className="mt-6 border-t border-slate-100 pt-5 text-sm leading-6 text-slate-600">
-          Chưa có tài khoản, hoặc quên mật khẩu? Gọi{" "}
+        <p className="mt-5 text-center text-sm">
+          <a
+            href="/tai-khoan/quen-mat-khau"
+            className="font-semibold text-brand-700 hover:underline"
+          >
+            Quên mật khẩu?
+          </a>
+        </p>
+
+        <p className="mt-5 border-t border-slate-100 pt-5 text-sm leading-6 text-slate-600">
+          Chưa có tài khoản? Tài khoản được nhân viên cấp sau khi hồ sơ của bạn
+          đã được tiếp nhận. Cần hỗ trợ thì gọi{" "}
           <a href={COMPANY.hotlineHref} className="font-semibold text-brand-700">
             {COMPANY.hotline}
-          </a>{" "}
-          để nhân viên cấp lại. Tài khoản được cấp sau khi hồ sơ của bạn đã được
-          tiếp nhận.
+          </a>
+          .
         </p>
       </Card>
 

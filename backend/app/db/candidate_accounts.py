@@ -14,13 +14,13 @@ Khác `staff_users` ở ba điểm đáng nhớ:
 Số điện thoại lưu ở dạng đã chuẩn hóa để `0912 345 678`, `+84912345678` và
 `0912345678` không thành ba tài khoản khác nhau.
 """
-import secrets
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ASCENDING, ReturnDocument
 
 from app.auth.security import hash_password
+from app.core.config import settings
 from app.db.common import get_db, now
 
 
@@ -29,25 +29,22 @@ COLLECTION = "candidate_accounts"
 STATUS_ACTIVE = "active"
 STATUS_DISABLED = "disabled"
 
-# Bỏ 0/O/1/I/l khỏi bộ ký tự. Mật khẩu này được **đọc qua điện thoại**, và
-# "số không hay chữ O" là câu hỏi lại tốn thêm một phút mỗi cuộc gọi.
-_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-INITIAL_PASSWORD_LENGTH = 8
+def default_password() -> str:
+    """Mật khẩu mặc định khi cấp tài khoản hoặc đặt lại.
+
+    Một dãy cố định, đọc qua điện thoại trong một hơi, ai cũng nhớ được. Đổi lại,
+    nó **không phải bí mật**: bất kỳ ai biết số điện thoại của một tài khoản vừa
+    được cấp đều đăng nhập được. Thứ duy nhất bù lại điều đó là `must_change_password`
+    — đăng nhập xong là bị chặn cho tới khi tự đặt mật khẩu mới. Sửa ở đây thì
+    phải giữ nguyên cơ chế kia.
+    """
+    return settings.default_password
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[COLLECTION].create_index("phone", unique=True)
     await db[COLLECTION].create_index("lead_code")
     await db[COLLECTION].create_index([("created_at", ASCENDING)])
-
-
-def generate_initial_password() -> str:
-    """Mật khẩu ban đầu, đủ để đọc qua điện thoại mà không đoán được.
-
-    Tám ký tự từ bộ 31 ký tự cho khoảng 10^12 khả năng — quá thừa cho một mật
-    khẩu dùng đúng một lần rồi bắt đổi, mà vẫn đọc xong trong một hơi.
-    """
-    return "".join(secrets.choice(_ALPHABET) for _ in range(INITIAL_PASSWORD_LENGTH))
 
 
 async def get_account_by_phone(phone: str) -> dict[str, Any] | None:

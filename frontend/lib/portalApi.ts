@@ -143,6 +143,22 @@ export function changePassword(
   });
 }
 
+/**
+ * Gửi yêu cầu đặt lại mật khẩu tới nhân viên.
+ *
+ * Luôn trả về cùng một câu dù số có tài khoản hay không — phía máy chủ cố ý làm
+ * vậy để ô này không thành công cụ dò xem số nào đã đăng ký.
+ */
+export function requestPasswordReset(
+  phone: string,
+  note?: string,
+): Promise<{ message: string }> {
+  return request<{ message: string }>("/quen-mat-khau/ung-vien", {
+    method: "POST",
+    body: JSON.stringify({ phone: phone.trim(), note: note?.trim() || null }),
+  });
+}
+
 export function fetchOverview(): Promise<PortalOverview> {
   return request<PortalOverview>("/tai-khoan/tong-quan");
 }

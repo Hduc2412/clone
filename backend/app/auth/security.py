@@ -89,9 +89,16 @@ def decode_access_token(token: str) -> dict[str, Any]:
         ) from exc
 
 
-async def get_current_user(
+async def get_user_pending_password(
     token: str | None = Cookie(default=None, alias=settings.auth_cookie_name),
 ) -> dict[str, Any]:
+    """Nhận diện nhân viên, **chưa** xét việc còn nợ đổi mật khẩu.
+
+    Chỉ ba endpoint được dùng bản này: xem mình là ai, đổi mật khẩu, và đăng
+    xuất. Nếu chúng cũng bị chặn như phần còn lại thì một tài khoản vừa bị đặt
+    lại mật khẩu sẽ không có đường nào thoát ra — bị chặn vì chưa đổi, mà cũng
+    không gọi được endpoint đổi.
+    """
     if not token:
         raise HTTPException(status_code=401, detail="Bạn cần đăng nhập để tiếp tục.")
     payload = decode_access_token(token)
@@ -102,6 +109,24 @@ async def get_current_user(
             detail="Tài khoản không tồn tại hoặc đã bị khóa.",
         )
     return {key: value for key, value in user.items() if key != "password_hash"}
+
+
+async def get_current_user(
+    user: dict[str, Any] = Depends(get_user_pending_password),
+) -> dict[str, Any]:
+    """Nhân viên đã đăng nhập **và** đã tự đặt mật khẩu riêng.
+
+    Chặn ở đây, tại một chỗ duy nhất mà mọi router đều đi qua, thay vì gắn thêm
+    một dependency vào từng router. Quản trị viên đặt lại mật khẩu cho ai thì
+    người đó nhận mật khẩu mặc định — một dãy ai cũng biết — nên để họ dùng tiếp
+    hệ thống trước khi đổi là để ngỏ tài khoản có quyền thật.
+    """
+    if user.get("must_change_password"):
+        raise HTTPException(
+            status_code=409,
+            detail="Bạn phải đổi mật khẩu trước khi dùng hệ thống.",
+        )
+    return user
 
 
 def require_roles(*roles: str):

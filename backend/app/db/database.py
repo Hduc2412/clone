@@ -1221,6 +1221,23 @@ async def record_staff_login(email: str) -> None:
     )
 
 
+async def set_staff_password_flag(email: str, must_change: bool) -> bool:
+    """Đánh dấu (hoặc xóa) việc nhân viên còn nợ đổi mật khẩu.
+
+    Bật khi quản trị viên đặt lại mật khẩu về dãy mặc định; tắt khi chính người
+    đó đã tự chọn mật khẩu mới.
+    """
+    result = await get_db().staff_users.update_one(
+        {"email": email},
+        {"$set": {"must_change_password": must_change, "updated_at": _now()}},
+    )
+    return result.matched_count > 0
+
+
+async def clear_staff_password_flag(email: str) -> bool:
+    return await set_staff_password_flag(email, False)
+
+
 async def update_staff_password(email: str, password_hash: str) -> bool:
     result = await get_db().staff_users.update_one(
         {"email": email.strip().lower(), "status": "active"},

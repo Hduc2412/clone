@@ -22,6 +22,8 @@ from app.api.registrations import router as registration_router
 from app.api.staff_scores import router as staff_score_router
 from app.api.candidate_auth import router as candidate_auth_router
 from app.api.portal import router as portal_router
+from app.api.password_resets import public_router as public_reset_router
+from app.api.password_resets import router as reset_router
 from app.db.database import close_db, init_db
 from app.core.config import settings
 
@@ -67,6 +69,9 @@ app.include_router(staff_score_router)
 # Hệ khách hàng. Đăng nhập trước, rồi mới tới các trang xem hồ sơ của chính mình.
 app.include_router(candidate_auth_router)
 app.include_router(portal_router)
+# Quên mật khẩu: ứng viên gửi cho nhân viên, nhân viên gửi cho quản trị viên.
+app.include_router(public_reset_router)
+app.include_router(reset_router)
 
 @app.get("/")
 def read_root():

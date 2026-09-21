@@ -409,7 +409,7 @@ async def grant_portal_access(
             detail="Hồ sơ chưa có số điện thoại nên chưa cấp tài khoản được.",
         )
 
-    password = candidate_accounts.generate_initial_password()
+    password = candidate_accounts.default_password()
     existing = await candidate_accounts.get_account_by_phone(phone)
     if existing is None:
         account = await candidate_accounts.create_account(
