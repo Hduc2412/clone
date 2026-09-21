@@ -56,6 +56,11 @@ class BaQuyTacSinhTuLoiThatTests(unittest.TestCase):
     def test_cam_doan_ket_qua_va_hua_chac_chan(self):
         self.assertIn("Không đoán kết quả phỏng vấn", self.prompt)
 
+    def test_cam_so_sanh_va_tu_quang_cao(self):
+        """Bot từng đáp "công ty DC là một lựa chọn tốt" cho câu hỏi so sánh."""
+        self.assertIn("Không so sánh công ty DC với công ty khác", self.prompt)
+        self.assertIn("tốt nhất", self.prompt)
+
     def test_cam_ket_luan_y_te(self):
         self.assertIn("Không đưa kết luận y tế", self.prompt)
 
