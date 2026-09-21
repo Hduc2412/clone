@@ -18,7 +18,7 @@ const statuses = [
   ["training", "Đang đào tạo"],
   ["waiting_interview", "Chờ phỏng vấn"],
   ["passed", "Đã trúng tuyển"],
-  ["visa_processing", "Làm visa"],
+  ["visa_processing", "Đang làm visa"],
   ["ready_departure", "Chờ xuất cảnh"],
   ["departed", "Đã xuất cảnh"],
   ["rejected", "Không đạt"],

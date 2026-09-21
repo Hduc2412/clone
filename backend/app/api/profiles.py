@@ -201,11 +201,16 @@ async def _apply(
         # Confirming a machine draft promotes its values, not just its status.
         fields = {key: item["value"] for key, item in profile.get("fields", {}).items()}
         preferences = {key: item["value"] for key, item in profile.get("preferences", {}).items()}
+    # Chỉ bước xác nhận mới được nâng nguồn của một ô khi giá trị không đổi. Ở
+    # các luồng khác — nhất là nhân viên sửa hồ sơ — gửi lại đúng giá trị cũ phải
+    # giữ nguyên ô, để không xóa mất dấu "ứng viên xác nhận" và đoạn trích từ CV.
     merged_fields, changed_fields = store.merge_section(
-        profile.get("fields"), fields, source=source, allowed=store.FIELD_KEYS
+        profile.get("fields"), fields, source=source, allowed=store.FIELD_KEYS,
+        promote_on_equal=confirm,
     )
     merged_preferences, changed_preferences = store.merge_section(
-        profile.get("preferences"), preferences, source=source, allowed=store.PREFERENCE_KEYS
+        profile.get("preferences"), preferences, source=source, allowed=store.PREFERENCE_KEYS,
+        promote_on_equal=confirm,
     )
     changed = changed_fields + changed_preferences
 

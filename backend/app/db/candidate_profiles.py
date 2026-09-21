@@ -101,12 +101,26 @@ def merge_section(
     source: str,
     allowed: frozenset[str],
     evidence: dict[str, str] | None = None,
+    promote_on_equal: bool = False,
 ) -> tuple[dict[str, Any], list[str]]:
     """Gộp giá trị mới vào hồ sơ theo thứ tự ưu tiên nguồn.
 
     Trả về hồ sơ đã gộp và danh sách khóa thật sự thay đổi. Danh sách đó dùng để
     quyết định có tăng số phiên bản hay không: gửi lên đúng những giá trị đang có
     thì không nên đẻ ra một phiên bản mới và một bản lưu lịch sử vô nghĩa.
+
+    `promote_on_equal` quyết định điều gì xảy ra khi một nguồn **mạnh hơn** gửi
+    lại **đúng giá trị đang có**:
+
+    - Mặc định `False` — giữ nguyên ô cũ, cả nguồn lẫn đoạn trích. Đây là điều
+      biểu mẫu sửa hồ sơ cần: nhân viên đổi một ô rồi lưu thì form gửi lại toàn
+      bộ các ô; nếu "staff gửi lại giá trị cũ" bị coi là thay đổi, mọi trường
+      ứng viên tự xác nhận và mọi trích dẫn nguyên văn từ CV biến thành "nhân
+      viên nhập" — đúng thứ mà dòng chữ trên form hứa sẽ giữ nguyên.
+    - `True` — nâng nguồn của ô lên nguồn mới, **nhưng giữ lại đoạn trích cũ**.
+      Đây là điều bước xác nhận cần: ứng viên bấm xác nhận thì một giá trị nghe
+      được trong hội thoại (`chat`) trở thành `user_confirmed`, mà câu nói gốc
+      vẫn còn làm căn cứ.
     """
     merged = dict(existing or {})
     changed: list[str] = []
@@ -119,16 +133,22 @@ def merge_section(
             continue
 
         current = merged.get(key)
+        carried_evidence = (evidence or {}).get(key)
         if current is not None:
             current_priority = SOURCE_PRIORITY.get(current.get("source", ""), 0)
             # Nguồn yếu hơn không được ghi đè nguồn mạnh hơn. Cùng nguồn thì giá
             # trị mới thắng, vì đó là người dùng tự sửa lại chính mình.
             if incoming_priority < current_priority:
                 continue
-            if current.get("value") == value and incoming_priority == current_priority:
-                continue
+            if current.get("value") == value:
+                # Cùng nguồn và cùng giá trị: không có gì để làm. Nguồn mạnh hơn
+                # mà không được phép nâng: cũng giữ nguyên.
+                if incoming_priority == current_priority or not promote_on_equal:
+                    continue
+                # Nâng nguồn nhưng đừng vứt đoạn trích đang có.
+                carried_evidence = carried_evidence or current.get("evidence")
 
-        merged[key] = cell(value, source, (evidence or {}).get(key))
+        merged[key] = cell(value, source, carried_evidence)
         changed.append(key)
 
     return merged, changed

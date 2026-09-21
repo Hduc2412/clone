@@ -104,6 +104,37 @@ class CellAndMergeTests(unittest.TestCase):
         self.assertEqual(merged["japanese_level"]["value"], "N3")
         self.assertEqual(changed, ["japanese_level"])
 
+    def test_staff_resaving_the_same_value_keeps_the_original_source_and_evidence(self):
+        """Nhân viên gửi lại đúng giá trị cũ thì ô không đổi — cả nguồn lẫn trích dẫn.
+
+        Đây là biểu mẫu sửa hồ sơ: đổi một ô rồi lưu thì form gửi lại toàn bộ.
+        Nếu "staff gửi lại giá trị cũ" bị coi là thay đổi, mọi trường ứng viên
+        tự xác nhận biến thành "nhân viên nhập" và mọi đoạn trích từ CV mất sạch.
+        """
+        existing = {
+            "education_level": store.cell("cao_dang", "cv", evidence="Cao đẳng Điều dưỡng"),
+        }
+        merged, changed = store.merge_section(
+            existing, {"education_level": "cao_dang"}, source="staff", allowed=store.FIELD_KEYS
+        )
+        self.assertEqual(changed, [])
+        self.assertEqual(merged["education_level"]["source"], "cv")
+        self.assertEqual(merged["education_level"]["evidence"], "Cao đẳng Điều dưỡng")
+
+    def test_confirmation_promotes_the_source_but_keeps_the_evidence(self):
+        """Xác nhận nâng nguồn nghe-trong-hội-thoại lên ứng-viên-xác-nhận, giữ câu gốc."""
+        existing = {"japanese_level": store.cell("N4", "chat", evidence="tôi đã có N4")}
+        merged, changed = store.merge_section(
+            existing,
+            {"japanese_level": "N4"},
+            source="user_confirmed",
+            allowed=store.FIELD_KEYS,
+            promote_on_equal=True,
+        )
+        self.assertEqual(changed, ["japanese_level"])
+        self.assertEqual(merged["japanese_level"]["source"], "user_confirmed")
+        self.assertEqual(merged["japanese_level"]["evidence"], "tôi đã có N4")
+
     def test_same_source_may_correct_itself(self):
         existing = {"full_name": store.cell("Nguyen Van An", "user_confirmed")}
         merged, changed = store.merge_section(

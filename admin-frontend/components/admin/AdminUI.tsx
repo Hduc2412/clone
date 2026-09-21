@@ -1,5 +1,17 @@
 import { ReactNode } from "react";
 
+/**
+ * Nhãn tiếng Việt cho mọi trạng thái hiện lên trong huy hiệu trạng thái.
+ *
+ * `StatusBadge` rơi về `|| status` khi thiếu khóa, nghĩa là **thiếu một dòng ở
+ * đây thì nhân viên thấy nguyên chuỗi tiếng Anh trong mã nguồn**. Trước đây bảy
+ * trạng thái hồ sơ đăng ký thiếu ở bảng này, nên trên `/admin/applications` một
+ * hàng hiện ra là `[collecting_documents] [Thu giấy tờ ▾]` — huy hiệu tiếng Anh
+ * nằm ngay cạnh ô chọn tiếng Việt của cùng cái trạng thái đó.
+ *
+ * Bảng này dùng chung cho lịch hẹn, khách hàng, hồ sơ đăng ký và người dùng, nên
+ * thêm khóa mới phải kiểm xem tên đó đã mang nghĩa khác ở nơi khác chưa.
+ */
 export const statusLabels: Record<string, string> = {
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
@@ -20,6 +32,14 @@ export const statusLabels: Record<string, string> = {
   departed: "Đã xuất cảnh",
   active: "Hoạt động",
   inactive: "Đã khóa",
+  // Trạng thái hồ sơ đăng ký. Bảy dòng dưới đây từng thiếu.
+  draft: "Mới tạo",
+  collecting_documents: "Thu giấy tờ",
+  screening: "Sơ tuyển",
+  eligible: "Đủ điều kiện",
+  ready_departure: "Chờ xuất cảnh",
+  rejected: "Không đạt",
+  withdrawn: "Khách rút hồ sơ",
 };
 
 const statusStyles: Record<string, string> = {
