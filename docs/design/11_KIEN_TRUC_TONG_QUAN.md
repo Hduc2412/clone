@@ -213,6 +213,32 @@ Ví dụ chuỗi lý do sinh ra ở bước 3, **trước khi** LLM chạm vào:
 LLM nhận đúng khối trên và chỉ được phép diễn đạt lại. **Nó không được thêm con số
 nào không có trong đó** — bộ kiểm chứng sẽ chặn.
 
+#### 3.2.1. Nối hai nửa khi câu hỏi nhắc tới địa điểm
+
+Sơ đồ trên giả định phân loại ý định tách sạch được "hỏi chính sách" với "hỏi đơn
+hàng". Trên dữ liệu thật, phần lớn câu hỏi nằm giữa hai thứ đó.
+
+Ca đo được ngày 21/09/2026: *"Học đơn ở Kaigo nhưng tôi muốn đi Tokyo thì có đi
+được không?"* bị xếp vào nhánh chính sách, tra kho về sáu đoạn chẳng liên quan —
+trong đó có cả một bài viết thư pháp — với điểm đoạn đầu 0,7116, đủ cao để bộ lọc
+ngưỡng không chặn. Trong khi danh mục đơn có sẵn đơn đang tuyển ở Tokyo. Hệ thống
+biết đáp án; chatbot không, chỉ vì đáp án nằm ở nửa kia.
+
+Cách xử lý: câu hỏi nhắc tới một tỉnh hoặc một vùng ở Nhật thì tra thẳng danh mục
+đơn, và đưa kết quả vào ngữ cảnh **bên cạnh** tài liệu chính sách, chứ không thay
+nó. Ba điểm giữ nguyên ràng buộc kiến trúc:
+
+- **Việc dò địa điểm là tất định.** Quét tên tỉnh và tên vùng bằng bảng danh mục
+  có sẵn, không hỏi mô hình — nên tra lại được và lặp lại y hệt mỗi lần.
+- **Danh sách sinh bằng mã.** Mã đơn, tên tỉnh, yêu cầu tiếng, khoảng tuổi và hạn
+  nộp đều chép từ database. Mô hình chỉ diễn đạt lại (R1, R3).
+- **Chỉ đơn công khai.** Dùng chung đúng một bộ lọc với trang danh mục trên
+  website, để đơn nháp hoặc đã đóng không lọt ra ngoài qua đường chat.
+
+Đây là lời giải cho một ca cụ thể, chưa phải bộ định tuyến ý định đầy đủ như sơ đồ
+3.2 mô tả. Hành vi đầu-cuối chưa đo được: hạn ngạch sinh văn bản trong ngày đã hết
+khi tính năng hoàn thành.
+
 ### 3.3. Luồng C — Bàn giao cho nhân viên
 
 ```mermaid

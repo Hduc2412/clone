@@ -5,6 +5,7 @@ import asyncio
 import logging
 from app.services.journey_profile import capture as capture_profile
 
+from app.rag import job_lookup
 from app.rag.retriever import search
 from app.rag.prompt_builder import build_context, build_prompt
 from app.llm.gemini import generate_response
@@ -54,7 +55,14 @@ async def process_message(user_query: str, session_id: str) -> dict:
 
     # Embedding + Qdrant client đang là API đồng bộ; chạy ngoài event loop.
     hits = await run_in_threadpool(search, resolved_query, intent)
-    if not hits:
+
+    # Câu hỏi nhắc tới một tỉnh hoặc vùng ở Nhật thì tra thẳng danh mục đơn hàng.
+    # Kho tri thức chỉ có tài liệu chính sách, không có đơn nào — nên "muốn đi
+    # Tokyo có được không" là câu hệ thống biết đáp án mà chatbot vẫn chịu, chỉ
+    # vì đáp án nằm ở nửa kia. Việc dò tỉnh là tất định, không hỏi mô hình.
+    job_block = await job_lookup.context_for(resolved_query)
+
+    if not hits and not job_block:
         answer = LEAD_NO_KNOWLEDGE if intent == "lead" else NO_KNOWLEDGE
         session.add_message("assistant", answer)
         await _save_exchange(session_id, user_query, answer, intent, is_fallback=True)
@@ -62,6 +70,10 @@ async def process_message(user_query: str, session_id: str) -> dict:
 
     # 3. Build prompt có lịch sử
     context = build_context(hits)
+    # Danh mục đơn đứng trước tài liệu chính sách: khi câu hỏi hỏi về địa điểm,
+    # đây mới là phần trả lời đúng câu hỏi, còn tài liệu chỉ là nền.
+    if job_block:
+        context = f"{job_block}\n\n---\n\n{context}" if context else job_block
     prompt = build_prompt(context, user_query, history_text)
 
     # 4. Gọi Gemini
