@@ -19,6 +19,20 @@ export function getSessionId(): string {
   return id;
 }
 
+/**
+ * Đọc mã phiên đang có mà **không** tạo mới.
+ *
+ * Trang theo dõi hồ sơ cần phân biệt "chưa từng dùng trên máy này" với "đã có
+ * hồ sơ". `getSessionId` luôn sinh một mã mới khi chưa có, nên dùng nó ở trang
+ * tra cứu sẽ khiến mọi khách lạ trông như vừa có phiên rỗng. Hàm này trả chuỗi
+ * rỗng khi thật sự chưa có gì.
+ */
+export function peekSessionId(): string {
+  if (typeof window === "undefined") return "";
+  const existing = window.localStorage.getItem(KEY);
+  return existing && UUID.test(existing) ? existing : "";
+}
+
 export function resetSession(): string {
   if (typeof window === "undefined") return "";
   window.localStorage.removeItem(KEY);

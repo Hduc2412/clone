@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CvUpload from "@/components/candidate/CvUpload";
 import MatchCard from "@/components/candidate/MatchCard";
@@ -341,6 +342,13 @@ export default function ConsultationFlow() {
               Mã hồ sơ của bạn: {justRegistered.application_code}. Bạn ghi lại để
               tiện đối chiếu khi nhân viên gọi.
             </p>
+            <p className="mt-3 text-sm text-emerald-800">
+              Theo dõi hồ sơ đang ở bước nào tại{" "}
+              <Link href="/ho-so-cua-toi" className="font-semibold underline">
+                Hồ sơ của tôi
+              </Link>
+              .
+            </p>
           </Card>
         )}
 
@@ -349,8 +357,11 @@ export default function ConsultationFlow() {
             <p className="text-sm text-sky-900">
               Bạn đang có hồ sơ đăng ký đơn{" "}
               <span className="font-medium">{registrations[0].job_order_code}</span>{" "}
-              chờ nhân viên liên hệ. Muốn đổi sang đơn khác thì nói với nhân viên
-              khi họ gọi lại nhé.
+              chờ nhân viên liên hệ. Xem hồ sơ đang ở bước nào tại{" "}
+              <Link href="/ho-so-cua-toi" className="font-semibold underline">
+                Hồ sơ của tôi
+              </Link>
+              .
             </p>
           </Card>
         )}

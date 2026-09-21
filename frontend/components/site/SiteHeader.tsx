@@ -44,17 +44,25 @@ export default function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="ml-auto hidden items-center gap-1 xl:flex">
+        <nav className="ml-auto hidden items-center gap-0.5 xl:flex">
           {NAV.map((item) => {
             const active = pathname.startsWith(item.href);
+            // "Hồ sơ của tôi" là hành động của ứng viên, không phải một trang
+            // thông tin như phần còn lại. Cho nó viền riêng để tách khỏi nhóm
+            // kia, thay vì lẫn vào thành mục thứ mười khó thấy.
+            const isAction = item.href === "/ho-so-cua-toi";
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`whitespace-nowrap rounded-lg px-2.5 py-2 text-sm transition-colors ${
-                  active
-                    ? "font-semibold text-brand-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                className={`whitespace-nowrap rounded-lg px-2 py-2 text-sm transition-colors ${
+                  isAction
+                    ? active
+                      ? "font-semibold text-brand-700 ring-1 ring-brand-200"
+                      : "text-brand-700 ring-1 ring-brand-200 hover:bg-brand-50"
+                    : active
+                      ? "font-semibold text-brand-700"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 {item.label}
