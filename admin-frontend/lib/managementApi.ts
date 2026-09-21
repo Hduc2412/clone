@@ -827,6 +827,22 @@ export const managementApi = {
   // --- Hàng đợi đăng ký sơ bộ ---
   registrationQueue: () =>
     request<{ items: QueuedRegistration[]; count: number }>("/registrations/queue"),
+  /**
+   * Cấp cho ứng viên tài khoản vào hệ khách hàng.
+   *
+   * Mật khẩu ban đầu chỉ trả về **đúng một lần** ở đây — máy chủ không lưu bản
+   * rõ và không gửi lại được. Nhân viên đang gọi điện thì đọc luôn cho ứng viên;
+   * lỡ mất thì bấm lại, sinh mật khẩu khác.
+   */
+  grantPortalAccess: (code: string) =>
+    request<{
+      phone: string;
+      full_name: string | null;
+      initial_password: string;
+      already_existed: boolean;
+    }>(`/registrations/${encodeURIComponent(code)}/cap-tai-khoan`, {
+      method: "POST",
+    }),
   acceptRegistration: (code: string) =>
     request<QueuedRegistration>(
       `/registrations/${encodeURIComponent(code)}/accept`,

@@ -353,6 +353,23 @@ async def attach_document(code: str, document_code: str) -> None:
     )
 
 
+async def get_by_lead(lead_code: str) -> dict[str, Any] | None:
+    """Hồ sơ năng lực của một khách hàng, tra theo mã khách chứ không theo phiên.
+
+    Hệ khách hàng nhận diện bằng tài khoản, không bằng mã phiên trình duyệt, nên
+    không dùng được `get_by_session`. Lấy bản mới nhất: một khách có thể đã khai
+    nhiều lần từ nhiều phiên khác nhau trước khi được cấp tài khoản.
+    """
+    cursor = (
+        get_db()[COLLECTION]
+        .find({"lead_code": lead_code}, {"_id": 0})
+        .sort("updated_at", DESCENDING)
+        .limit(1)
+    )
+    found = await cursor.to_list(length=1)
+    return found[0] if found else None
+
+
 async def attach_lead(code: str, lead_code: str, phone_normalized: str) -> None:
     await get_db()[COLLECTION].update_one(
         {"code": code},

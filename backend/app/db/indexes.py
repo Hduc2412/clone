@@ -9,6 +9,7 @@ module đó.
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.db import (
+    candidate_accounts,
     candidate_documents,
     candidate_profiles,
     consultation_reports,
@@ -21,6 +22,7 @@ from app.db import (
 # Thêm module mới vào đây khi tạo collection mới.
 _MODULES = (
     job_orders,
+    candidate_accounts,
     candidate_profiles,
     candidate_documents,
     consultation_reports,

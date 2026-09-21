@@ -45,7 +45,7 @@ export const NAV = [
   { href: "/don-hang", label: "Đơn hàng" },
   { href: "/cau-hoi-thuong-gap", label: "Hỏi đáp" },
   { href: "/lien-he", label: "Liên hệ" },
-  { href: "/ho-so-cua-toi", label: "Hồ sơ của tôi" },
+  { href: "/tai-khoan", label: "Hồ sơ của tôi" },
 ] as const;
 
 /**

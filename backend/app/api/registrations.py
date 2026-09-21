@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.auth.security import get_current_user
 from app.core.rate_limit import client_ip, rate_limiter
+from app.db import candidate_accounts
 from app.db import consultation_reports as reports
 from app.db.database import (
     REFERENCE_APPLICATION,
@@ -368,3 +369,82 @@ async def registration_report(
             detail="Hồ sơ này chưa có phiếu tóm tắt (được tạo tay, không qua đăng ký sơ bộ).",
         )
     return report
+
+
+# --- Cấp quyền vào hệ khách hàng ---
+
+
+class GrantAccessResponse(BaseModel):
+    """Mật khẩu ban đầu chỉ xuất hiện **đúng một lần**, ngay trong phản hồi này.
+
+    Không lưu bản rõ ở đâu cả, và cũng không gửi lại được. Nhân viên đang gọi
+    điện cho ứng viên thì đọc luôn; lỡ mất thì bấm cấp lại, sinh mật khẩu khác.
+    """
+
+    phone: str
+    full_name: str | None
+    initial_password: str
+    already_existed: bool
+
+
+@router.post("/{application_code}/cap-tai-khoan", response_model=GrantAccessResponse)
+async def grant_portal_access(
+    application_code: str,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+) -> GrantAccessResponse:
+    """Cấp cho ứng viên tài khoản vào hệ khách hàng để tự theo dõi hồ sơ.
+
+    Chỉ người đang phụ trách hồ sơ (hoặc quản lý) mới cấp được — đây là việc đi
+    kèm cuộc gọi, không phải thao tác hàng loạt.
+    """
+    application = await _load(application_code)
+    if not can_access(application, current_user):
+        raise HTTPException(status_code=403, detail="Bạn không phụ trách hồ sơ này.")
+
+    phone = (application.get("phone") or "").strip()
+    if not phone:
+        raise HTTPException(
+            status_code=409,
+            detail="Hồ sơ chưa có số điện thoại nên chưa cấp tài khoản được.",
+        )
+
+    password = candidate_accounts.generate_initial_password()
+    existing = await candidate_accounts.get_account_by_phone(phone)
+    if existing is None:
+        account = await candidate_accounts.create_account(
+            phone=phone,
+            lead_code=application.get("lead_code"),
+            full_name=application.get("customer_name"),
+            password=password,
+            created_by=current_user["email"],
+        )
+        already_existed = False
+    else:
+        # Đã có tài khoản thì đây là "cấp lại mật khẩu", không phải tạo trùng.
+        # Ứng viên quên mật khẩu là chuyện thường xuyên hơn ta tưởng.
+        account = await candidate_accounts.reset_password(
+            phone, password, by=current_user["email"]
+        )
+        already_existed = True
+
+    await _log(
+        application_code,
+        "portal_access_granted",
+        current_user,
+        {"phone": phone, "reset": already_existed},
+    )
+    await audit_action(
+        http_request,
+        "candidate_account.granted",
+        actor=current_user,
+        target_type="candidate_account",
+        target_id=phone,
+        details={"application_code": application_code, "reset": already_existed},
+    )
+    return GrantAccessResponse(
+        phone=phone,
+        full_name=(account or {}).get("full_name"),
+        initial_password=password,
+        already_existed=already_existed,
+    )

@@ -108,6 +108,33 @@ export default function QueuePage() {
     );
   };
 
+  const grantAccess = (code: string) => {
+    setBusy(code);
+    setError("");
+    managementApi
+      .grantPortalAccess(code)
+      .then((result) => {
+        // Hiện bằng `alert` có chủ ý: mật khẩu này chỉ xuất hiện đúng một lần và
+        // nhân viên phải đọc nó cho ứng viên ngay trong cuộc gọi. Một dòng chữ
+        // nhỏ trong bảng thì rất dễ bị cuộn qua rồi mất luôn.
+        window.alert(
+          `${result.already_existed ? "Đã cấp lại mật khẩu" : "Đã tạo tài khoản"} cho ${result.phone}
+
+` +
+            `Mật khẩu: ${result.initial_password}
+
+` +
+            "Đọc cho ứng viên ngay bây giờ. Mật khẩu này không xem lại được, " +
+            "và ứng viên sẽ phải đổi ở lần đăng nhập đầu.",
+        );
+      })
+      .catch((reason) => setError(reason.message))
+      .finally(() => {
+        setBusy(null);
+        load();
+      });
+  };
+
   const handover = (code: string, assignedTo: string) => {
     if (!assignedTo) return;
     const note = window.prompt(`Lý do chuyển hồ sơ cho ${assignedTo}?`);
@@ -243,6 +270,14 @@ export default function QueuePage() {
                             ))}
                         </select>
                       )}
+                      <button
+                        type="button"
+                        disabled={busy === item.application_code}
+                        onClick={() => grantAccess(item.application_code)}
+                        className="rounded-xl border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                      >
+                        Cấp tài khoản
+                      </button>
                       <button
                         type="button"
                         disabled={busy === item.application_code}

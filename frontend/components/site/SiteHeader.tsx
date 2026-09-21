@@ -50,7 +50,7 @@ export default function SiteHeader() {
             // "Hồ sơ của tôi" là hành động của ứng viên, không phải một trang
             // thông tin như phần còn lại. Cho nó viền riêng để tách khỏi nhóm
             // kia, thay vì lẫn vào thành mục thứ mười khó thấy.
-            const isAction = item.href === "/ho-so-cua-toi";
+            const isAction = item.href === "/tai-khoan";
             return (
               <Link
                 key={item.href}

@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 480
     auth_cookie_name: str = "xkld_admin_session"
     auth_cookie_secure: bool = False
+    # Cookie riêng cho hệ khách hàng. Phải khác tên cookie của nhân viên: dùng
+    # chung một tên thì đăng nhập bên này đá văng phiên bên kia, và tệ hơn là
+    # một token có thể bị đem thử ở nhầm cửa.
+    candidate_cookie_name: str = "xkld_candidate_session"
+    # Ngắn hơn phiên nhân viên. Ứng viên đăng nhập trên máy mượn hoặc điện thoại
+    # chung là chuyện thường, nên để phiên tự hết hạn sớm.
+    candidate_session_minutes: int = 240
     initial_admin_email: str = ""
     initial_admin_name: str = "Quản trị viên"
     initial_admin_password_hash: str = ""
