@@ -49,7 +49,6 @@ xkld-chatbot/
 │   │   └── services/            # Điều phối nghiệp vụ
 │   ├── ingestion/               # Crawl, Vision, embedding
 │   ├── tests/                   # Kiểm thử backend
-│   ├── check_qdrant.py          # Kiểm tra dữ liệu Qdrant
 │   └── main.py
 ├── docs/                        # Phạm vi, workflow và roadmap
 └── frontend/
@@ -264,7 +263,7 @@ Kiểm tra collection đang dùng:
 
 ```powershell
 cd backend
-.\venv\Scripts\python.exe check_qdrant.py `
+.\venv\Scripts\python.exe -m scripts.check_qdrant `
   --collection xkld_knowledge `
   --require-image-content `
   --require-complete-images
@@ -304,7 +303,7 @@ embedding và ghi vector vào Qdrant.
 Sau khi ingestion trên máy mới hoàn tất, kiểm tra staging:
 
 ```powershell
-.\venv\Scripts\python.exe check_qdrant.py `
+.\venv\Scripts\python.exe -m scripts.check_qdrant `
   --collection xkld_knowledge_staging `
   --require-image-content `
   --require-complete-images
@@ -323,7 +322,7 @@ Chỉ tạo hoặc chuyển alias chính sau khi đã kiểm thử hội thoại
 Nếu version mới có vấn đề, dừng backend rồi đổi alias
 `xkld_knowledge` từ `xkld_knowledge_v20260730` về
 `xkld_knowledge_backup_20260730` trong Qdrant. Luôn chạy lại
-`check_qdrant.py` và một câu hỏi thử trước khi mở backend.
+`python -m scripts.check_qdrant` và một câu hỏi thử trước khi mở backend.
 
 ## Lưu ý vận hành gói miễn phí
 

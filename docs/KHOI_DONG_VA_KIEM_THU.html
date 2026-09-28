@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khởi động và kiểm thử — Hệ thống XKLĐ điều dưỡng</title>
+<style>
+  :root{
+    --nen:#0d1014; --tam:#151a21; --tam-2:#1c232c; --vien:#2a3542;
+    --chu:#e6edf3; --chu-mo:#8b98a8; --chu-rat-mo:#5f6c7b;
+    --do:#ff5f56; --do-dam:#cb1d1e; --xanh:#3fd68c; --vang:#f0b429; --lam:#5aa9ff;
+    --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--nen); color:var(--chu);
+    font:16px/1.65 -apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 80px}
+
+  /* ---- Đầu trang ---- */
+  header{border-bottom:1px solid var(--vien);background:
+    radial-gradient(900px 300px at 15% -60%,rgba(203,29,30,.22),transparent 70%);}
+  .hd{max-width:900px;margin:0 auto;padding:44px 20px 34px}
+  .eyebrow{font:600 12px/1 var(--mono);letter-spacing:.2em;color:var(--do);text-transform:uppercase}
+  h1{margin:14px 0 10px;font-size:30px;line-height:1.25;letter-spacing:-.02em}
+  .sub{margin:0;color:var(--chu-mo);max-width:62ch}
+  .meta{margin-top:18px;font:13px/1.5 var(--mono);color:var(--chu-rat-mo)}
+
+  /* ---- Mục lục ---- */
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 0;padding:0;list-style:none}
+  nav.toc a{
+    font:500 13px/1 var(--mono);color:var(--chu-mo);text-decoration:none;
+    border:1px solid var(--vien);border-radius:999px;padding:8px 13px;background:var(--tam);
+  }
+  nav.toc a:hover{color:var(--chu);border-color:var(--do);background:var(--tam-2)}
+
+  h2{margin:52px 0 6px;font-size:21px;letter-spacing:-.01em;scroll-margin-top:20px}
+  h2 .num{font:700 13px/1 var(--mono);color:var(--do);margin-right:10px;vertical-align:2px}
+  h3{margin:30px 0 8px;font-size:16px}
+  p{margin:10px 0}
+  .lead{color:var(--chu-mo)}
+  a{color:var(--lam)}
+  code{font:.9em var(--mono);background:var(--tam-2);border:1px solid var(--vien);
+       border-radius:5px;padding:1px 6px;color:#ffd9d9}
+
+  /* ---- Khối lệnh ---- */
+  .cmd{border:1px solid var(--vien);border-radius:10px;background:var(--tam);
+       margin:14px 0;overflow:hidden}
+  .cmd-top{display:flex;align-items:center;gap:10px;padding:9px 14px;
+           background:var(--tam-2);border-bottom:1px solid var(--vien)}
+  .dots{display:flex;gap:6px}
+  .dots i{width:11px;height:11px;border-radius:50%;display:block}
+  .dots i:nth-child(1){background:#ff5f56}
+  .dots i:nth-child(2){background:#ffbd2e}
+  .dots i:nth-child(3){background:#27c93f}
+  .cmd-name{font:600 12px/1 var(--mono);color:var(--chu-rat-mo);letter-spacing:.06em}
+  .copy{margin-left:auto;font:600 11px/1 var(--mono);color:var(--chu-mo);cursor:pointer;
+        background:transparent;border:1px solid var(--vien);border-radius:6px;padding:6px 11px}
+  .copy:hover{color:var(--chu);border-color:var(--do)}
+  .copy.ok{color:var(--xanh);border-color:var(--xanh)}
+  pre{margin:0;padding:15px;overflow-x:auto;font:13.5px/1.75 var(--mono);color:#dbe6f0}
+  pre .p{color:var(--do);user-select:none}
+  pre .c{color:var(--chu-rat-mo)}
+  pre .r{color:var(--chu-rat-mo)}   /* kết quả mẫu — nút sao chép bỏ qua */
+  pre .o{color:var(--xanh)}
+
+  /* ---- Bảng ---- */
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--vien);vertical-align:top}
+  th{font:600 11.5px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+     color:var(--chu-rat-mo);background:var(--tam)}
+  td.port{font:700 15px/1.4 var(--mono);color:var(--do);white-space:nowrap}
+  td.mono{font:13px/1.6 var(--mono);color:var(--chu-mo)}
+  tbody tr:hover{background:var(--tam)}
+
+  /* ---- Ghi chú ---- */
+  .note{border-left:3px solid var(--lam);background:var(--tam);border-radius:0 8px 8px 0;
+        padding:13px 16px;margin:16px 0}
+  .note.warn{border-left-color:var(--vang)}
+  .note.bad{border-left-color:var(--do)}
+  .note.good{border-left-color:var(--xanh)}
+  .note b{display:block;margin-bottom:4px;font-size:14px}
+  .note p{margin:4px 0;font-size:14.5px;color:var(--chu-mo)}
+
+  /* ---- Thẻ số ---- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:18px 0}
+  .stat{border:1px solid var(--vien);border-radius:10px;background:var(--tam);padding:15px}
+  .stat .n{font:700 27px/1 var(--mono);color:var(--chu)}
+  .stat .n.ok{color:var(--xanh)}
+  .stat .l{margin-top:7px;font-size:13px;color:var(--chu-mo)}
+
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0}
+  .steps>li{counter-increment:s;position:relative;padding-left:44px;margin:26px 0}
+  .steps>li::before{
+    content:counter(s);position:absolute;left:0;top:-2px;width:29px;height:29px;
+    display:grid;place-items:center;border-radius:8px;background:var(--do-dam);
+    color:#fff;font:700 14px/1 var(--mono);
+  }
+  .steps>li>h3{margin:2px 0 6px}
+
+  footer{margin-top:60px;padding-top:22px;border-top:1px solid var(--vien);
+         font-size:13.5px;color:var(--chu-rat-mo)}
+  @media (max-width:620px){
+    h1{font-size:24px} .hd{padding:32px 20px 26px} pre{font-size:12.5px}
+    /* Bảng bốn cột không bóp xuống 375px được. Cho nó tự cuộn ngang trong
+       khung của mình, thay vì đẩy cả trang lệch sang phải — lệch cả trang thì
+       mọi đoạn văn đều trượt theo và đọc rất khó chịu. */
+    table{display:block;overflow-x:auto;max-width:100%}
+    table thead,table tbody{display:table;width:100%;min-width:470px}
+  }
+  @media print{
+    body{background:#fff;color:#000} .copy,nav.toc{display:none}
+    .cmd,.note,.stat,table{border-color:#bbb} pre{color:#000}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <div class="eyebrow">Runbook · môi trường phát triển</div>
+    <h1>Khởi động hệ thống và chạy kiểm thử</h1>
+    <p class="sub">
+      Hệ thống AI hỗ trợ tư vấn, định hướng hồ sơ và quản trị tuyển dụng điều dưỡng Nhật Bản.
+      Tài liệu này dành cho việc chạy tay trên máy phát triển — không phải bản triển khai Docker.
+    </p>
+    <div class="meta">
+      Hoàng Minh Đức · 2200583 &nbsp;│&nbsp; Windows · PowerShell &nbsp;│&nbsp; cập nhật 23/09/2026
+    </div>
+    <nav class="toc">
+      <a href="#cong">Bảng cổng</a>
+      <a href="#chuan-bi">Chuẩn bị</a>
+      <a href="#khoi-dong">Khởi động</a>
+      <a href="#kiem-tra">Kiểm tra</a>
+      <a href="#kiem-thu">Kiểm thử</a>
+      <a href="#dung">Dừng</a>
+      <a href="#su-co">Sự cố</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h2 id="cong"><span class="num">01</span>Bảng cổng</h2>
+<p class="lead">
+  Bộ cổng này chọn lệch khỏi mặc định (8000 / 3000 / 3001) để không đụng ứng dụng khác
+  đang chạy trên cùng máy.
+</p>
+
+<table>
+  <thead>
+    <tr><th>Thành phần</th><th>Cổng</th><th>Mở ở đâu</th><th>Bắt buộc?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>MongoDB</td><td class="port">27017</td><td class="mono">dịch vụ nền</td><td>Có</td></tr>
+    <tr><td>Qdrant</td><td class="port">6333<br>6334</td><td class="mono">http://localhost:6333/dashboard</td><td>Chỉ chatbot</td></tr>
+    <tr><td>Backend FastAPI</td><td class="port">8020</td><td class="mono">http://localhost:8020/docs</td><td>Có</td></tr>
+    <tr><td>Website khách hàng</td><td class="port">3100</td><td class="mono">http://localhost:3100</td><td>Có</td></tr>
+    <tr><td>Hệ thống quản trị</td><td class="port">3101</td><td class="mono">http://localhost:3101/login</td><td>Có</td></tr>
+  </tbody>
+</table>
+
+<div class="note warn">
+  <b>Ba cổng này ràng buộc lẫn nhau</b>
+  <p>
+    Đổi cổng backend thì phải đổi kèm <code>NEXT_PUBLIC_BACKEND_URL</code> ở cả hai frontend.
+    Đổi cổng frontend thì phải đổi kèm <code>CORS_ORIGINS</code> trong <code>backend/.env</code>.
+    Sửa một nơi mà quên nơi kia thì triệu chứng là trang mở được nhưng mọi lời gọi đều hỏng,
+    rất mất công lần ra.
+  </p>
+</div>
+
+<h2 id="chuan-bi"><span class="num">02</span>Chuẩn bị</h2>
+<p class="lead">
+  Chỉ làm một lần cho mỗi máy. Máy đã cài rồi thì nhảy thẳng xuống phần Khởi động.
+</p>
+
+<div class="note bad">
+  <b>Dùng PowerShell, đừng dùng Git Bash</b>
+  <p>
+    Git Bash trên máy này không thấy <code>node</code> trong PATH, chạy <code>npm</code> sẽ
+    báo <code>'"node"' is not recognized</code>. Mọi lệnh dưới đây viết cho PowerShell.
+  </p>
+</div>
+
+<h3>Backend — môi trường Python</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · backend</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\backend
+<span class="p">PS&gt;</span> python -m venv venv
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m pip install -r requirements.txt</pre>
+</div>
+
+<h3>Hai frontend — thư viện Node</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · frontend + admin</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\frontend
+<span class="p">PS&gt;</span> npm ci
+<span class="p">PS&gt;</span> cd ..\admin-frontend
+<span class="p">PS&gt;</span> npm ci</pre>
+</div>
+
+<h3>Tệp cấu hình</h3>
+<p>
+  Backend cần <code>backend/.env</code>. Thiếu <code>GEMINI_API_KEY</code> hoặc
+  <code>JWT_SECRET</code> thì ứng dụng chết ngay lúc khởi động chứ không chạy tiếp — đó
+  là chủ ý, để lỗi lộ ra ở dòng đầu tiên thay vì ở một câu trả lời sai giữa buổi demo.
+</p>
+<p>
+  Hai frontend <b>không cần</b> tệp cấu hình: chúng tự lấy mặc định
+  <code>http://localhost:8020</code>.
+</p>
+
+<h2 id="khoi-dong"><span class="num">03</span>Khởi động</h2>
+<p class="lead">
+  Năm bước, cần ba cửa sổ terminal mở song song. Đóng cửa sổ nào là tắt phần đó.
+</p>
+
+<ol class="steps">
+
+<li>
+  <h3>MongoDB</h3>
+  <p>Chạy sẵn dưới dạng dịch vụ Windows, tự bật cùng máy. Kiểm cho chắc:</p>
+  <div class="cmd">
+    <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="cmd-name">PowerShell</span>
+      <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> Get-Service MongoDB
+
+<span class="r">Status   Name      DisplayName</span>
+<span class="r">------   ----      -----------</span>
+<span class="o">Running</span><span class="r">  MongoDB   MongoDB Server</span></pre>
+  </div>
+  <p>Nếu là <code>Stopped</code> thì chạy <code>Start-Service MongoDB</code>.</p>
+</li>
+
+<li>
+  <h3>Qdrant — kho vector</h3>
+  <p>Mở <b>Docker Desktop</b> trước, đợi biểu tượng ngừng quay, rồi:</p>
+  <div class="cmd">
+    <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="cmd-name">PowerShell</span>
+      <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> docker start qdrant</pre>
+  </div>
+  <p>Báo không tìm thấy container (máy mới clone, hoặc đã xoá) thì tạo lần đầu:</p>
+  <div class="cmd">
+    <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="cmd-name">PowerShell · tạo lần đầu</span>
+      <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> docker run -d --name qdrant `
+       -p 6333:6333 -p 6334:6334 `
+       -v qdrant_storage:/qdrant/storage `
+       qdrant/qdrant</pre>
+  </div>
+  <div class="note">
+    <b>Bỏ qua bước này cũng được</b>
+    <p>
+      Backend vẫn lên, website vẫn chạy, đối chiếu hồ sơ vẫn ra kết quả — vì bộ đối chiếu
+      là Python thuần, không gọi mô hình nào. Chỉ khung chat là không trả lời được, do
+      không có kho vector để tra tài liệu.
+    </p>
+    <p>
+      Vector nằm trong Docker volume, không nằm trong Git. Máy mới clone repo sẽ có mã
+      nguồn nhưng chưa có collection — phải chạy lại bộ nạp tài liệu.
+    </p>
+  </div>
+</li>
+
+<li>
+  <h3>Backend — terminal 1</h3>
+  <div class="cmd">
+    <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="cmd-name">PowerShell · terminal 1</span>
+      <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\backend
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8020
+
+<span class="r">[DB] MongoDB initialized successfully.</span>
+<span class="r">INFO:     Uvicorn running on http://127.0.0.1:8020</span>
+<span class="o">INFO:     Application startup complete.</span></pre>
+  </div>
+  <p>Đợi tới dòng <code>Application startup complete.</code> rồi mới mở terminal sau.</p>
+</li>
+
+<li>
+  <h3>Website khách hàng — terminal 2</h3>
+  <div class="cmd">
+    <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="cmd-name">PowerShell · terminal 2</span>
+      <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\frontend
+<span class="p">PS&gt;</span> npm run dev
+
+<span class="o">▲ Next.js — Local: http://localhost:3100</span></pre>
+  </div>
+</li>
+
+<li>
+  <h3>Hệ thống quản trị — terminal 3</h3>
+  <div class="cmd">
+    <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="cmd-name">PowerShell · terminal 3</span>
+      <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\admin-frontend
+<span class="p">PS&gt;</span> npm run dev
+
+<span class="o">▲ Next.js — Local: http://localhost:3101</span></pre>
+  </div>
+</li>
+
+</ol>
+
+<h2 id="kiem-tra"><span class="num">04</span>Kiểm tra đã lên đủ</h2>
+<p class="lead">Mở một terminal thứ tư và đếm cổng đang lắng nghe.</p>
+
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · terminal 4</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> Get-NetTCPConnection -State Listen -LocalPort 27017,6333,8020,3100,3101 `
+       -ErrorAction SilentlyContinue |
+       Select-Object -Unique LocalPort | Sort-Object LocalPort
+
+<span class="r">LocalPort</span>
+<span class="r">---------</span>
+<span class="o">     3100</span>
+<span class="o">     3101</span>
+<span class="o">     6333</span>
+<span class="o">     8020</span>
+<span class="o">    27017</span></pre>
+</div>
+
+<p>Đủ năm dòng là xong. Thiếu dòng nào thì xem lại terminal của phần đó.</p>
+
+<h3>Thử một nhịp thật</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · thử backend</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> (Invoke-WebRequest http://localhost:8020/health).Content
+<span class="o">{"status":"ok"}</span>
+
+<span class="c"># Có đơn tuyển dụng thật trả về không</span>
+<span class="p">PS&gt;</span> (Invoke-RestMethod http://localhost:8020/public/job-orders).items.Count
+<span class="o">16</span></pre>
+</div>
+
+<h2 id="kiem-thu"><span class="num">05</span>Kiểm thử</h2>
+
+<div class="stats">
+  <div class="stat"><div class="n ok">845</div><div class="l">ca backend</div></div>
+  <div class="stat"><div class="n ok">10</div><div class="l">ca frontend</div></div>
+  <div class="stat"><div class="n">~24s</div><div class="l">chạy hết backend</div></div>
+  <div class="stat"><div class="n">0</div><div class="l">lời gọi mạng</div></div>
+</div>
+
+<div class="note good">
+  <b>Kiểm thử không cần gì chạy sẵn</b>
+  <p>
+    Không cần MongoDB, không cần Qdrant, không cần mạng, không tốn hạn mức Gemini. Mọi
+    lời gọi ra ngoài đều được thay bằng bản giả lập. Nhờ vậy chạy được ở bất cứ đâu và
+    cho cùng một kết quả mỗi lần.
+  </p>
+</div>
+
+<h3>Backend</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · backend</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\backend
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m unittest discover -s tests -t .
+
+<span class="r">----------------------------------------------------------------------</span>
+<span class="r">Ran 845 tests in 22.578s</span>
+
+<span class="o">OK</span></pre>
+</div>
+
+<div class="note bad">
+  <b><code>-t .</code> là bắt buộc, không phải trang trí</b>
+  <p>
+    Thiếu nó thì trên máy chưa có <code>.env</code> toàn bộ bộ kiểm thử đổ lỗi nạp module,
+    và thông báo lỗi chẳng gợi ý gì về nguyên nhân thật.
+  </p>
+</div>
+
+<h4>Chạy riêng một nhóm</h4>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · chạy hẹp</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="c"># Một tệp</span>
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m unittest tests.test_matching_engine
+
+<span class="c"># Một lớp</span>
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m unittest tests.test_registrations.GuardrailTests
+
+<span class="c"># Một ca duy nhất</span>
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m unittest `
+       tests.test_registrations.GuardrailTests.test_don_qua_han_giua_luc_doi_chieu_va_luc_dang_ky
+
+<span class="c"># In tên từng ca trong lúc chạy</span>
+<span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m unittest discover -s tests -t . -v</pre>
+</div>
+
+<h4>Những nhóm nặng ký nhất</h4>
+<table>
+  <thead><tr><th>Tệp</th><th>Số ca</th><th>Canh điều gì</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">test_matching_engine</td><td class="port">65</td>
+        <td>Bộ đối chiếu: bảy điều kiện bắt buộc, bốn tiêu chí nguyện vọng, và <b>tính tất định</b> — chạy lại hay xáo trộn thứ tự đơn đầu vào vẫn ra đúng một kết quả.</td></tr>
+    <tr><td class="mono">test_cv_documents</td><td class="port">53</td>
+        <td>Đọc CV và bộ kiểm chứng: giá trị nào không truy được về câu chữ trong CV thì bị loại, kể cả khi mô hình khẳng định chắc nịch.</td></tr>
+    <tr><td class="mono">test_candidate_profiles</td><td class="port">50</td>
+        <td>Hồ sơ ứng viên: thứ tự ưu tiên nguồn, khoá lạc quan theo phiên bản, giữ nguyên trích dẫn gốc.</td></tr>
+    <tr><td class="mono">test_registrations</td><td class="port">35</td>
+        <td>Đăng ký sơ bộ: chỉ đăng ký được đơn đã thật sự giới thiệu cho chính mình, và đơn phải còn mở <i>ngay lúc bấm</i>.</td></tr>
+    <tr><td class="mono">test_journey_access</td><td class="port">14</td>
+        <td>Ranh giới dữ liệu: không cookie thì 401, cookie của phiên khác thì 403.</td></tr>
+    <tr><td class="mono">test_password_resets</td><td class="port">20</td>
+        <td>Đặt lại mật khẩu: Quản lý không bấm được lên tài khoản Quản trị viên.</td></tr>
+    <tr><td class="mono">test_advisor_qa</td><td class="port">20</td>
+        <td>Bot tư vấn: sáu chốt hậu kiểm loại câu mô hình viết sai. Gồm ca canh cho <b>không gọi được mô hình</b> không bị ghi nhầm thành "bot chịu không đoán" — nếu lẫn thì chỉ số trung thực sẽ tự đẹp lên mỗi lần hệ thống hỏng.</td></tr>
+    <tr><td class="mono">test_memory_chung</td><td class="port">17</td>
+        <td>Bộ nhớ dùng chung giữa khung chat và phòng tư vấn: nó chở <b>câu hỏi, không chở câu trả lời</b>. Có ca đọc thẳng mã nguồn để chặn việc ai đó nối bộ nhớ vào khối dữ liệu cho phép "cho tiện".</td></tr>
+    <tr><td class="mono">test_advisor_boundary</td><td class="port">10</td>
+        <td>Ranh giới engine tư vấn và khung chat: quét mã nguồn, bắt mọi đường import nối hai bên. Khóa và hạn mức phải tách.</td></tr>
+  </tbody>
+</table>
+
+<h4>Ba bộ nghiệm thu chạy tay — có gọi mô hình thật</h4>
+<div class="note">
+  <p>
+    Ba bộ dưới đây <b>gọi mô hình thật và cần mạng</b>, nên cố ý không nằm trong
+    <code>unittest</code>: bộ kiểm thử thường phải chạy được khi mất mạng và khi hết hạn mức.
+    Chạy tay trước mỗi mốc bàn giao.
+  </p>
+</div>
+<table>
+  <thead><tr><th>Lệnh</th><th>Đo cái gì</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">python -m scripts.nghiem_thu_doc_cv</td>
+        <td>Bộ đọc CV trên tám hồ sơ mẫu. Bốn cột ĐÚNG / SAI / THIẾU / NGOÀI PHẠM VI — cột <b>SAI</b> là cột duy nhất đáng lo.</td></tr>
+    <tr><td class="mono">python -m scripts.nghiem_thu_tu_van</td>
+        <td>Bot tư vấn trên 11 ca cố định, mỗi ca khóa lại một lỗi <b>đã xảy ra thật</b>, có ghi ngày đo.</td></tr>
+    <tr><td class="mono">python -m scripts.nghiem_thu_chatbot</td>
+        <td>Khung chat hỏi đáp trên bộ câu hỏi mẫu.</td></tr>
+  </tbody>
+</table>
+<div class="note bad">
+  <b>Hạn mức 20 lượt gọi mỗi ngày cho mỗi model, tính theo dự án Google</b>
+  <p>
+    Không đủ cho cả ba bộ trong một lượt, nên cả ba đều <b>bồi kết quả dần qua nhiều đợt</b>
+    và ghi kèm tên model đã đo từng dòng. Chạy lại lệnh cũ là nó đo tiếp phần còn nợ.
+  </p>
+  <p>
+    Quan trọng hơn: lượt nào <b>không gọi được mô hình thì không được ghi kết quả</b>.
+    Đo ngày 28/09, khi chưa có chốt này: hạn mức cạn sau câu đầu tiên, mười câu sau nhận
+    câu ghép sẵn, và ba ca <i>chuyển sang ĐẠT</i> vì "không biết" tình cờ thỏa điều kiện
+    của chúng. Một bộ đo tự khen mình khi hệ thống chết thì tệ hơn là không có bộ đo nào.
+  </p>
+</div>
+
+<h3>Frontend</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · frontend</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\frontend
+<span class="p">PS&gt;</span> npm run test
+
+<span class="o">✔ chưa có gì thì không bịa ra mã</span>
+<span class="o">✔ khong_tu_sinh_ma_khi_chua_hoi_may_chu</span>
+<span class="o">✔ mở phiên thì lấy mã của máy chủ và ghi lại</span>
+<span class="r">…</span>
+<span class="r">ℹ tests 10</span>
+<span class="o">ℹ pass 10</span>
+<span class="r">ℹ fail 0</span></pre>
+</div>
+<p>
+  Bộ này canh đúng một điều nhưng là điều quan trọng: <b>trình duyệt không được tự sinh
+  mã phiên</b>. Mã phải do máy chủ cấp kèm cookie đã ký. Ai lỡ tay đưa việc sinh mã về
+  lại phía trình duyệt thì ca thứ hai đỏ ngay.
+</p>
+
+<h3>Soát mã nguồn</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · lint cả hai app</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\frontend
+<span class="p">PS&gt;</span> npm run lint
+<span class="p">PS&gt;</span> cd ..\admin-frontend
+<span class="p">PS&gt;</span> npm run lint</pre>
+</div>
+
+<h3>Chạy hết một lượt trước khi đẩy code</h3>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · một lượt đầy đủ</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot
+<span class="p">PS&gt;</span> .\backend\venv\Scripts\python.exe -m unittest discover -s backend\tests -t backend
+<span class="p">PS&gt;</span> cd frontend; npm run test; npm run lint
+<span class="p">PS&gt;</span> cd ..\admin-frontend; npm run lint</pre>
+</div>
+
+<h2 id="dung"><span class="num">06</span>Dừng</h2>
+<p class="lead">
+  Bấm <code>Ctrl+C</code> trong từng terminal. Qdrant thì <code>docker stop qdrant</code>.
+  MongoDB cứ để chạy, nó là dịch vụ nền và không tốn gì.
+</p>
+
+<h2 id="su-co"><span class="num">07</span>Sự cố hay gặp</h2>
+
+<h3>Cổng đã bận</h3>
+<p>
+  Backend báo <code>[Errno 10048] error while attempting to bind on address
+  ('127.0.0.1', 8020)</code> nghĩa là tiến trình cũ chưa chết hẳn. Tìm và tắt:
+</p>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · giải phóng cổng</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> Get-NetTCPConnection -State Listen -LocalPort 8020 |
+       ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }</pre>
+</div>
+
+<div class="note bad">
+  <b>Đừng chạy <code>npm run build</code> khi <code>npm run dev</code> đang chạy</b>
+  <p>
+    Hai lệnh cùng ghi vào thư mục <code>.next</code>. Triệu chứng là trang mở ra mất sạch
+    giao diện, trông như hỏng CSS — rất dễ đi tìm nhầm chỗ. Lỡ dính thì <code>Ctrl+C</code>,
+    xoá <code>.next</code>, chạy lại:
+  </p>
+</div>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">PowerShell · dọn .next</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">PS&gt;</span> Remove-Item -Recurse -Force .next
+<span class="p">PS&gt;</span> npm run dev</pre>
+</div>
+
+<h3>Trang kêu “phiên tư vấn đã hết hạn”, tải lại bao nhiêu lần cũng vậy</h3>
+<p>
+  Mã phiên lưu trong trình duyệt đã lệch khỏi cookie — hay xảy ra khi backend khởi động
+  lại với <code>JWT_SECRET</code> khác. Mở Console của trình duyệt (F12) và gọi:
+</p>
+<div class="cmd">
+  <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
+    <span class="cmd-name">DevTools Console</span>
+    <button class="copy">sao chép</button></div>
+<pre><span class="p">&gt;</span> localStorage.removeItem("xkld-candidate-session"); location.reload()</pre>
+</div>
+
+<h3>Đăng nhập quản trị báo sai mật khẩu dù gõ đúng</h3>
+<p>
+  Chuỗi băm mật khẩu có dạng <code>pbkdf2_sha256$600000$muoi$bam</code>. Ba dấu
+  <code>$</code> đó bị Docker Compose nuốt mất khi nội suy biến môi trường, nên tài khoản
+  quản trị đầu tiên được tạo với chuỗi băm hỏng. Triệu chứng duy nhất là “sai mật khẩu”
+  với mật khẩu đúng. Cách chạy tay trong tài liệu này không dính lỗi ấy; nếu chạy bằng
+  Docker thì <code>env_file</code> phải khai <code>format: raw</code>.
+</p>
+
+<h3>Chatbot trả lời nhưng không dẫn được nguồn</h3>
+<p>
+  Qdrant chưa chạy, hoặc chạy rồi nhưng collection còn rỗng. Kiểm bằng
+  <code>python -m scripts.check_qdrant</code> trước khi nghi ngờ phần trả lời.
+</p>
+
+<footer>
+  Tài liệu thuộc đồ án tốt nghiệp — Hệ thống AI hỗ trợ tư vấn, định hướng hồ sơ và
+  quản trị tuyển dụng điều dưỡng Nhật Bản.<br>
+  Hoàng Minh Đức · 2200583 · Trường Đại học Công nghiệp Việt&nbsp;–&nbsp;Hung ·
+  GVHD: TS. Nguyễn Hồng Quân
+</footer>
+
+</div>
+
+<script>
+// Nút sao chép: lấy chữ trong khối <pre> cạnh nó, bỏ dấu nhắc "PS>" và mọi dòng
+// chú thích hay kết quả mẫu — dán vào terminal là chạy được ngay, không phải sửa.
+document.querySelectorAll(".copy").forEach(function (nut) {
+  nut.addEventListener("click", function () {
+    var pre = nut.closest(".cmd").querySelector("pre");
+    var chu = "";
+    pre.childNodes.forEach(function (node) {
+      if (node.nodeType !== 1) { chu += node.textContent; return; }
+      // `p` là dấu nhắc, `o` và `r` là kết quả in ra — không phải thứ người ta gõ.
+      if (node.classList.contains("p")) return;
+      if (node.classList.contains("o")) return;
+      if (node.classList.contains("r")) return;
+      chu += node.textContent;                       // còn lại: lệnh và chú thích
+    });
+    chu = chu.split("\n").map(function (d) { return d.trim(); })
+             .filter(function (d) { return d.length; }).join("\n");
+
+    navigator.clipboard.writeText(chu).then(function () {
+      var cu = nut.textContent;
+      nut.textContent = "đã chép";
+      nut.classList.add("ok");
+      setTimeout(function () { nut.textContent = cu; nut.classList.remove("ok"); }, 1400);
+    });
+  });
+});
+</script>
+
+</body>
+</html>

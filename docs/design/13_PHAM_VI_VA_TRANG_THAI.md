@@ -28,6 +28,9 @@ CÁC TÍNH NĂNG BẮT BUỘC
 │   ├── Loại đơn ứng viên chắc chắn không đủ điều kiện
 │   ├── Sắp xếp theo mức độ khớp nguyện vọng
 │   └── Nêu rõ vì sao phù hợp và điểm nào còn thiếu
+├── Tài khoản ứng viên
+│   ├── Đăng ký, đăng nhập, đổi và đặt lại mật khẩu
+│   └── Xem lại hồ sơ và đơn đã đăng ký của chính mình
 ├── Đăng ký sơ bộ và bàn giao
 │   ├── Đặt lịch tư vấn trong giờ làm việc
 │   ├── Tạo đăng ký sơ bộ sau khi ứng viên xác nhận chọn đơn
@@ -53,9 +56,28 @@ NGOÀI PHẠM VI ĐỒ ÁN
 ├── Tự động nhắn tin nhắc lịch hẹn qua SMS / Zalo
 ├── Chấm điểm độ phù hợp bằng Machine Learning trên dữ liệu lịch sử
 ├── Ứng dụng di động riêng cho ứng viên theo dõi hồ sơ
-├── Tài khoản đăng nhập cho ứng viên
 └── Đồng bộ đơn hàng tự động từ hệ thống của đối tác Nhật
 ```
+
+### 1.2b. Hai mục đã chuyển từ ngoài phạm vi vào trong
+
+Ghi lại chứ không xóa lặng lẽ: bản thiết kế là thứ người khác đọc để hiểu hệ
+thống, nên chỗ nào đổi ý thì phải thấy được là đã đổi, và đổi khi nào.
+
+| Mục | Trước | Nay | Từ ngày |
+|---|---|---|---|
+| Tài khoản đăng nhập cho ứng viên | ngoài phạm vi | đã làm xong | 21/09/2026 |
+| Bộ nhớ dùng chung giữa khung chat và phòng tư vấn | chưa đặt ra | đã làm xong | 28/09/2026 |
+
+Mục thứ hai không nằm trong bản thiết kế gốc. Nó xuất hiện khi hệ thống có hai
+chỗ biết nói chuyện, và khách phải kể lại chuyện của mình hai lần. Chi tiết ở
+`app/memory/__init__.py`; điểm cần nhớ là bộ nhớ ấy **chở câu hỏi chứ không chở
+câu trả lời**, nên một câu bịa ở bên phụ trợ không thể trở thành dữ liệu đầu vào
+của bên chính.
+
+**Chat trực tiếp với nhân viên vẫn nằm ngoài phạm vi** và không đổi. Thứ đã làm
+là hàng đợi `support_requests`: khách để lại yêu cầu bất cứ lúc nào, nhân viên
+trả lời trong giờ hành chính. Đó không phải chat trực tiếp, và cố ý không phải.
 
 ### 1.3. Lý do phân định như vậy
 

@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luồng tư vấn theo đơn và nhánh tư vấn học — Hệ thống XKLĐ điều dưỡng</title>
+<style>
+  :root{
+    --muc:#1a1d21; --chu:#22262b; --mo:#5b6672; --rat-mo:#8b949e;
+    --vien:#e3e6ea; --nen-nhat:#f7f8fa; --trang:#fff;
+    --do:#cb1d1e; --do-nhat:#fdf2f2; --xanh:#127a4a; --xanh-nhat:#f0faf4;
+    --vang:#8a6100; --vang-nhat:#fffaef; --lam:#1a5fb4; --lam-nhat:#f0f5fd;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--trang);color:var(--chu);
+    font:16px/1.7 -apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:0 22px 90px}
+
+  header{border-bottom:3px solid var(--do);background:var(--nen-nhat)}
+  .hd{max-width:860px;margin:0 auto;padding:40px 22px 30px}
+  .eyebrow{font:700 11.5px/1 var(--mono);letter-spacing:.2em;color:var(--do);text-transform:uppercase}
+  h1{margin:13px 0 8px;font-size:28px;line-height:1.28;letter-spacing:-.02em;color:var(--muc)}
+  .sub{margin:0;color:var(--mo);max-width:62ch}
+  .meta{margin-top:17px;font:13px/1.6 var(--mono);color:var(--rat-mo)}
+
+  .nguoi-doc{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:11px;margin:24px 0 0}
+  .nd{border:1px solid var(--vien);border-left:3px solid var(--do);border-radius:0 8px 8px 0;
+      background:var(--trang);padding:13px 15px;text-decoration:none;color:inherit;display:block}
+  .nd:hover{border-color:var(--do);background:var(--do-nhat)}
+  .nd b{display:block;font-size:14.5px;color:var(--muc)}
+  .nd span{display:block;margin-top:3px;font-size:13px;color:var(--mo);line-height:1.5}
+
+  h2{margin:54px 0 8px;font-size:22px;letter-spacing:-.01em;color:var(--muc);
+     padding-top:14px;border-top:1px solid var(--vien);scroll-margin-top:16px}
+  h2 .ph{display:block;font:700 11.5px/1 var(--mono);letter-spacing:.16em;
+         color:var(--do);text-transform:uppercase;margin-bottom:9px}
+  h3{margin:30px 0 7px;font-size:17px;color:var(--muc)}
+  h4{margin:22px 0 5px;font-size:15px;color:var(--muc)}
+  p{margin:11px 0}
+  .lead{color:var(--mo);font-size:16.5px}
+  code{font:.88em var(--mono);background:var(--nen-nhat);border:1px solid var(--vien);
+       border-radius:4px;padding:1px 5px;color:#98241f}
+  ul,ol{padding-left:24px} li{margin:6px 0}
+
+  table{width:100%;border-collapse:collapse;margin:17px 0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 13px;border:1px solid var(--vien);vertical-align:top}
+  th{font:700 11.5px/1.4 var(--mono);letter-spacing:.07em;text-transform:uppercase;
+     color:var(--mo);background:var(--nen-nhat)}
+  td.mono{font:13px/1.6 var(--mono)}
+  .tt{display:inline-block;font:700 10.5px/1 var(--mono);letter-spacing:.06em;
+      text-transform:uppercase;padding:4px 8px;border-radius:4px;white-space:nowrap}
+  .tt.xong{background:var(--xanh-nhat);color:var(--xanh);border:1px solid #bfe3d0}
+  .tt.moi{background:var(--vang-nhat);color:var(--vang);border:1px solid #f0dfb8}
+  .tt.khong{background:var(--nen-nhat);color:var(--rat-mo);border:1px solid var(--vien)}
+
+  .note{border:1px solid var(--vien);border-left:3px solid var(--lam);background:var(--lam-nhat);
+        border-radius:0 8px 8px 0;padding:14px 17px;margin:18px 0}
+  .note.canh{border-left-color:var(--vang);background:var(--vang-nhat)}
+  .note.chan{border-left-color:var(--do);background:var(--do-nhat)}
+  .note.tot{border-left-color:var(--xanh);background:var(--xanh-nhat)}
+  .note b{display:block;margin-bottom:5px;font-size:14.5px;color:var(--muc)}
+  .note p{margin:5px 0;font-size:14.5px;color:var(--chu)}
+  .note ul{margin:6px 0;font-size:14.5px}
+
+  /* --- Sơ đồ luồng --- */
+  .so-do{border:1px solid var(--vien);border-radius:10px;background:var(--nen-nhat);
+         padding:22px 18px;margin:20px 0;overflow-x:auto}
+  .hang{display:flex;align-items:stretch;justify-content:center;gap:10px;flex-wrap:wrap}
+  .o{border:1px solid var(--vien);background:var(--trang);border-radius:7px;
+     padding:9px 13px;font-size:13.5px;line-height:1.45;min-width:128px;max-width:210px;text-align:center}
+  .o.chinh{border-color:var(--do);background:var(--do-nhat);font-weight:600}
+  .o.ket{border-color:var(--xanh);background:var(--xanh-nhat)}
+  .o.phu{background:var(--nen-nhat);color:var(--mo)}
+  .mui{text-align:center;color:var(--rat-mo);font-size:17px;line-height:1;margin:7px 0}
+  .nhan{display:inline-block;font:600 11.5px/1 var(--mono);color:var(--do);
+        background:var(--trang);border:1px solid var(--vien);border-radius:999px;padding:5px 11px;margin:2px}
+  .nhanh{border:1px solid var(--vien);border-radius:8px;background:var(--trang);padding:13px;flex:1;min-width:185px}
+  .nhanh>.nhan{margin-bottom:9px}
+
+  .hai-cot{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:17px 0}
+  .cot{border:1px solid var(--vien);border-radius:8px;padding:14px 16px;background:var(--nen-nhat)}
+  .cot h4{margin-top:0}
+
+  .can-ban{border:2px solid var(--do);border-radius:9px;padding:0;margin:20px 0;overflow:hidden}
+  .can-ban .tieu{background:var(--do);color:#fff;padding:11px 17px;font-weight:700;font-size:15px}
+  .can-ban .than{padding:15px 17px}
+
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--vien);
+         font-size:13.5px;color:var(--rat-mo)}
+  @media (max-width:640px){
+    h1{font-size:23px} .hai-cot{grid-template-columns:1fr} .hd{padding:30px 22px 24px}
+    table{display:block;overflow-x:auto;max-width:100%}
+    table thead,table tbody{display:table;width:100%;min-width:480px}
+  }
+  @media print{
+    header{background:#fff} .nd{break-inside:avoid} .note,.so-do,table{break-inside:avoid}
+    h2{break-after:avoid} body{font-size:11pt}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <div class="eyebrow">Tài liệu mô tả · bản gửi ra ngoài</div>
+    <h1>Luồng tư vấn theo đơn tuyển dụng<br>và nhánh tư vấn học tiếng Nhật</h1>
+    <p class="sub">
+      Hệ thống AI hỗ trợ tư vấn, định hướng hồ sơ và quản trị tuyển dụng lao động
+      điều dưỡng, hộ lý đi Nhật Bản. Tài liệu mô tả một luồng nghiệp vụ mới, phần
+      nào đã chạy và phần nào còn phải làm.
+    </p>
+    <div class="meta">
+      Hoàng Minh Đức · 2200583 · Trường ĐH Công nghiệp Việt – Hung<br>
+      GVHD: TS. Nguyễn Hồng Quân &nbsp;│&nbsp; Ngày 24/09/2026
+    </div>
+
+    <div class="nguoi-doc">
+      <a class="nd" href="#phan-a">
+        <b>Phần A — Nghiệp vụ và thiết kế</b>
+        <span>Cho giảng viên hướng dẫn và hội đồng. Bài toán, luồng đi, và vì sao kết quả tin được.</span>
+      </a>
+      <a class="nd" href="#phan-b">
+        <b>Phần B — Vận hành</b>
+        <span>Cho doanh nghiệp. Khách đi qua những bước nào, nhân viên nhận được gì, và cần cung cấp dữ liệu gì.</span>
+      </a>
+      <a class="nd" href="#phan-c">
+        <b>Phần C — Kỹ thuật</b>
+        <span>Cho người viết mã. Ranh giới module, chốt chặn không được nới, lệnh chạy và kiểm thử.</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h2 id="doc-nhanh"><span class="ph">Đọc trong hai phút</span>Tóm tắt</h2>
+
+<p class="lead">
+  Hệ thống hiện có đang đi theo thứ tự <b>hồ sơ trước, đơn sau</b>: khách khai năng lực và
+  nguyện vọng, hệ thống đối chiếu với toàn bộ danh mục đơn rồi trả về danh sách xếp hạng
+  kèm lý do từng tiêu chí.
+</p>
+
+<p>
+  Luồng mới đi <b>ngược lại</b>: khách đang xem một đơn cụ thể trên website thì mở ngay một
+  phòng tư vấn cho riêng đơn đó, gửi hồ sơ, và nhận câu trả lời cho đúng câu hỏi họ đang có
+  trong đầu — <i>"tôi có hợp đơn này không, và nếu chưa thì thiếu gì."</i>
+</p>
+
+<p>
+  Hai cửa này <b>không thay thế nhau</b>, dùng chung một bộ đối chiếu. Ai đã biết mình muốn
+  đơn nào thì vào cửa mới; ai chưa biết gì thì vào cửa cũ để xem cả danh sách.
+</p>
+
+<p>
+  Kèm theo là một nhánh chưa từng có: khi hồ sơ chưa đủ điều kiện vì <b>thiếu tiếng Nhật</b>,
+  hệ thống không dừng ở câu "bạn chưa đạt" mà chỉ ra cần học gì, và ghi nhận nhu cầu học đó
+  thành một việc riêng cho nhân viên.
+</p>
+
+<div class="note tot">
+  <b>Ba nguyên tắc không thay đổi</b>
+  <ul>
+    <li><b>Máy không quyết định thay người.</b> Đạt hay không đạt do quy tắc viết sẵn quyết
+      định, không do trí tuệ nhân tạo. Cùng một hồ sơ luôn cho cùng một kết quả.</li>
+    <li><b>Không suy diễn về con người.</b> Mọi giá trị trong hồ sơ phải truy được về nguồn:
+      câu nào trong CV, lời nào trong hội thoại, hay do ai nhập.</li>
+    <li><b>Quyết định cuối thuộc về người.</b> Hệ thống gợi ý và giải thích; chọn đơn nào,
+      nhận hồ sơ nào, chốt ứng viên nào vẫn là việc của nhân viên.</li>
+  </ul>
+</div>
+
+<h3>Hiện trạng</h3>
+
+<table>
+  <thead><tr><th>Phần</th><th>Trạng thái</th></tr></thead>
+  <tbody>
+    <tr><td>Trợ lý hỏi đáp theo tài liệu, có dẫn nguồn và biết từ chối</td><td><span class="tt xong">Đã chạy</span></td></tr>
+    <tr><td>Danh mục đơn tuyển dụng, nhập hàng loạt, vòng đời trạng thái</td><td><span class="tt xong">Đã chạy</span></td></tr>
+    <tr><td>Đọc hồ sơ CV và lập hồ sơ có cấu trúc</td><td><span class="tt xong">Đã chạy</span></td></tr>
+    <tr><td>Bộ đối chiếu có giải trình từng tiêu chí</td><td><span class="tt xong">Đã chạy</span></td></tr>
+    <tr><td>Đăng ký sơ bộ, phiếu tóm tắt, hàng đợi bàn giao</td><td><span class="tt xong">Đã chạy</span></td></tr>
+    <tr><td>Hệ khách hàng có đăng nhập, theo dõi trạng thái hồ sơ</td><td><span class="tt xong">Đã chạy</span></td></tr>
+    <tr><td><b>Phòng tư vấn theo từng đơn</b></td><td><span class="tt moi">Sẽ làm</span></td></tr>
+    <tr><td><b>Tư vấn lộ trình học tiếng Nhật</b></td><td><span class="tt moi">Sẽ làm</span></td></tr>
+    <tr><td><b>Ghi kết quả sơ tuyển và bản ghi học viên</b></td><td><span class="tt moi">Sẽ làm</span></td></tr>
+    <tr><td><b>Hàng đợi thứ hai cho nhu cầu hỗ trợ</b></td><td><span class="tt moi">Sẽ làm</span></td></tr>
+  </tbody>
+</table>
+
+<p>
+  Bộ kiểm thử tự động hiện có <b>845 ca cho phần dịch vụ</b> và <b>10 ca cho phần giao diện</b>,
+  chạy trong khoảng hai mươi giây, không cần mạng và không gọi mô hình ngôn ngữ.
+</p>
+
+
+<h2 id="phan-a"><span class="ph">Phần A · cho giảng viên hướng dẫn và hội đồng</span>Nghiệp vụ và thiết kế</h2>
+
+<h3>A.1. Vì sao đảo thứ tự</h3>
+
+<p>
+  Luồng cũ giả định khách chưa biết mình muốn gì, nên bắt họ khai đầy đủ trước rồi mới
+  cho xem đơn. Giả định đó đúng với người mới tìm hiểu, nhưng sai với phần lớn người thật
+  sự sắp nộp hồ sơ: họ đã đọc một đơn cụ thể, đã có câu hỏi cụ thể, và điều họ muốn là câu
+  trả lời cho <b>đơn đó</b>.
+</p>
+
+<p>
+  Bắt một người như vậy khai hết năng lực và nguyện vọng rồi nhận về danh sách năm đơn —
+  trong đó đơn họ quan tâm có thể không nằm trong năm đơn điểm cao nhất — là đẩy họ ra xa
+  câu trả lời chứ không đưa lại gần.
+</p>
+
+<h3>A.2. Luồng đi</h3>
+
+<div class="so-do">
+  <div class="hang">
+    <div class="o chinh">Website — khách xem và chọn một đơn</div>
+    <div class="o phu">Trợ lý hỏi đáp chung<br><span style="font-size:12px">hỏi mọi thứ về chương trình</span></div>
+  </div>
+  <div class="mui">▼</div>
+  <div class="hang"><div class="o">Mở phòng tư vấn cho đúng đơn đó</div></div>
+  <div class="mui">▼</div>
+  <div class="hang"><div class="o">Khách gửi hồ sơ CV</div></div>
+  <div class="mui">▼</div>
+  <div class="hang"><div class="o">Rút chữ từ CV<br><span style="font-size:12px">không nhận dạng ảnh, không gửi nguyên tệp</span></div></div>
+  <div class="mui">▼</div>
+  <div class="hang"><div class="o">Kiểm thông tin và hỏi nhu cầu</div></div>
+  <div class="mui">▼</div>
+  <div class="hang"><div class="o chinh">Đối chiếu hồ sơ với đơn đang chọn</div></div>
+  <div class="mui">▼</div>
+
+  <div class="hang" style="align-items:flex-start">
+    <div class="nhanh">
+      <span class="nhan">Chưa đủ thông tin</span>
+      <div class="o" style="max-width:none">Hỏi bổ sung, tối đa hai câu, theo đúng thứ tự ưu tiên của bộ đối chiếu</div>
+      <div class="mui">↺ quay lại đối chiếu</div>
+    </div>
+    <div class="nhanh">
+      <span class="nhan">Phù hợp sơ bộ</span>
+      <div class="o" style="max-width:none">Giải thích mức phù hợp theo từng tiêu chí</div>
+      <div class="mui">▼</div>
+      <div class="o ket" style="max-width:none">Khách xác nhận → phiếu và hồ sơ vào hàng đợi tuyển dụng</div>
+    </div>
+    <div class="nhanh">
+      <span class="nhan">Chưa phù hợp</span>
+      <div class="o" style="max-width:none">Chỉ rõ điểm mạnh, điểm yếu, yêu cầu còn thiếu</div>
+      <div class="mui">▼</div>
+      <div class="o" style="max-width:none">Thiếu tiếng Nhật → lộ trình học</div>
+      <div class="mui">▼</div>
+      <div class="o ket" style="max-width:none">Nhu cầu học vào hàng đợi hỗ trợ</div>
+    </div>
+    <div class="nhanh">
+      <span class="nhan">Khách chọn đơn khác</span>
+      <div class="o" style="max-width:none">Giới thiệu đơn khác dựa trên chính hồ sơ vừa khai</div>
+      <div class="mui">↺ quay lại đối chiếu</div>
+    </div>
+  </div>
+</div>
+
+<p>
+  Hồ sơ đã khai <b>đi theo khách suốt cả bốn nhánh</b>. Chuyển sang xem đơn khác không phải
+  khai lại từ đầu; hỏi thêm không làm mất thứ đã xác nhận.
+</p>
+
+<h3>A.3. Bốn nhánh đến từ đâu</h3>
+
+<p>
+  Bốn nhánh không phải do mô hình ngôn ngữ phán đoán. Chúng suy trực tiếp từ kết quả của bộ
+  đối chiếu — vốn là một chương trình quy tắc thuần, không gọi trí tuệ nhân tạo:
+</p>
+
+<table>
+  <thead><tr><th>Nhánh</th><th>Điều kiện sinh ra nó</th></tr></thead>
+  <tbody>
+    <tr><td><b>Chưa đủ thông tin</b></td><td>Còn tiêu chí bắt buộc mà hồ sơ chưa khai — kết quả “chưa rõ”</td></tr>
+    <tr><td><b>Phù hợp sơ bộ</b></td><td>Cả bảy tiêu chí bắt buộc đều đạt hoặc chưa rõ, không tiêu chí nào không đạt</td></tr>
+    <tr><td><b>Chưa phù hợp</b></td><td>Có ít nhất một tiêu chí bắt buộc <b>chắc chắn</b> không đạt</td></tr>
+    <tr><td><b>Chọn đơn khác</b></td><td>Khách chủ động yêu cầu, không phải hệ thống tự chuyển</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <b>Chỉ loại khi chắc chắn</b>
+  <p>
+    Thiếu dữ liệu cho ra “chưa rõ” và <b>không loại đơn</b>. Người chưa khai năm sinh không
+    phải là người quá tuổi — đó là hai chuyện khác nhau. Loại theo cái chưa biết sẽ khiến
+    một hồ sơ mới điền một nửa ra không đơn nào, và tệ hơn là giấu mất đơn thật sự phù hợp
+    với một người thật.
+  </p>
+</div>
+
+<h3>A.4. Vai trò của trí tuệ nhân tạo trong luồng này</h3>
+
+<p>
+  Đây là điểm dễ hiểu nhầm nhất, nên nói thẳng: <b>trí tuệ nhân tạo không quyết định ai đạt
+  ai không đạt.</b>
+</p>
+
+<div class="hai-cot">
+  <div class="cot">
+    <h4>Quy tắc làm</h4>
+    <ul>
+      <li>Chấm từng tiêu chí bắt buộc</li>
+      <li>Tính điểm phù hợp với nguyện vọng</li>
+      <li>Xếp thứ tự các đơn</li>
+      <li>Cộng số tháng và học phí của lộ trình học</li>
+    </ul>
+    <p style="font-size:14px;color:var(--mo);margin-bottom:0">
+      Chạy lại bao nhiêu lần cũng ra một kết quả. Kiểm thử được tuyệt đối.
+    </p>
+  </div>
+  <div class="cot">
+    <h4>Trí tuệ nhân tạo làm</h4>
+    <ul>
+      <li>Rút thông tin từ chữ trong CV</li>
+      <li>Diễn đạt lại kết quả cho dễ đọc</li>
+      <li>Trả lời câu hỏi dựa trên tài liệu chính thức</li>
+    </ul>
+    <p style="font-size:14px;color:var(--mo);margin-bottom:0">
+      Nhận vào đúng khối kết quả đã tính, được suy luận và diễn giải, nhưng không được
+      thêm con số nào.
+    </p>
+  </div>
+</div>
+
+<div class="note chan">
+  <b>Chốt chặn bằng mã nguồn, không phải bằng lời dặn trong câu lệnh</b>
+  <p>
+    Dặn mô hình “đừng bịa số” là một lời dặn, không phải một bảo đảm. Nên sau khi mô hình
+    trả lời, chương trình <b>soi lại từng con số</b> trong câu trả lời: số nào không có trong
+    khối kết quả đầu vào thì câu trả lời bị bỏ và hệ thống quay về dùng câu ghép sẵn.
+  </p>
+  <p>
+    Có một công tắc tắt hẳn phần diễn đạt này. Tắt đi thì mọi màn hình vẫn đủ chữ và
+    <b>điểm số không đổi một ly</b> — vì điểm chưa bao giờ do mô hình tính.
+  </p>
+</div>
+
+<h3>A.5. Nhánh tư vấn học — và giới hạn tự đặt ra</h3>
+
+<p>
+  Khi hồ sơ chưa đạt vì thiếu tiếng Nhật, câu hỏi thật của khách là: <i>"tôi phải học bao
+  lâu, tốn bao nhiêu."</i> Trả lời được câu đó thì cuộc tư vấn mới có ích.
+</p>
+
+<p>
+  Nhưng con số đó phải có thật ở đâu đó. Hệ thống dựng một <b>danh mục khóa học</b>: mỗi dòng
+  ghi khóa nhận người ở trình độ nào, dạy tới trình độ nào, mấy tháng, học phí bao nhiêu.
+  Khi cần tư vấn, chương trình tìm chuỗi khóa bắc được từ trình độ hiện tại của khách tới
+  trình độ đơn yêu cầu, rồi cộng số tháng lại. Phép cộng đó là quy tắc, không phải suy đoán.
+</p>
+
+<div class="note canh">
+  <b>Danh mục rỗng thì không có con số nào</b>
+  <p>
+    Nếu chưa ai điền danh mục, hệ thống chỉ nói định tính — <i>"bạn cần học thêm để đủ N4,
+    nhân viên sẽ tư vấn khóa phù hợp"</i> — và tuyệt đối không tự nghĩ ra số tháng hay học phí.
+  </p>
+  <p>
+    Đây là lựa chọn có chủ ý. Một con số sai về học phí không phải lỗi hiển thị: nó là lời
+    hứa với một người đang tính chuyện vay tiền đi nước ngoài.
+  </p>
+</div>
+
+<h3>A.6. Ba tầng tin cậy của trình độ tiếng Nhật</h3>
+
+<p>
+  Trình độ tiếng Nhật quyết định ứng viên đậu hay trượt bộ lọc bắt buộc, nên nguồn của nó
+  phải phân biệt được:
+</p>
+
+<table>
+  <thead><tr><th>Nguồn</th><th>Vì sao tin được tới mức đó</th><th>Hệ thống làm gì</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>Học tại chính trung tâm</b></td>
+      <td>Trung tâm dạy và biết kết quả — không cần ai xác nhận lại</td>
+      <td>Lấy thẳng từ bản ghi học viên. Không hỏi lại, không cần đối chứng</td>
+    </tr>
+    <tr>
+      <td><b>Đã qua buổi sơ tuyển</b></td>
+      <td>Nhân viên đã gặp và đối chứng được</td>
+      <td>Chốt trình độ, ghi rõ đối chứng bằng cách nào và ai chốt</td>
+    </tr>
+    <tr>
+      <td><b>Khách tự khai</b></td>
+      <td>Không có gì đỡ lưng</td>
+      <td>Vẫn nhận và vẫn đối chiếu, nhưng phiếu bàn giao ghi rõ đây mới là lời khai</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>Xác thực diễn ra ở buổi gặp, không ở tấm ảnh</h4>
+
+<p>
+  Hệ thống <b>không nhận ảnh bằng cấp</b>. Lý do đơn giản: nhìn ảnh không phân biệt được bằng
+  thật với bằng giả — một chứng chỉ làm giả cũng chụp ra ảnh rõ nét như thường. Còn ngồi đối
+  diện thì hỏi vài câu tiếng Nhật là biết ngay.
+</p>
+
+<p>
+  Việc xác thực gắn vào <b>buổi sơ tuyển giữa nhân viên công ty và ứng viên</b>, trực tiếp
+  hoặc trực tuyến. Tại buổi đó, trình độ được đối chứng theo một trong hai cách:
+</p>
+
+<ul>
+  <li><b>Ứng viên cầm bằng gốc</b> để nhân viên xem tận tay.</li>
+  <li><b>Tra kết quả trên trang chính thức</b> — kỳ thi JLPT cho tra cứu trực tuyến theo số
+    báo danh, nên kiểm được ngay trong buổi gặp mà không cần giấy.</li>
+</ul>
+
+<p>
+  Hệ thống ghi lại <b>đã đối chứng bằng cách nào</b>, chứ không chỉ ghi đạt hay không đạt.
+  Sau này nếu có chuyện, vẫn truy được lúc ấy đã kiểm tới đâu và ai kiểm.
+</p>
+
+<div class="note tot">
+  <b>Một buổi gặp chốt hai thứ</b>
+  <p>
+    Nhân viên ghi kết quả buổi sơ tuyển thì đồng thời chốt <b>trình độ tiếng Nhật</b> và
+    <b>trạng thái hồ sơ</b> — đạt sơ tuyển, cần bổ sung giấy tờ, hay không đạt.
+  </p>
+  <p>
+    Gộp hai việc vào một lần ghi là có chủ ý. Tách ra thì sẽ có lúc trình độ đã cập nhật mà
+    trạng thái còn cũ, và hai màn hình nói hai điều khác nhau về cùng một người.
+  </p>
+</div>
+
+<p>
+  Hệ thống cũng <b>không lưu thêm giấy tờ cá nhân nào</b> ngoài hồ sơ CV khách chủ động gửi.
+  Giữ ít dữ liệu nhạy cảm thì ít chỗ để mất.
+</p>
+
+<h3>A.7. Điều hệ thống không hứa</h3>
+
+<ul>
+  <li>Không cam kết ứng viên sẽ trúng tuyển. Mức độ phù hợp là trên giấy tờ.</li>
+  <li>Không thay nhân viên gọi điện, xác minh giấy tờ, hay chốt hồ sơ.</li>
+  <li>Không xác thực chứng chỉ với cơ quan cấp bằng.</li>
+  <li>Không có nhân viên trực chat theo thời gian thực — hệ thống trả lời ngay,
+    người trả lời trong giờ hành chính.</li>
+</ul>
+
+
+<h2 id="phan-b"><span class="ph">Phần B · cho doanh nghiệp</span>Vận hành</h2>
+
+<h3>B.1. Khách đi qua những gì</h3>
+
+<p>
+  Toàn bộ phần dưới đây <b>không cần khách đăng nhập</b>. Tài khoản chỉ được cấp sau khi
+  nhân viên đã tiếp nhận hồ sơ.
+</p>
+
+<ol>
+  <li>Xem danh sách đơn đang tuyển trên website, mở một đơn cụ thể.</li>
+  <li>Bấm vào phòng tư vấn của đơn đó. Gửi CV, hoặc tự khai nếu không sẵn tệp.</li>
+  <li>Hệ thống hỏi thêm tối đa hai câu cho những mục còn thiếu.</li>
+  <li>Nhận kết quả đối chiếu — một bảng ghi rõ từng điều kiện đạt hay chưa đạt.</li>
+  <li>Chọn một trong bốn việc: đăng ký đơn này, xem đơn khác, xin tư vấn học,
+    hoặc xin nói chuyện với nhân viên.</li>
+</ol>
+
+<p>
+  Khách truy cập lúc mười một giờ đêm vẫn đi hết được năm bước này. Đó là giờ phần lớn
+  người lao động rảnh để tìm hiểu.
+</p>
+
+<h3>B.2. Nhân viên nhận được gì</h3>
+
+<p>
+  Có <b>hai hàng đợi tách riêng</b>, vì hai loại việc khác nhau. Trộn chung sẽ khiến việc
+  gấp lẫn với việc dài hạn.
+</p>
+
+<div class="hai-cot">
+  <div class="cot">
+    <h4>Hàng đợi tuyển dụng</h4>
+    <p style="font-size:14.5px;margin-top:4px">
+      Khách đã đủ điều kiện sơ bộ và <b>tự chọn</b> đơn muốn nộp.
+    </p>
+    <p style="font-size:14.5px">Kèm phiếu tóm tắt gồm:</p>
+    <ul style="font-size:14px">
+      <li>Năng lực và nguyện vọng, mỗi dòng ghi rõ lấy từ đâu</li>
+      <li>Đơn đã chọn và vì sao hệ thống cho là phù hợp</li>
+      <li>Điểm còn thiếu — cần hỏi thêm khi gọi</li>
+      <li>Thông tin mâu thuẫn cần kiểm tra</li>
+      <li>Tệp CV gốc và đoạn hội thoại</li>
+    </ul>
+  </div>
+  <div class="cot">
+    <h4>Hàng đợi hỗ trợ</h4>
+    <p style="font-size:14.5px;margin-top:4px">
+      Khách chưa đủ điều kiện, hoặc muốn nói chuyện với người.
+    </p>
+    <p style="font-size:14.5px">Ba loại yêu cầu:</p>
+    <ul style="font-size:14px">
+      <li><b>Tư vấn học</b> — thiếu tiếng Nhật, muốn biết lộ trình</li>
+      <li><b>Xin gặp mặt</b> — hẹn gặp hoặc gọi lại theo khung giờ</li>
+      <li><b>Để lại tin nhắn</b> — câu hỏi riêng của hoàn cảnh</li>
+    </ul>
+    <p style="font-size:14px;color:var(--mo)">
+      Kèm nguyên đoạn hội thoại và kết quả đối chiếu, để nhân viên không phải hỏi lại từ đầu.
+    </p>
+  </div>
+</div>
+
+<h3>B.3. Nhân viên trả lời khi nào</h3>
+
+<p>
+  Khách nhìn thấy một màn hình trò chuyện bình thường và gõ được bất cứ lúc nào. Khác biệt
+  nằm ở nhãn ghi rõ <b>nhân viên trả lời trong giờ làm việc</b> — không hứa điều không giữ được
+  vào lúc nửa đêm.
+</p>
+
+<p>Ngoài nhắn tin, khách có thêm ba lựa chọn: xin gặp mặt, nhận đường liên kết họp
+  trực tuyến do nhân viên gửi, hoặc lấy thông tin liên lạc trực tiếp của nhân viên.</p>
+
+<div class="can-ban">
+  <div class="tieu">B.4. Thứ hệ thống cần doanh nghiệp cung cấp</div>
+  <div class="than">
+    <p style="margin-top:0">
+      Phần này <b>không lập trình thay được</b>. Nó là dữ liệu nghiệp vụ, và hệ thống đã được
+      thiết kế để thà im lặng còn hơn nói một con số không có nguồn.
+    </p>
+    <table style="margin-bottom:6px">
+      <thead><tr><th>Cần</th><th>Để làm gì</th><th>Không có thì sao</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Danh mục khóa tiếng Nhật</b><br>
+            <span style="font-size:13px;color:var(--mo)">nhận trình độ nào, dạy tới đâu,
+            mấy tháng, học phí, hình thức học, lịch khai giảng</span></td>
+          <td>Tư vấn lộ trình kèm số tháng và chi phí</td>
+          <td>Chỉ nói được định tính, rồi chuyển nhân viên</td>
+        </tr>
+        <tr>
+          <td><b>Danh sách học viên đã học</b><br>
+            <span style="font-size:13px;color:var(--mo)">ai học khóa nào, kết quả, trình độ đạt được</span></td>
+          <td>Khách cũ quay lại không phải khai lại trình độ, không phải đối chứng lần nữa</td>
+          <td>Khách cũ bị đối xử như khách mới</td>
+        </tr>
+        <tr>
+          <td><b>Người làm sơ tuyển</b><br>
+            <span style="font-size:13px;color:var(--mo)">gặp trực tiếp hoặc trực tuyến,
+            đối chứng bằng gốc hoặc tra cứu trực tuyến</span></td>
+          <td>Chốt trình độ tiếng Nhật và trạng thái hồ sơ</td>
+          <td>Mọi trình độ mãi ở mức <i>khách tự khai</i></td>
+        </tr>
+        <tr>
+          <td><b>Quy định giờ trả lời tin nhắn</b></td>
+          <td>Hiển thị đúng cho khách, tránh hứa suông</td>
+          <td>Khách chờ mà không biết chờ tới bao giờ</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-bottom:0;font-size:14.5px">
+      Hai mục đầu sẽ có tệp bảng tính mẫu kèm hướng dẫn, theo đúng cách đã làm với danh mục
+      đơn tuyển dụng — điền vào rồi nhập hàng loạt, không phải gõ tay từng dòng.
+    </p>
+  </div>
+</div>
+
+<h3>B.5. Dữ liệu khách hàng được giữ thế nào</h3>
+
+<ul>
+  <li>Hồ sơ CV lưu trên máy chủ, <b>không đưa vào kho mã nguồn</b>.</li>
+  <li>Số điện thoại của khách <b>không được đưa vào khối ngữ cảnh hội thoại</b> gửi cho mô hình
+    ngôn ngữ — không có lý do nghiệp vụ nào để trợ lý nhắc lại số của khách trong câu trả lời.
+    <span style="color:var(--mo)">(Riêng bước đọc CV thì gửi nguyên đoạn chữ rút từ tệp, nên số
+    khách tự ghi trong CV đi cùng ở lượt gọi đó.)</span></li>
+  <li>Mỗi khách chỉ xem được hồ sơ của chính mình. Sửa mã trên thanh địa chỉ thành mã của
+    người khác thì bị chặn ở cửa, không phải ở giao diện.</li>
+  <li>Phiên đăng nhập của khách không mở được màn hình quản trị, và ngược lại.</li>
+</ul>
+
+
+<h2 id="phan-c"><span class="ph">Phần C · cho người viết mã</span>Kỹ thuật</h2>
+
+<h3>C.1. Bốn khối chạy độc lập</h3>
+
+<table>
+  <thead><tr><th>Khối</th><th>Công nghệ</th><th>Cổng</th><th>Vai trò</th></tr></thead>
+  <tbody>
+    <tr><td>Trang công khai và hệ khách hàng</td><td class="mono">Next.js</td><td class="mono">3100</td>
+        <td>Giao diện cho ứng viên. Phần công khai không cần đăng nhập</td></tr>
+    <tr><td>Hệ quản trị</td><td class="mono">Next.js</td><td class="mono">3101</td>
+        <td>Giao diện nội bộ, phân quyền theo vai trò</td></tr>
+    <tr><td>Dịch vụ nghiệp vụ</td><td class="mono">FastAPI · Python</td><td class="mono">8020</td>
+        <td>Toàn bộ quy tắc: đối chiếu, vòng đời trạng thái, phân quyền, nhật ký</td></tr>
+    <tr><td>Lưu trữ</td><td class="mono">MongoDB · Qdrant</td><td class="mono">27017 · 6333</td>
+        <td>MongoDB giữ dữ liệu nghiệp vụ; Qdrant giữ vector của kho tài liệu</td></tr>
+  </tbody>
+</table>
+
+<h3>C.2. Thứ sẽ thêm</h3>
+
+<table>
+  <thead><tr><th>Thành phần</th><th>Nội dung</th><th>Trạng thái</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">app/consultation/order_context.py</td>
+        <td>Khối ngữ cảnh mô tả đơn khách đang xét. Thuần, không gọi mô hình</td>
+        <td><span class="tt moi">Mới</span></td></tr>
+    <tr><td class="mono">app/matching/explain_llm.py</td>
+        <td>Lớp diễn đạt. Tách riêng để module giải trình gốc giữ được ca kiểm thử
+            “không import gì liên quan mô hình ngôn ngữ”</td>
+        <td><span class="tt moi">Mới</span></td></tr>
+    <tr><td class="mono">app/learning/path.py</td>
+        <td>Ghép chuỗi khóa học, cộng số tháng và học phí. Không có đường thì trả rỗng,
+            không nội suy</td>
+        <td><span class="tt moi">Mới</span></td></tr>
+    <tr><td class="mono">app/db/courses.py</td>
+        <td>Danh mục khóa. Mỗi dòng giữ đường dẫn trang gốc làm nguồn</td>
+        <td><span class="tt moi">Mới</span></td></tr>
+    <tr><td class="mono">app/db/enrollments.py</td>
+        <td>Bản ghi học viên, gắn với khách hàng</td>
+        <td><span class="tt moi">Mới</span></td></tr>
+    <tr><td class="mono">app/db/support_requests.py</td>
+        <td>Hàng đợi thứ hai: tư vấn học, xin gặp mặt, để lại tin nhắn</td>
+        <td><span class="tt moi">Mới</span></td></tr>
+    <tr><td class="mono">app/matching/engine.py</td>
+        <td><b>Không sửa.</b> Hàm đối chiếu đã nhận một danh sách đơn — truyền vào đúng một
+            phần tử là được</td>
+        <td><span class="tt khong">Giữ nguyên</span></td></tr>
+  </tbody>
+</table>
+
+<h3>C.3. Chốt chặn không được nới</h3>
+
+<div class="note chan">
+  <b>Đăng ký chỉ nhận đơn đã thật sự được giới thiệu và còn mở</b>
+  <p>Luồng đăng ký kiểm năm điều, theo thứ tự, trước khi tạo bất cứ bản ghi nào:</p>
+  <ol style="font-size:14.5px">
+    <li>Hồ sơ phải ở trạng thái đã xác nhận</li>
+    <li>Phải có số điện thoại</li>
+    <li>Nhật ký giới thiệu phải khớp <b>đúng phiên bản hồ sơ hiện tại</b> — khách sửa hồ sơ ở
+      tab khác rồi mới bấm đăng ký thì bị bắt đối chiếu lại</li>
+    <li>Đơn phải nằm trong nhật ký giới thiệu <b>và</b> đã đạt điều kiện</li>
+    <li>Đơn phải còn mở, còn hạn, còn công khai <b>ngay tại thời điểm bấm</b></li>
+  </ol>
+  <p>
+    Luồng theo đơn <b>không nới điều nào</b>: nó ghi nhật ký giới thiệu như thường, chỉ khác
+    là danh mục đem đối chiếu có đúng một đơn. Nhánh chưa phù hợp đi cửa khác hẳn
+    (<code>support_requests</code>), không mượn cửa đăng ký.
+  </p>
+</div>
+
+<h3>C.4. Danh tính phiên khách chưa đăng nhập</h3>
+
+<p>
+  Luồng công khai không có đăng nhập, nên mã phiên <b>chính là chìa khóa</b> của hồ sơ đó.
+  Vì vậy mã phiên do máy chủ cấp kèm một cookie đã ký, không do trình duyệt tự sinh.
+</p>
+
+<table>
+  <thead><tr><th>Tình huống</th><th>Kết quả</th></tr></thead>
+  <tbody>
+    <tr><td>Gọi không kèm cookie</td><td class="mono">401</td></tr>
+    <tr><td>Cookie của phiên khác, đọc hồ sơ người này</td><td class="mono">403</td></tr>
+    <tr><td>Mã phiên ngắn hoặc tự đặt</td><td class="mono">422</td></tr>
+    <tr><td>Phiên ứng viên gọi vào màn hình quản trị</td><td class="mono">401</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Cửa mở phiên <b>không nhận mã phiên từ phía gọi</b>. Nếu nhận, kẻ tấn công chỉ việc gửi lên
+  mã của nạn nhân và được cấp một cookie hợp lệ cho hồ sơ người khác — vá xong vẫn thủng
+  y như cũ, chỉ khác là có thêm một lớp cookie làm người ta yên tâm nhầm.
+</p>
+
+<h3>C.5. Đường đi của hồ sơ CV</h3>
+
+<p>
+  Rút chữ bằng thư viện đọc tệp, rồi gửi <b>chuỗi văn bản thuần</b> cho mô hình. Không gửi
+  ảnh, không gửi nguyên tệp, không nhận dạng chữ trong ảnh. Tệp là bản scan hoặc ảnh chụp
+  thì hệ thống nhận, lưu bản gốc, ghi trạng thái không đọc được, rồi mời khách khai tay.
+</p>
+
+<p>Kết quả mô hình trả về phải qua hai bước lọc bằng mã nguồn:</p>
+
+<ol>
+  <li><b>Câu dẫn phải có thật trong CV.</b> Mô hình bắt buộc trả kèm đoạn chữ nguyên văn;
+    đoạn nào không tìm thấy trong bản gốc thì bỏ luôn cả trường.</li>
+  <li><b>Giá trị phải nói cùng một điều với câu dẫn.</b> Trả về trình độ N1 kèm câu dẫn
+    “chứng chỉ N4” thì qua được bước một — nhưng không qua được bước hai.</li>
+</ol>
+
+<div class="note">
+  <b>Vì sao bước hai quan trọng hơn vẻ ngoài của nó</b>
+  <p>
+    Chính câu dẫn đó sẽ được hiển thị cho nhân viên đọc như bằng chứng. Một giá trị sai kèm
+    một trích dẫn trông đáng tin còn nguy hiểm hơn một giá trị sai trần trụi.
+  </p>
+</div>
+
+<h3>C.6. Chạy và kiểm thử</h3>
+
+<p>
+  Cần MongoDB và Qdrant chạy nền, rồi ba tiến trình: dịch vụ nghiệp vụ cổng 8020,
+  website cổng 3100, hệ quản trị cổng 3101. Chi tiết từng bước nằm ở tài liệu
+  <code>docs/KHOI_DONG_VA_KIEM_THU.html</code> trong kho mã nguồn.
+</p>
+
+<p>
+  Kiểm thử <b>không cần gì chạy sẵn</b> — không mạng, không cơ sở dữ liệu, không tốn hạn mức
+  mô hình. Mọi lời gọi ra ngoài đều thay bằng bản giả lập.
+</p>
+
+<table>
+  <thead><tr><th>Nhóm</th><th>Số ca</th><th>Canh điều gì</th></tr></thead>
+  <tbody>
+    <tr><td>Bộ đối chiếu</td><td class="mono">65</td>
+        <td>Bảy điều kiện bắt buộc, bốn tiêu chí nguyện vọng, và <b>tính tất định</b>:
+            chạy lại hay xáo trộn thứ tự đơn đầu vào vẫn ra đúng một kết quả</td></tr>
+    <tr><td>Đọc CV</td><td class="mono">53</td>
+        <td>Giá trị không truy được về câu chữ trong CV thì bị loại, kể cả khi mô hình khẳng định chắc nịch</td></tr>
+    <tr><td>Hồ sơ ứng viên</td><td class="mono">50</td>
+        <td>Thứ tự ưu tiên nguồn, khóa theo phiên bản, giữ nguyên trích dẫn gốc</td></tr>
+    <tr><td>Đăng ký sơ bộ</td><td class="mono">35</td>
+        <td>Năm chốt chặn ở mục C.3</td></tr>
+    <tr><td>Ranh giới dữ liệu</td><td class="mono">14</td>
+        <td>Không cookie thì chặn, cookie phiên khác thì chặn</td></tr>
+    <tr><td><b>Tổng phần dịch vụ</b></td><td class="mono"><b>845</b></td><td>Chạy hết trong khoảng 21 giây</td></tr>
+    <tr><td>Phần giao diện</td><td class="mono">10</td>
+        <td>Trình duyệt <b>không</b> được tự sinh mã phiên</td></tr>
+  </tbody>
+</table>
+
+<h3>C.7. Việc để lại sau</h3>
+
+<ul>
+  <li>Chat theo thời gian thật có nhân viên trực — là bài toán vận hành, không phải bài toán kỹ thuật.</li>
+  <li>Nhận và lưu ảnh bằng cấp, nhận dạng chữ trong giấy tờ.</li>
+  <li>Gọi thẳng sang hệ thống của cơ quan cấp bằng để xác thực tự động.</li>
+  <li>Thanh toán học phí trực tuyến, xếp lớp, điểm danh.</li>
+  <li>Chấm độ phù hợp bằng học máy — chưa có dữ liệu lịch sử, và mô hình học được sẽ
+    <b>không giải trình được</b>, đi ngược yêu cầu cốt lõi.</li>
+</ul>
+
+
+<h2 id="thuat-ngu"><span class="ph">Phụ lục</span>Thuật ngữ</h2>
+
+<table>
+  <thead><tr><th>Từ dùng trong tài liệu</th><th>Nghĩa trong hệ thống này</th></tr></thead>
+  <tbody>
+    <tr><td><b>Hồ sơ có cấu trúc</b></td>
+        <td>Thông tin một người đã tách thành từng ô có tên — năm sinh, bằng cấp, trình độ
+            tiếng Nhật — thay vì nằm lẫn trong một đoạn văn xuôi. Chỉ ở dạng này thì quy tắc
+            mới đọc và so sánh được</td></tr>
+    <tr><td><b>Điều kiện bắt buộc</b></td>
+        <td>Bảy trường của đơn mà thiếu là không đi được: trạng thái đơn, hạn nộp, trình độ
+            tiếng Nhật, bằng cấp, kinh nghiệm, độ tuổi, giới tính</td></tr>
+    <tr><td><b>Tiêu chí nguyện vọng</b></td>
+        <td>Khu vực mong muốn, loại hình cơ sở, mức lương, khả năng chi phí. Chỉ dùng để xếp
+            thứ tự, <b>không bao giờ</b> loại ai khỏi danh sách</td></tr>
+    <tr><td><b>Bộ đối chiếu</b></td>
+        <td>Phần chương trình nhận một hồ sơ và danh mục đơn, trả về đơn phù hợp kèm lý do
+            đạt hoặc không đạt của từng điều kiện. Viết bằng quy tắc thuần, không nhờ tới
+            trí tuệ nhân tạo</td></tr>
+    <tr><td><b>Chưa rõ</b></td>
+        <td>Kết quả thứ ba bên cạnh đạt và không đạt, dùng khi hồ sơ chưa khai trường đó.
+            Không loại đơn, mà trở thành câu hỏi để hỏi tiếp</td></tr>
+    <tr><td><b>Tính tất định</b></td>
+        <td>Cùng dữ liệu vào thì luôn cùng kết quả ra, không phụ thuộc thời điểm chạy hay thứ
+            tự dữ liệu. Nhờ vậy mới kiểm thử được và mới giải trình được trước người khác</td></tr>
+    <tr><td><b>N5 – N1</b></td>
+        <td>Năm mức của kỳ thi năng lực tiếng Nhật JLPT. N5 thấp nhất, N1 cao nhất. Hệ thống
+            có thêm mức thứ sáu là “chưa học”, thấp hơn N5</td></tr>
+    <tr><td><b>Mô hình ngôn ngữ</b></td>
+        <td>Phần mềm đọc và viết được tiếng người. Ở đây chỉ làm hai việc: rút thông tin từ
+            CV và diễn đạt lại kết quả. <b>Không</b> quyết định ai đạt ai không đạt</td></tr>
+    <tr><td><b>Kho vector</b></td>
+        <td>Nơi cất biểu diễn số của từng đoạn tài liệu, để tìm đoạn gần nghĩa nhất với câu
+            hỏi — tìm theo nghĩa chứ không theo từ khóa trùng chữ</td></tr>
+    <tr><td><b>Phiên đăng nhập</b></td>
+        <td>Tấm phiếu đã ký số mà máy chủ cấp sau khi xác thực. Mỗi lần gọi, máy chủ đọc phiếu
+            để biết người gọi là ai và được xem gì</td></tr>
+    <tr><td><b>Hàng đợi</b></td>
+        <td>Danh sách việc chưa ai nhận. Nhân viên vào tự nhận; hai người bấm cùng lúc thì
+            chỉ một người nhận được</td></tr>
+    <tr><td><b>Phiếu tóm tắt</b></td>
+        <td>Bản chụp mọi thứ nhân viên cần đọc trước khi gọi cho ứng viên. Sinh bằng mã nguồn,
+            không dùng mô hình ngôn ngữ, mọi dòng truy được nguồn</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  Tài liệu thuộc đồ án tốt nghiệp — Hệ thống AI hỗ trợ tư vấn, định hướng hồ sơ và quản trị
+  tuyển dụng điều dưỡng Nhật Bản.<br>
+  Hoàng Minh Đức · 2200583 · Trường Đại học Công nghiệp Việt&nbsp;–&nbsp;Hung ·
+  GVHD: TS. Nguyễn Hồng Quân · 24/09/2026<br><br>
+  Thông tin về chi phí, thời gian và lương trong hệ thống mang tính tham khảo và được nhân
+  viên tư vấn xác nhận lại theo từng trường hợp.
+</footer>
+
+</div>
+</body>
+</html>
