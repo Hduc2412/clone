@@ -24,6 +24,8 @@ from fastapi.responses import FileResponse
 
 from app.auth.security import get_current_user
 from app.core.config import settings
+from app.auth.journey_security import require_journey_session
+from app.core.session_id import SESSION_PATTERN
 from app.core.rate_limit import client_ip, rate_limiter
 from app.db import candidate_documents as store
 from app.db import candidate_profiles as profiles
@@ -33,14 +35,17 @@ from app.services.assignment import can_access, is_privileged
 from app.services.audit_service import audit_action
 
 
-public_router = APIRouter(prefix="/public/documents", tags=["Hồ sơ gốc (công khai)"])
+public_router = APIRouter(
+    prefix="/public/documents",
+    tags=["Hồ sơ gốc (công khai)"],
+    dependencies=[Depends(require_journey_session)],
+)
 router = APIRouter(
     prefix="/documents",
     tags=["Hồ sơ gốc"],
     dependencies=[Depends(get_current_user)],
 )
 
-SESSION_PATTERN = r"^[A-Za-z0-9_-]{8,64}$"
 
 # Đọc CV vừa tốn tiền gọi mô hình vừa tốn chỗ trên đĩa, nên hạn mức chặt hơn hẳn
 # các endpoint ghi khác. Năm lượt một phút vẫn thoải mái cho người dùng thật.

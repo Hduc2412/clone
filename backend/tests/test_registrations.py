@@ -21,7 +21,9 @@ from app.services import registration_service as service
 from app.services import report_builder
 
 
-SESSION = "phien-ung-vien-0001"
+# Đúng hình dạng `crypto.randomUUID()` sinh ra. Dùng chuỗi ngắn tự đặt ở đây
+# sẽ che mất việc máy chủ có siết độ dài mã phiên hay không.
+SESSION = "3f2a9c41-7d18-4b6e-9a05-2c8e1d47b930"
 ADMIN = {"email": "admin@example.com", "full_name": "Quản trị", "role": "admin"}
 CONSULTANT = {"email": "tu.van@example.com", "full_name": "Tư vấn", "role": "consultant"}
 OTHER = {"email": "nguoi.khac@example.com", "full_name": "Người khác", "role": "consultant"}
@@ -72,17 +74,39 @@ def match_item(**overrides) -> dict:
     return item
 
 
-def log_doc(items=None) -> dict:
-    return {"code": "RL-AAA111", "profile_code": "UV-ABC123", "items": items or [match_item()]}
+def log_doc(items=None, profile_version=2) -> dict:
+    return {
+        "code": "RL-AAA111",
+        "profile_code": "UV-ABC123",
+        # Phải khớp `version` của hồ sơ, nếu không đăng ký bị từ chối vì nhật ký
+        # đã lỗi thời — đúng như ngoài đời.
+        "profile_version": profile_version,
+        "items": items or [match_item()],
+    }
+
+
+def order_doc(**overrides) -> dict:
+    """Đơn còn nhận hồ sơ ngay lúc đăng ký."""
+    document = {
+        "code": "DH-0016",
+        "published": True,
+        "status": "open",
+        "deadline": "2099-12-31",
+    }
+    document.update(overrides)
+    return document
 
 
 class GuardrailTests(unittest.IsolatedAsyncioTestCase):
     """Những trường hợp phải bị từ chối."""
 
-    async def _register(self, *, profile, log, job_order_code="DH-0016"):
+    async def _register(self, *, profile, log, job_order_code="DH-0016", order=...):
+        if order is ...:
+            order = order_doc()
         with (
             patch.object(service.profiles, "get_by_session", AsyncMock(return_value=profile)),
             patch.object(service.logs, "latest_for_profile", AsyncMock(return_value=log)),
+            patch.object(service.job_orders, "get_job_order", AsyncMock(return_value=order)),
         ):
             return await service.register(
                 session_id=SESSION, job_order_code=job_order_code
@@ -123,6 +147,43 @@ class GuardrailTests(unittest.IsolatedAsyncioTestCase):
             await self._register(profile=profile_doc(), log=log)
         self.assertIn("chưa đạt điều kiện", str(ctx.exception))
 
+    async def test_ho_so_sua_sau_khi_doi_chieu_thi_phai_doi_chieu_lai(self):
+        """Nhật ký chụp hồ sơ bản 2, ứng viên sửa thành bản 3 rồi mới bấm đăng ký.
+
+        Không chặn ở đây thì đơn từng đạt với bản cũ đi thẳng vào hàng đợi dưới
+        tên bản mới, và nhân viên gọi điện rồi mới biết người này không đủ điều
+        kiện.
+        """
+        with self.assertRaises(service.RegistrationRejected) as ctx:
+            await self._register(profile=profile_doc(version=3), log=log_doc())
+        self.assertIn("vừa thay đổi", str(ctx.exception))
+
+    async def test_don_qua_han_giua_luc_doi_chieu_va_luc_dang_ky(self):
+        with self.assertRaises(service.RegistrationRejected) as ctx:
+            await self._register(
+                profile=profile_doc(), log=log_doc(), order=order_doc(deadline="2020-01-01")
+            )
+        self.assertIn("ngừng nhận hồ sơ", str(ctx.exception))
+
+    async def test_don_bi_go_cong_khai_giua_chung(self):
+        with self.assertRaises(service.RegistrationRejected) as ctx:
+            await self._register(
+                profile=profile_doc(), log=log_doc(), order=order_doc(published=False)
+            )
+        self.assertIn("ngừng nhận hồ sơ", str(ctx.exception))
+
+    async def test_don_da_tuyen_du_nguoi(self):
+        with self.assertRaises(service.RegistrationRejected) as ctx:
+            await self._register(
+                profile=profile_doc(), log=log_doc(), order=order_doc(status="filled")
+            )
+        self.assertIn("ngừng nhận hồ sơ", str(ctx.exception))
+
+    async def test_don_bien_mat_khoi_co_so_du_lieu(self):
+        with self.assertRaises(service.RegistrationRejected) as ctx:
+            await self._register(profile=profile_doc(), log=log_doc(), order=None)
+        self.assertIn("ngừng nhận hồ sơ", str(ctx.exception))
+
 
 class RegisterTests(unittest.IsolatedAsyncioTestCase):
     def _patches(self, **overrides):
@@ -130,6 +191,7 @@ class RegisterTests(unittest.IsolatedAsyncioTestCase):
         defaults = {
             "get_by_session": AsyncMock(return_value=profile_doc()),
             "latest_for_profile": AsyncMock(return_value=log_doc()),
+            "get_job_order": AsyncMock(return_value=order_doc()),
             "lead_by_phone": AsyncMock(return_value=None),
             "create_lead": AsyncMock(
                 side_effect=lambda doc: {**doc, "phone": doc["phone"]}
@@ -159,6 +221,7 @@ class RegisterTests(unittest.IsolatedAsyncioTestCase):
             (service.logs, "attach_application", mocks["attach_application"]),
             (service.documents, "list_for_profile", mocks["documents"]),
             (service.reports, "create", mocks["create_report"]),
+            (service.job_orders, "get_job_order", mocks["get_job_order"]),
         ):
             stack.enter_context(patch.object(target, attribute, mock))
         for name, mock in (
@@ -214,6 +277,108 @@ class RegisterTests(unittest.IsolatedAsyncioTestCase):
         with self._stack(mocks):
             with self.assertRaises(service.AlreadyRegistered):
                 await service.register(session_id=SESSION, job_order_code="DH-0016")
+
+
+class PhieuHongKhongLamMatYeuCauKhachTests(unittest.IsolatedAsyncioTestCase):
+    """Phiếu dựng hỏng thì hồ sơ đăng ký vẫn phải sống.
+
+    Đây là lỗi tìm ra ngày 22/09/2026. Lời gọi dựng phiếu nằm ngoài mọi `try`,
+    nên một trục trặc thoáng qua của cơ sở dữ liệu đủ để: khách hàng không được
+    gắn, nhật ký không được nối, **thông báo cho nhân viên không bao giờ gửi** —
+    trong khi hồ sơ đăng ký đã nằm trong DB với `is_active = True`.
+
+    Chỗ chết người là chỉ mục `unique_active_application_per_lead`: mỗi khách
+    chỉ được một hồ sơ hoạt động. Nên từ đó trở đi, khách bấm đăng ký lại bao
+    nhiêu lần cũng nhận 409 "bạn đang có hồ sơ được xử lý", trong khi thực tế
+    không một nhân viên nào biết họ tồn tại. Một lỗi tạm thời hoá thành cánh
+    cửa đóng vĩnh viễn — và im lặng, vì không ai báo cho ai cả.
+
+    Thứ tự ưu tiên: **yêu cầu của khách quan trọng hơn phiếu.** Phiếu dựng lại
+    được từ dữ liệu đã lưu; yêu cầu của khách thì không.
+    """
+
+    _patches = RegisterTests._patches
+    _stack = RegisterTests._stack
+
+    async def test_phieu_hong_van_tao_duoc_ho_so_va_van_bao_nhan_vien(self):
+        mocks = self._patches(
+            create_report=AsyncMock(side_effect=RuntimeError("Mongo trục trặc"))
+        )
+        with self._stack(mocks), self.assertLogs(
+            "app.services.registration_service", level="ERROR"
+        ):
+            result = await service.register(session_id=SESSION, job_order_code="DH-0016")
+
+        # Hồ sơ vẫn được tạo và vẫn vào hàng đợi.
+        mocks["create_application"].assert_awaited_once()
+        self.assertIsNone(
+            mocks["create_application"].await_args.args[0]["assigned_to"],
+            "vẫn phải nằm trong hàng đợi chờ nhân viên nhận",
+        )
+        # Và nhân viên vẫn được báo — nếu không, hồ sơ nằm im không ai biết.
+        mocks["notify"].assert_awaited_once()
+        mocks["attach_lead"].assert_awaited_once()
+        mocks["attach_application"].assert_awaited_once()
+        self.assertIsNone(result["report"], "nói thật là chưa có phiếu")
+
+    async def test_khong_ghi_ma_phieu_gia_khi_phieu_chua_ton_tai(self):
+        mocks = self._patches(
+            create_report=AsyncMock(side_effect=RuntimeError("Mongo trục trặc"))
+        )
+        with self._stack(mocks), self.assertLogs(
+            "app.services.registration_service", level="ERROR"
+        ):
+            await service.register(session_id=SESSION, job_order_code="DH-0016")
+
+        # Không được gắn report_code trỏ tới một phiếu không tồn tại: nhân viên
+        # mở ra sẽ gặp lỗi khó hiểu thay vì một câu nói rõ chuyện gì đã xảy ra.
+        mocks["update_application"].assert_not_awaited()
+        self.assertIsNone(
+            mocks["create_event"].await_args.args[0]["details"]["report_code"]
+        )
+
+    async def test_dung_lai_phieu_tu_du_lieu_da_luu(self):
+        """Dựng lại phải dùng đúng nhật ký hồ sơ đã trỏ tới, không phải cái mới nhất.
+
+        Nếu lấy nhật ký mới nhất thì phiếu sẽ kể một câu chuyện khác với thứ
+        ứng viên đã nhìn thấy lúc bấm đăng ký.
+        """
+        application = {
+            "application_code": "HS-XYZ999",
+            "profile_code": "UV-ABC123",
+            "session_id": SESSION,
+            "job_order_code": "DH-0016",
+            "recommendation_log_code": "RL-AAA111",
+            "source": service.SOURCE_SELF,
+        }
+        mocks = self._patches()
+        get_log = AsyncMock(return_value=mocks["latest_for_profile"].return_value)
+
+        with self._stack(mocks), patch.object(
+            service.profiles, "get_by_code", AsyncMock(return_value=profile_doc())
+        ), patch.object(service.logs, "get_log", get_log):
+            report = await service.rebuild_report(application)
+
+        get_log.assert_awaited_once_with("RL-AAA111")
+        self.assertEqual(report["code"], "PT-BBB222")
+        self.assertEqual(
+            mocks["create_report"].await_args.args[0]["application_code"], "HS-XYZ999"
+        )
+
+    async def test_dung_lai_bao_ro_khi_khong_con_du_lieu_nguon(self):
+        mocks = self._patches()
+        with self._stack(mocks), patch.object(
+            service.profiles, "get_by_code", AsyncMock(return_value=None)
+        ):
+            with self.assertRaises(service.RegistrationRejected):
+                await service.rebuild_report(
+                    {
+                        "application_code": "HS-XYZ999",
+                        "profile_code": "UV-MAT-ROI",
+                        "job_order_code": "DH-0016",
+                        "recommendation_log_code": "RL-AAA111",
+                    }
+                )
 
 
 class ReportBuilderTests(unittest.TestCase):

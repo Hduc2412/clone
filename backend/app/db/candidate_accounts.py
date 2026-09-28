@@ -14,6 +14,7 @@ Khác `staff_users` ở ba điểm đáng nhớ:
 Số điện thoại lưu ở dạng đã chuẩn hóa để `0912 345 678`, `+84912345678` và
 `0912345678` không thành ba tài khoản khác nhau.
 """
+import time
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -69,6 +70,7 @@ async def create_account(
         "full_name": full_name,
         "password_hash": hash_password(password),
         "must_change_password": True,
+        "password_changed_at": int(time.time()),
         "status": STATUS_ACTIVE,
         "created_by": created_by,
         "created_at": now(),
@@ -93,6 +95,7 @@ async def reset_password(phone: str, password: str, *, by: str) -> dict[str, Any
             "$set": {
                 "password_hash": hash_password(password),
                 "must_change_password": True,
+                "password_changed_at": int(time.time()),
                 "status": STATUS_ACTIVE,
                 "updated_at": now(),
                 "password_reset_by": by,
@@ -111,6 +114,7 @@ async def set_password(phone: str, password: str) -> dict[str, Any] | None:
             "$set": {
                 "password_hash": hash_password(password),
                 "must_change_password": False,
+                "password_changed_at": int(time.time()),
                 "updated_at": now(),
             }
         },

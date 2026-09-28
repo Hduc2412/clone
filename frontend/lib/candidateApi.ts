@@ -8,7 +8,13 @@
  */
 import { BACKEND_PUBLIC_URL } from "./publicApi";
 
-export { getSessionId, resetSession } from "./journeySession";
+export {
+  ensureSessionId,
+  getSessionId,
+  refreshSessionId,
+  rememberSessionId,
+  resetSession,
+} from "./journeySession";
 
 /** Một ô dữ liệu trong hồ sơ. Giá trị nào cũng mang theo nguồn của nó. */
 export interface ProfileCell<T = unknown> {
@@ -183,6 +189,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${BACKEND_PUBLIC_URL}${path}`, {
       ...options,
+      // Cookie phiên tư vấn là `httponly`, trình duyệt chỉ gửi kèm khi được
+      // yêu cầu rõ. Thiếu dòng này thì mọi đường /public/* trả 401.
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...options?.headers },
     });
   } catch {
@@ -312,7 +321,7 @@ export async function uploadDocument(
   try {
     response = await fetch(
       `${BACKEND_PUBLIC_URL}/public/documents/${encodeURIComponent(sessionId)}`,
-      { method: "POST", body },
+      { method: "POST", body, credentials: "include" },
     );
   } catch {
     throw new ApiError(
@@ -374,4 +383,181 @@ export function valueOf<T>(
 ): T | undefined {
   const cell = section?.[key];
   return cell === undefined ? undefined : (cell.value as T);
+}
+
+// --- Engine tư vấn (/tu-van/v1) ---
+//
+// Tiền tố riêng, tách khỏi `/public/*`. Hệ tư vấn là hệ chính của đề tài; khung
+// chat hỏi đáp là phần phụ trợ. Hai bên chạy độc lập: khóa riêng, hạn mức riêng,
+// và engine tắt được mà màn hình vẫn đủ chữ nhờ bản ghép sẵn.
+
+/** Ba nhánh kết luận cho một đơn. Nhánh thứ tư của sơ đồ do khách bấm, không sinh từ dữ liệu. */
+export type AdviceBranch = "thieu_thong_tin" | "phu_hop" | "chua_phu_hop";
+
+export interface LearningCourse {
+  code: string;
+  title: string;
+  format: string | null;
+}
+
+export interface LearningPath {
+  level_from: string;
+  level_from_label: string;
+  level_to: string;
+  level_to_label: string;
+  months_text: string;
+  tuition_vnd: number | null;
+  /** Thiếu học phí một chặng thì tổng không còn là tổng — hiển thị phải nói rõ. */
+  tuition_incomplete: boolean;
+  /** Học phí là một chặng trong tổng này. Hiện học phí mà bỏ tổng là để khách hiểu sai. */
+  package_total_vnd: number | null;
+  courses: LearningCourse[];
+}
+
+export interface HealthConditions {
+  muc_nen: { tieu_chi: string; yeu_cau: string; ghi_chu: string }[];
+  benh_loai_tru: string[];
+  loi_nhac: string;
+  cau_hoi_xac_nhan: string;
+  source_url: string;
+}
+
+export interface OrderAdvice {
+  branch: AdviceBranch;
+  branch_label: string;
+  order_code: string;
+  order_title: string;
+  eligible: boolean;
+  score: number;
+  /** Ba điều kiện: nhánh phù hợp, đủ điều kiện, và hồ sơ đã xác nhận. */
+  can_register: boolean;
+  profile_confirmed: boolean;
+  blockers: CriterionRow[];
+  unknowns: CriterionRow[];
+  strengths: CriterionRow[];
+  questions: string[];
+  learning: LearningPath | null;
+  /** Vì sao không có lộ trình học. Rỗng khi có, hoặc khi không cần. */
+  learning_note: string;
+  text: string;
+  /** Câu đang hiện do mô hình viết hay do hệ thống ghép sẵn. */
+  text_source: "mo_hinh" | "ghep_san";
+  /** Bản ghép sẵn, luôn có. Để đối chiếu và để dùng khi tắt phần diễn đạt. */
+  text_template: string;
+  recommendation_log_code: string;
+  reused: boolean;
+  suc_khoe: HealthConditions;
+}
+
+/**
+ * Đối chiếu hồ sơ của phiên với đúng một đơn.
+ *
+ * Khác `fetchMatches` ở chỗ hàm kia trả lời "tôi hợp đơn nào" (xếp hạng cả danh
+ * mục), còn hàm này trả lời "tôi có hợp **đơn này** không" — câu người ta thật
+ * sự đang có trong đầu sau khi đọc xong một đơn cụ thể.
+ */
+export function fetchOrderAdvice(
+  sessionId: string,
+  orderCode: string,
+  options?: { phrase?: boolean },
+): Promise<OrderAdvice> {
+  const query = options?.phrase === false ? "?dien_dat=false" : "";
+  return request<OrderAdvice>(
+    `/tu-van/v1/${sessionId}/don/${orderCode}${query}`,
+  );
+}
+
+export function fetchProgramConditions(): Promise<HealthConditions> {
+  return request<HealthConditions>("/tu-van/v1/dieu-kien");
+}
+
+// --- Yêu cầu hỗ trợ ---
+
+export type SupportKind = "nhan_tin" | "hoc_tap" | "gap_mat";
+
+export interface SupportRequestInput {
+  kind: SupportKind;
+  message: string;
+  full_name: string;
+  phone: string;
+  job_order_code?: string;
+  /** Ảnh chụp kết quả đối chiếu khách vừa đọc, để nhân viên không phải đoán. */
+  advice_block?: string;
+}
+
+export interface SupportRequestResult {
+  code: string;
+  kind: SupportKind;
+  message: string;
+}
+
+export interface MySupportRequest {
+  code: string;
+  kind: SupportKind;
+  status: "cho_xu_ly" | "dang_xu_ly" | "da_xong" | "da_huy";
+  message: string;
+  reply: string | null;
+  created_at: string;
+  handled_at: string | null;
+}
+
+/**
+ * Gửi một yêu cầu cần người xử lý.
+ *
+ * Nhân viên trả lời **trong giờ làm việc**, không phải ngay lập tức. Giao diện
+ * phải nói rõ điều đó thay vì hứa một thứ không giữ được rồi để khách ngồi đợi
+ * trước màn hình im lặng lúc mười một giờ đêm.
+ */
+export function sendSupportRequest(
+  sessionId: string,
+  input: SupportRequestInput,
+): Promise<SupportRequestResult> {
+  return request<SupportRequestResult>(`/tu-van/v1/${sessionId}/ho-tro`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchMySupportRequests(
+  sessionId: string,
+): Promise<{ items: MySupportRequest[] }> {
+  return request<{ items: MySupportRequest[] }>(`/tu-van/v1/${sessionId}/ho-tro`);
+}
+
+// --- Bot tư vấn: hỏi đáp về hồ sơ của khách và đơn họ đang xem ---
+//
+// Khác khung chat: bot này **không có kho tài liệu nào**, nhưng biết hồ sơ người
+// đang hỏi, biết đơn họ đang xem, và biết kết quả đối chiếu giữa hai thứ đó.
+// Câu hỏi ngoài phạm vi ấy thì `source` trả về `khong_biet` — và đó là hành vi
+// mong muốn, không phải lỗi.
+//
+// `khong_goi_duoc` là chuyện khác hẳn: không gọi được mô hình, do hết hạn mức
+// hoặc mạng hỏng. Gộp nó vào `khong_biet` thì màn hình dán nhãn "trợ lý không
+// đoán" lên một lần dịch vụ chết — nhận công không phải của mình, và tệ hơn là
+// khách tưởng công ty không có thông tin nên thôi không hỏi lại nữa.
+
+export interface AdvisorTurn {
+  question: string;
+  answer: string;
+  source: "mo_hinh" | "khong_biet" | "khong_goi_duoc";
+}
+
+export function askAdvisor(
+  sessionId: string,
+  orderCode: string,
+  question: string,
+): Promise<AdvisorTurn> {
+  return request<AdvisorTurn>(`/tu-van/v1/${sessionId}/don/${orderCode}/hoi`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
+
+export function fetchAdvisorTurns(
+  sessionId: string,
+  orderCode: string,
+): Promise<{ items: AdvisorTurn[] }> {
+  return request<{ items: AdvisorTurn[] }>(
+    `/tu-van/v1/${sessionId}/don/${orderCode}/hoi`,
+  );
 }

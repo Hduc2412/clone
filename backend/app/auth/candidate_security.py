@@ -86,7 +86,34 @@ async def get_current_candidate(
             status_code=401,
             detail="Tài khoản không còn hoạt động. Bạn gọi nhân viên để được hỗ trợ nhé.",
         )
+    ensure_token_not_stale(payload, account)
     return {key: value for key, value in account.items() if key != "password_hash"}
+
+
+def ensure_token_not_stale(payload: dict[str, Any], account: dict[str, Any]) -> None:
+    """Từ chối token cấp trước lần đổi mật khẩu gần nhất.
+
+    Không có chốt này thì đổi mật khẩu **không đuổi được ai ra**. Kịch bản thật:
+    ai đó biết số điện thoại, đăng nhập trước bằng dãy mặc định, rồi im lặng.
+    Chủ tài khoản gọi nhân viên đặt lại và tự đổi mật khẩu — nhưng token của
+    người kia vẫn còn hiệu lực tới khi hết hạn, và trong suốt quãng đó họ vẫn
+    đọc được toàn bộ hồ sơ. Đổi mật khẩu khi ấy chỉ là cảm giác an toàn.
+
+    So `iat` với dấu thời gian đổi mật khẩu, không phải giữ danh sách đen: máy
+    chủ không lưu phiên nào cả, nên thứ duy nhất luôn có trong tay là hai con số
+    này. Dùng `<` chứ không phải `<=` để token vừa cấp lại ngay trong cùng giây
+    với lần đổi — chính là token của người đang đổi — không tự huỷ mình.
+    """
+    changed_at = account.get("password_changed_at")
+    if changed_at is None:
+        # Tài khoản tạo trước khi có trường này. Không có mốc để so thì không
+        # đuổi ai cả; lần đổi mật khẩu kế tiếp sẽ đóng dấu và chốt này có hiệu lực.
+        return
+    if int(payload.get("iat", 0)) < int(changed_at):
+        raise HTTPException(
+            status_code=401,
+            detail="Mật khẩu đã được đổi. Bạn đăng nhập lại nhé.",
+        )
 
 
 async def require_usable_password(

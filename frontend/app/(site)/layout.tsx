@@ -16,8 +16,9 @@ export default function SiteLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
+      <a className="skip-link" href="#noi-dung">Đi đến nội dung chính</a>
       <SiteHeader />
-      <main className="flex-1">{children}</main>
+      <main id="noi-dung" className="flex-1">{children}</main>
       <SiteFooter />
       <ChatWidget />
     </div>

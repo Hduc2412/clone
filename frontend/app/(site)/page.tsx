@@ -23,23 +23,22 @@ export default async function HomePage() {
   return (
     <>
       {/* --- Mở đầu --- */}
-      <section className="relative overflow-hidden">
+      <section className="home-hero relative isolate overflow-hidden">
         <PhotoBackdrop variant="hero" />
-        <Container className="relative py-16 md:py-24">
-          <div className="max-w-3xl">
+        <Container className="pointer-events-none relative py-16 md:py-24">
+          <div className="pointer-events-auto max-w-2xl">
             <Badge tone="brand">Chương trình điều dưỡng và hộ lý Nhật Bản</Badge>
             <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-slate-900 md:text-5xl">
-              Biết mình hợp với đơn hàng nào,{" "}
-              <span className="text-sheen animate-sheen">trước khi gọi điện</span>
+              Cùng bạn chuẩn bị{" "}
+              <span className="text-brand-700">hành trình đến Nhật Bản</span>
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-              Nhập hồ sơ của bạn, hệ thống đối chiếu với các đơn hàng đang tuyển và
-              chỉ rõ từng tiêu chí đạt hay chưa đạt. Không phải chờ tới giờ hành
-              chính mới biết mình có đủ điều kiện hay không.
+              Tìm hiểu công việc điều dưỡng, hộ lý phù hợp với bạn. Bắt đầu từ
+              một câu hỏi, hoặc gửi hồ sơ để xem những đơn tuyển dụng đáng cân nhắc.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button href="/tu-van" size="lg">
-                Đối chiếu hồ sơ của tôi
+              <Button href="/chat" size="lg">
+                Trò chuyện để được tư vấn
               </Button>
               <Button href="/don-hang" variant="outline" size="lg">
                 Xem đơn hàng đang tuyển
@@ -57,12 +56,12 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="pointer-events-auto mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {HERO_STATS.map((stat) => (
               <Stat key={stat.label} {...stat} />
             ))}
           </div>
-          <p className="mt-4 text-xs leading-5 text-slate-500">{REFERENCE_NOTE}</p>
+          <p className="mb-8 mt-4 max-w-3xl text-xs leading-5 text-slate-600">{REFERENCE_NOTE}</p>
         </Container>
       </section>
 

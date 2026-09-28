@@ -111,6 +111,56 @@ class CauTrucPromptTests(unittest.TestCase):
         self.assertNotIn("LỊCH SỬ HỘI THOẠI", prompt)
 
 
+class NhacLaiSatChoSinhChuTests(unittest.TestCase):
+    """Hai luật về hình thức phải nằm ngay trước chỗ mô hình bắt đầu viết.
+
+    Cả hai đã có ở phần trên từ lâu và vẫn bị bỏ qua. Đo trên máy chủ thật ngày
+    22/09/2026: hai lượt liên tiếp trong cùng một phiên đều mở bằng "Chào bạn,"
+    và đều kết bằng số tổng đài, dù prompt cấm cả hai.
+
+    Không phải mô hình bướng — luật nằm cách chỗ sinh chữ hơn bốn mươi dòng, lẫn
+    trong một danh sách sáu gạch đầu dòng. Bản sửa không thêm luật mới, chỉ đổi
+    vị trí. Lớp test này giữ đúng cái vị trí ấy, vì đó mới là thứ có tác dụng.
+    """
+
+    def _phan_cuoi(self, prompt: str) -> str:
+        """Phần từ câu hỏi hiện tại trở xuống — thứ mô hình đọc sau cùng."""
+        return prompt[prompt.index("CÂU HỎI HIỆN TẠI"):]
+
+    def test_luat_khong_chao_nam_o_phan_cuoi_khi_da_co_lich_su(self):
+        prompt = build_prompt("nội dung", "câu hỏi", history_text="Khach: xin chào")
+        self.assertIn("KHÔNG viết lời chào", self._phan_cuoi(prompt))
+
+    def test_luat_khong_ket_bang_so_tong_dai_nam_o_phan_cuoi(self):
+        prompt = build_prompt("nội dung", "câu hỏi")
+        self.assertIn(
+            "Không kết thúc mọi câu trả lời bằng số điện thoại",
+            self._phan_cuoi(prompt),
+        )
+
+    def test_van_cho_dua_so_khi_that_su_can(self):
+        """Cấm lạm dụng, không phải cấm hẳn.
+
+        Có những câu chỉ người thật trả lời được, và có những khách hỏi thẳng
+        cách liên hệ. Cấm tuyệt đối sẽ làm hỏng đúng những lúc cần nhất.
+        """
+        prompt = build_prompt("nội dung", "câu hỏi")
+        self.assertIn("khi khách hỏi cách liên hệ", prompt)
+
+    def test_luat_noi_dung_van_o_tren_truoc_khi_doc_tai_lieu(self):
+        """Luật về nội dung phải ở trên; chỉ luật về hình thức mới xuống cuối.
+
+        Mô hình cần biết ràng buộc nội dung TRƯỚC khi đọc tài liệu, vì nó quyết
+        định lấy gì từ tài liệu. Đẩy tất cả xuống cuối sẽ hỏng theo hướng khác.
+        """
+        prompt = build_prompt("nội dung", "câu hỏi")
+        # Cắt theo dấu mốc của mục, không theo cụm chữ — cụm "THÔNG TIN TỪ TÀI
+        # LIỆU" còn xuất hiện trong chính câu luật ở phía trên.
+        phan_tren = prompt[: prompt.index("--- THÔNG TIN TỪ TÀI LIỆU ---")]
+        self.assertIn("Chỉ dùng THÔNG TIN TỪ TÀI LIỆU", phan_tren)
+        self.assertIn("KHÔNG kết luận người hỏi đủ hay không", phan_tren)
+
+
 class NgưCanhCoNguonTests(unittest.TestCase):
     """Mỗi đoạn trong ngữ cảnh phải kèm tiêu đề và đường dẫn gốc."""
 

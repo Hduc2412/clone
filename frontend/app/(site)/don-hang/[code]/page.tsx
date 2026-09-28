@@ -130,7 +130,11 @@ export default async function JobOrderDetailPage({
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Button href={`/tu-van?don=${order.code}`} size="lg">
+            {/* Vào thẳng phòng tư vấn của chính đơn này. Bản cũ dẫn về
+                `/tu-van?don=CODE`, nơi tham số `don` chỉ vẽ một banner rồi khách
+                vẫn phải tự tìm lại đơn mình vừa xem trong danh sách xếp hạng —
+                mà nếu nó không nằm trong năm đơn điểm cao nhất thì không thấy. */}
+            <Button href={`/tu-van/don/${order.code}`} size="lg">
               Kiểm tra hồ sơ của tôi với đơn này
             </Button>
             <Button href={COMPANY.hotlineHref} variant="outline" size="lg">

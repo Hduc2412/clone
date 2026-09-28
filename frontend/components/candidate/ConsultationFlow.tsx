@@ -26,6 +26,8 @@ import {
   fetchMyRegistrations,
   fetchProfile,
   fetchProfileMeta,
+  ensureSessionId,
+  refreshSessionId,
   getSessionId,
   registerForOrder,
   resetSession,
@@ -93,6 +95,9 @@ function fromProfile(profile: CandidateProfile): FormState {
 }
 
 export default function ConsultationFlow() {
+  // Mã phiên nay do máy chủ cấp kèm cookie đã ký, nên lần vẽ đầu tiên chưa
+  // có. Giữ trong state để phần gửi CV không vẽ ra với mã rỗng.
+  const [sessionId, setSessionId] = useState("");
   const [meta, setMeta] = useState<ProfileMeta | null>(null);
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -106,6 +111,12 @@ export default function ConsultationFlow() {
   const [justRegistered, setJustRegistered] = useState<RegistrationResult | null>(null);
   const [registering, setRegistering] = useState<string | null>(null);
 
+/** Máy chủ từ chối vì phiên, không phải vì dữ liệu. */
+function khong_nhan_phien(reason: unknown): boolean {
+  const status = (reason as { status?: number })?.status;
+  return status === 401 || status === 403;
+}
+
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -114,11 +125,25 @@ export default function ConsultationFlow() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const sessionId = getSessionId();
+      // Mã trong máy có thể lệch khỏi cookie (cookie bị xoá, hết hạn, hay ký
+      // bằng khoá khác). Khi lệch thì mọi lời gọi trả 401 và trang chết hẳn —
+      // tải lại bao nhiêu lần cũng vậy, vì bản sao hỏng vẫn nằm trong máy. Nên
+      // thử một lần nữa với mã hỏi thẳng máy chủ trước khi báo lỗi cho người dùng.
+      let sessionId = await ensureSessionId();
+      if (alive) setSessionId(sessionId);
       try {
+        let ho_so_ban_dau;
+        try {
+          ho_so_ban_dau = await fetchProfile(sessionId);
+        } catch (reason) {
+          if (!khong_nhan_phien(reason)) throw reason;
+          sessionId = await refreshSessionId();
+          if (alive) setSessionId(sessionId);
+          ho_so_ban_dau = await fetchProfile(sessionId);
+        }
         const [catalog, existing, mine] = await Promise.all([
           fetchProfileMeta(),
-          fetchProfile(sessionId),
+          Promise.resolve(ho_so_ban_dau),
           // Đơn đã đăng ký từ lần trước. Không có thì trả mảng rỗng chứ không
           // làm hỏng cả trang — phần lớn người vào lần đầu chưa đăng ký gì.
           fetchMyRegistrations(sessionId).catch(() => ({ items: [] })),
@@ -252,8 +277,8 @@ export default function ConsultationFlow() {
     }
   };
 
-  const startOver = () => {
-    resetSession();
+  const startOver = async () => {
+    setSessionId(await resetSession());
     setProfile(null);
     setResult(null);
     setForm(EMPTY);
@@ -449,7 +474,7 @@ export default function ConsultationFlow() {
 
       <div className="mt-6">
         <CvUpload
-          sessionId={getSessionId()}
+          sessionId={sessionId}
           onProfileRead={(read) => {
             setProfile(read);
             setForm(fromProfile(read));

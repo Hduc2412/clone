@@ -14,10 +14,10 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {/* Cửa sổ chat nhỏ */}
       {isOpen && (
-        <div className="w-80 h-[480px] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+        <div id="tu-van-nhanh" className="w-[min(360px,calc(100vw-32px))] h-[min(480px,calc(100dvh-112px))] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
           <ChatWindow onExpand={handleExpand} />
         </div>
       )}
@@ -25,11 +25,12 @@ export default function ChatWidget() {
       {/* Nút mở widget */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center text-2xl hover:scale-105 transition-transform"
-        style={{ backgroundColor: "#cb1d1e" }}
+        className="min-h-14 gap-2 rounded-full bg-brand-700 px-5 py-3 text-white shadow-lg flex items-center justify-center text-base hover:bg-brand-800 transition-colors"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? "tu-van-nhanh" : undefined}
         title="Tư vấn ngay"
       >
-        {isOpen ? "✕" : "💬"}
+        {isOpen ? "Đóng tư vấn ×" : "Trò chuyện tư vấn"}
       </button>
     </div>
   );

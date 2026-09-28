@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Message, sendMessage } from "@/lib/api";
-import { getSessionId } from "@/lib/journeySession";
+import { getSessionId, rememberSessionId } from "@/lib/journeySession";
 
 const STORAGE_KEY = "xkld-chat-state-v1";
 const INITIAL_MESSAGES: Message[] = [
@@ -95,6 +95,10 @@ export function useChat() {
     try {
       const response = await sendMessage(query, activeId);
       if (getSessionId() !== activeId) return;
+      // Lượt chat đầu tiên cũng là nơi máy chủ mở phiên và phát cookie. Mã phiên
+      // thật nằm trong phản hồi, không phải thứ trình duyệt tự nghĩ ra — nên
+      // ghi lại để trang gửi CV dùng chung đúng hành trình này.
+      rememberSessionId(response.session_id);
       setSessionId(response.session_id);
 
       const currentTopic = INTENT_TO_TOPIC[response.intent];

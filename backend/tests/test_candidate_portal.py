@@ -6,6 +6,7 @@ không mở được cửa khách hàng, và một ứng viên không đọc đ�
 khác dù có đổi mã trên thanh địa chỉ.
 """
 import asyncio
+import time
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -195,6 +196,107 @@ class PasswordChangeTests(unittest.IsolatedAsyncioTestCase):
     def test_a_password_of_one_repeated_character_is_refused(self):
         with self.assertRaises(ValueError):
             ChangePasswordRequest(current_password="cu", new_password="aaaaaaaa")
+
+
+class DefaultPasswordExpiryTests(unittest.IsolatedAsyncioTestCase):
+    """Dãy mặc định có hạn dùng, vì cờ bắt đổi không xác minh được người đăng nhập.
+
+    Ai biết số điện thoại cũng gõ đúng `12345678`. Trong suốt quãng tài khoản
+    còn nằm ở dãy đó, người vào trước mới là người đặt mật khẩu mới — kể cả khi
+    đó không phải chủ tài khoản. Hạn dùng không làm dãy ấy an toàn, nó chỉ cắt
+    khung giờ lợi dụng từ vô hạn xuống một con số đếm được.
+    """
+
+    async def _dang_nhap(self, account: dict):
+        with patch.object(
+            accounts, "get_account_by_phone", new=AsyncMock(return_value=account)
+        ), patch.object(accounts, "record_login", new=AsyncMock()):
+            return await candidate_auth.login(
+                LoginRequest(phone=PHONE, password="12345678"),
+                Response(),
+                http_request(),
+            )
+
+    def _tai_khoan_moi_cap(self, gio_truoc: float) -> dict:
+        return account_doc(
+            password_hash=hash_password("12345678"),
+            must_change_password=True,
+            password_changed_at=int(time.time() - gio_truoc * 3600),
+        )
+
+    async def test_day_mac_dinh_con_han_thi_dang_nhap_duoc(self):
+        result = await self._dang_nhap(self._tai_khoan_moi_cap(1))
+        self.assertTrue(result["must_change_password"])
+
+    async def test_day_mac_dinh_qua_han_thi_bi_tu_choi(self):
+        with self.assertRaises(HTTPException) as caught:
+            await self._dang_nhap(self._tai_khoan_moi_cap(settings.default_password_hours + 1))
+        self.assertEqual(caught.exception.status_code, 401)
+        self.assertIn("hết hạn", caught.exception.detail)
+
+    async def test_nguoi_da_tu_dat_mat_khau_rieng_khong_bi_han_nay(self):
+        """Dấu thời gian khi ấy nói về mật khẩu của riêng họ, không phải dãy mặc định."""
+        account = account_doc(
+            password_hash=hash_password("12345678"),
+            must_change_password=False,
+            password_changed_at=int(time.time() - 3600 * 24 * 365),
+        )
+        result = await self._dang_nhap(account)
+        self.assertFalse(result["must_change_password"])
+
+    async def test_tai_khoan_cu_chua_co_dau_thoi_gian_thi_khong_chan(self):
+        account = self._tai_khoan_moi_cap(1)
+        account.pop("password_changed_at")
+        result = await self._dang_nhap(account)
+        self.assertTrue(result["must_change_password"])
+
+
+class StaleSessionTests(unittest.IsolatedAsyncioTestCase):
+    """Đổi mật khẩu phải **đuổi được** phiên đang mở, không chỉ chặn lần sau.
+
+    Kịch bản thật: ai đó biết số điện thoại, đăng nhập trước bằng dãy mặc định
+    rồi im lặng. Chủ tài khoản gọi nhân viên đặt lại rồi tự đổi mật khẩu — nhưng
+    token của người kia còn hạn thì họ vẫn đọc tiếp toàn bộ hồ sơ. Khi ấy việc
+    đổi mật khẩu chỉ là cảm giác an toàn.
+    """
+
+    async def _mo_cua(self, account: dict, token: str):
+        # Vá đúng tên đã import vào `candidate_security`, không phải tên gốc
+        # trong `accounts` — module này import thẳng hàm, nên vá ở nguồn không
+        # có tác dụng.
+        with patch.object(
+            candidate_security, "get_account_by_phone", new=AsyncMock(return_value=account)
+        ):
+            return await candidate_security.get_current_candidate(token=token)
+
+    async def test_token_cap_truoc_khi_doi_mat_khau_bi_tu_choi(self):
+        account = account_doc()
+        token = candidate_security.create_candidate_token(account)
+        # Mật khẩu đổi một phút sau khi token được cấp.
+        account["password_changed_at"] = int(time.time()) + 60
+        with self.assertRaises(HTTPException) as caught:
+            await self._mo_cua(account, token)
+        self.assertEqual(caught.exception.status_code, 401)
+
+    async def test_token_cap_sau_khi_doi_mat_khau_van_dung_duoc(self):
+        account = account_doc(password_changed_at=int(time.time()) - 60)
+        token = candidate_security.create_candidate_token(account)
+        result = await self._mo_cua(account, token)
+        self.assertEqual(result["phone"], PHONE)
+
+    async def test_tai_khoan_cu_chua_co_moc_thoi_gian_thi_khong_duoi_ai(self):
+        """Bản ghi tạo trước khi có trường này: không có mốc thì không chặn."""
+        account = account_doc()
+        account.pop("password_changed_at", None)
+        token = candidate_security.create_candidate_token(account)
+        result = await self._mo_cua(account, token)
+        self.assertEqual(result["phone"], PHONE)
+
+    async def test_khong_bao_gio_tra_ve_bam_mat_khau(self):
+        account = account_doc()
+        token = candidate_security.create_candidate_token(account)
+        result = await self._mo_cua(account, token)
+        self.assertNotIn("password_hash", result)
 
 
 class DataBoundaryTests(unittest.IsolatedAsyncioTestCase):

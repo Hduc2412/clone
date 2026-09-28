@@ -3,7 +3,7 @@
     "file": "01_nguyen_thi_mai.pdf",
     "format": "pdf",
     "layout": "chuan",
-    "note": "CV một cột, bố cục sạch. Trường hợp dễ nhất. Sửa 17/09/2026: care_experience đổi False -> True. CV nêu thực tập ba tháng tại khoa Nội kèm đầu việc 'hỗ trợ vệ sinh cá nhân và cho người bệnh ăn uống'. Đáp án cũ hiểu trường này là 'đã đi làm chính thức', nhưng phiếu tóm tắt in ra là 'Từng chăm sóc người bệnh' — trả lời Không cho người đã làm đúng việc đó là nói sai với nhân viên tư vấn.",
+    "note": "CV một cột, bố cục sạch. Trường hợp dễ nhất. Sửa 28/09/2026: `care_experience` đổi từ False sang True. CV có dòng \"Hỗ trợ vệ sinh cá nhân và cho người bệnh ăn uống\" — đầu việc chăm sóc cụ thể trong kỳ thực tập, và đặc tả trong prompt ghi rõ thực tập có nêu đầu việc thì tính. Đáp án cũ đặt False vì nhầm `care_experience` với `experience_years` (số năm đi làm có lương), là hai trường khác nhau. Bộ đọc làm đúng, đáp án sai.",
     "expected": {
       "full_name": "Nguyễn Thị Mai",
       "birth_year": 2003,
@@ -109,5 +109,44 @@
       "budget_vnd": 120000000
     },
     "size_bytes": 63224
+  },
+  {
+    "file": "07_tran_thi_thu_ha.pdf",
+    "format": "pdf",
+    "layout": "chuan",
+    "note": "Khớp DH-0001 Tokyo. Hồ sơ đủ mạnh, dùng để xem bot có nhận ra không.",
+    "expected": {
+      "full_name": "Trần Thị Thu Hà",
+      "birth_year": 1999,
+      "gender": "nu",
+      "education_level": "cao_dang",
+      "major": "Điều dưỡng",
+      "japanese_level": "N4",
+      "experience_years": 3,
+      "care_experience": true,
+      "phone": "0914552780",
+      "desired_prefecture": "Tokyo",
+      "desired_employer_type": "vien_duong_lao"
+    },
+    "size_bytes": 63555
+  },
+  {
+    "file": "08_le_van_khoa.pdf",
+    "format": "pdf",
+    "layout": "chuan",
+    "note": "Muốn Kyoto (DH-0006 đòi N3 + đại học) nhưng có N5 + trung cấp. Ca kiểm 'nói về điều kiện, không phán về người'.",
+    "expected": {
+      "full_name": "Lê Văn Khoa",
+      "birth_year": 2002,
+      "gender": "nam",
+      "education_level": "trung_cap",
+      "major": "Hộ lý",
+      "japanese_level": "N5",
+      "experience_years": 2,
+      "care_experience": true,
+      "phone": "0987331205",
+      "desired_prefecture": "Kyoto"
+    },
+    "size_bytes": 61884
   }
 ]

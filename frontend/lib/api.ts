@@ -31,6 +31,10 @@ export async function sendMessage(
 ): Promise<ChatResponse> {
   const res = await fetch(`${BACKEND_URL}/chat`, {
     method: "POST",
+    // Lượt chat đầu tiên cũng là nơi máy chủ phát cookie phiên. Không gửi kèm
+    // cookie thì mỗi lượt chat lại mở một phiên mới, và hồ sơ khách khai ở
+    // lượt trước coi như mất.
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sessionId }),
   });

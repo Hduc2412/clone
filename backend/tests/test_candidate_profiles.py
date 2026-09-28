@@ -31,6 +31,7 @@ from app.api.profiles import (
 )
 from app.core.timeutil import local_today
 from app.db import candidate_profiles as store
+from tests.cookie_phien import cookie_cua
 
 
 def http_request() -> Request:
@@ -41,7 +42,9 @@ ADMIN = {"email": "admin@example.com", "full_name": "Quản trị", "role": "adm
 MANAGER = {"email": "manager@example.com", "full_name": "Quản lý", "role": "manager"}
 CONSULTANT = {"email": "tu.van@example.com", "full_name": "Tư vấn", "role": "consultant"}
 
-SESSION = "phien-ung-vien-0001"
+# Đúng hình dạng `crypto.randomUUID()` sinh ra. Dùng chuỗi ngắn tự đặt ở đây
+# sẽ che mất việc máy chủ có siết độ dài mã phiên hay không.
+SESSION = "3f2a9c41-7d18-4b6e-9a05-2c8e1d47b930"
 
 
 def profile_doc(**overrides) -> dict:
@@ -193,6 +196,75 @@ class CellAndMergeTests(unittest.TestCase):
         self.assertEqual(entry["changed_by"], "admin@example.com")
 
 
+class ChiMucSoDienThoaiTests(unittest.IsolatedAsyncioTestCase):
+    """Biết số điện thoại thì phải tra ngược được — nhưng không tự gộp người.
+
+    Đo ngày 22/09/2026: `phone_normalized` chỉ được đặt trong `attach_lead`, tức
+    chỉ khi ứng viên đã chọn đơn và bấm đăng ký. Kết quả trên dữ liệu thật là
+    **5 trên 88 hồ sơ** có nó. Tám mươi ba hồ sơ còn lại vẫn có số điện thoại
+    nằm trong `fields.phone`, chỉ là không ai tra ngược được — nên cùng một
+    người quay lại bằng máy khác là thành một hồ sơ mới toanh.
+
+    Ranh giới quan trọng: **ghi chỉ mục ≠ gộp hồ sơ.** Hai anh em dùng chung một
+    số, hay một người khai nhầm một chữ số, mà gộp tự động thì hai người dính
+    vào nhau và gỡ ra rất khó. Chỉ mục chỉ để nhân viên nhìn thấy và tự quyết.
+    """
+
+    async def _ghi(self, fields):
+        ghi_nhan = {}
+
+        async def fake_update(query, operations, **kwargs):
+            ghi_nhan.update(operations["$set"])
+            return {"code": "UV-X", **operations["$set"]}
+
+        collection = AsyncMock()
+        collection.find_one_and_update.side_effect = fake_update
+        with patch.object(store, "get_db", return_value={store.COLLECTION: collection}):
+            await store.apply_changes(
+                "s" * 32,
+                expected_version=1,
+                fields=fields,
+                preferences={},
+                history={},
+            )
+        return ghi_nhan
+
+    async def test_ghi_chi_muc_ngay_khi_biet_so(self):
+        ghi = await self._ghi({"phone": store.cell("0912 345 678", "chat")})
+        self.assertEqual(ghi["phone_normalized"], "0912345678")
+
+    async def test_khong_co_so_thi_khong_dat_chi_muc(self):
+        ghi = await self._ghi({"full_name": store.cell("Nguyễn Văn An", "chat")})
+        self.assertNotIn("phone_normalized", ghi)
+
+    async def test_so_sai_dinh_dang_khong_lam_hong_ca_lan_luu(self):
+        """Tra cứu là việc phụ; nó không được phép làm mất một hồ sơ hợp lệ."""
+        ghi = await self._ghi({"phone": store.cell("khong-phai-so", "chat")})
+        self.assertIsNone(ghi["phone_normalized"])
+        self.assertIn("fields", ghi)
+
+    async def test_tim_ho_so_trung_so_tru_chinh_no_ra(self):
+        collection = AsyncMock()
+
+        class Cursor:
+            def sort(self, *a, **k): return self
+            def limit(self, *a, **k): return self
+            def __aiter__(self):
+                async def gen():
+                    yield {"code": "UV-CU", "status": "confirmed"}
+                return gen()
+
+        collection.find = lambda *a, **k: Cursor()
+        with patch.object(store, "get_db", return_value={store.COLLECTION: collection}):
+            trung = await store.tim_ho_so_trung_so("0912345678", tru_ma="UV-MOI")
+
+        self.assertEqual([r["code"] for r in trung], ["UV-CU"])
+
+    async def test_khong_co_so_thi_khong_truy_van_gi(self):
+        with patch.object(store, "get_db", side_effect=AssertionError("không được chạm DB")):
+            self.assertEqual(await store.tim_ho_so_trung_so(""), [])
+
+
 class PayloadValidationTests(unittest.TestCase):
     def test_labels_and_codes_are_both_accepted(self):
         payload = FieldsPayload(
@@ -262,6 +334,7 @@ class PublicProfileApiTests(unittest.IsolatedAsyncioTestCase):
                     fields={"full_name": "Nguyễn Văn An", "japanese_level": "N4"},
                 ),
                 http_request(),
+                journey_cookie=cookie_cua(SESSION),
             )
         self.assertEqual(result["status"], store.STATUS_CONFIRMED)
         self.assertEqual(result["fields"]["full_name"]["source"], "user_confirmed")
@@ -274,6 +347,7 @@ class PublicProfileApiTests(unittest.IsolatedAsyncioTestCase):
                     session_id=SESSION, mode="extracted", fields={"full_name": "An"}
                 ),
                 http_request(),
+                journey_cookie=cookie_cua(SESSION),
             )
         self.assertEqual(result["status"], store.STATUS_EXTRACTED)
         self.assertIsNone(result["confirmed_at"])
@@ -281,7 +355,11 @@ class PublicProfileApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_second_profile_for_the_same_session_is_refused(self):
         with patch.object(store, "create_profile", new=AsyncMock(side_effect=DuplicateKeyError("x"))):
             with self.assertRaises(HTTPException) as caught:
-                await create_profile(ProfileCreateRequest(session_id=SESSION), http_request())
+                await create_profile(
+                    ProfileCreateRequest(session_id=SESSION),
+                    http_request(),
+                    journey_cookie=cookie_cua(SESSION),
+                )
         self.assertEqual(caught.exception.status_code, 409)
 
     async def test_reading_a_session_without_a_profile_gives_404(self):

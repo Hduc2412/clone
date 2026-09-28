@@ -15,6 +15,15 @@ export const COMPANY = {
   zalo: "0971716939",
   email: "tuyensinh@xklddieuduong.vn",
   workingHours: "Thứ Hai đến Thứ Bảy, 08:00–11:30 và 13:30–17:00",
+  /**
+   * Khung giờ nói với khách khi mời họ liên hệ — cố ý gọn hơn `workingHours`.
+   *
+   * `workingHours` là giờ làm việc chính thức, có nghỉ trưa, và nó cần chi tiết
+   * vì phần đặt lịch hẹn chặn đúng khoảng nghỉ đó. Còn khi chỉ mời người ta nhắn
+   * tin hay gọi điện thì "8h đến 17h" là đủ: bắt khách nhớ hai khoảng giờ rời
+   * nhau để gửi một câu hỏi là đặt một rào cản không cần thiết.
+   */
+  contactHours: "8h đến 17h",
 } as const;
 
 export const OFFICES = [
@@ -80,9 +89,13 @@ export const TRUST_ITEMS = [
 
 export const HERO_STATS = [
   {
-    value: "160–240",
-    label: "nghìn yên mỗi tháng",
-    note: "Lương cơ bản theo đơn hàng, chưa gồm phụ cấp và làm thêm",
+    // Con số công ty công bố. Bản cũ ghi "160–240 nghìn yên" — một khoảng tôi
+    // suy từ lương của mấy đơn mẫu tự đặt, không có trang nào đỡ lưng. Đây là
+    // dòng đầu tiên khách đọc trên trang chủ, nên nó phải là con số của công ty
+    // chứ không phải con số của dữ liệu demo.
+    value: "30–35",
+    label: "triệu đồng mỗi tháng",
+    note: "Mức công ty công bố, chưa gồm phụ cấp và làm thêm. Từng đơn ghi mức riêng bằng yên",
   },
   {
     value: "N5–N3",

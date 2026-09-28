@@ -71,7 +71,7 @@ export default async function ConsultPage({
               <SectionHeading
                 eyebrow="Bốn bước"
                 title="Mất khoảng hai phút"
-                lead="Bạn dừng ở bước nào cũng được, thông tin đã nhập vẫn giữ nguyên trên máy của bạn."
+                lead="Bạn dừng ở bước nào cũng được, thông tin đã nhập được giữ lại cho phiên của bạn."
               />
               <ol className="mt-8 space-y-5">
                 {STEPS.map((step, index) => (

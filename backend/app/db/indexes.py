@@ -9,14 +9,18 @@ module đó.
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.db import (
+    advisor_turns,
     candidate_accounts,
     candidate_documents,
     candidate_profiles,
     consultation_reports,
+    courses,
     employee_scores,
     job_orders,
     password_resets,
     recommendation_logs,
+    session_memory,
+    support_requests,
 )
 
 
@@ -27,9 +31,13 @@ _MODULES = (
     candidate_profiles,
     candidate_documents,
     consultation_reports,
+    courses,
     employee_scores,
     recommendation_logs,
     password_resets,
+    support_requests,
+    advisor_turns,
+    session_memory,
 )
 
 

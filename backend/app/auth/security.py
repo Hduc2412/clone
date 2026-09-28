@@ -108,6 +108,15 @@ async def get_user_pending_password(
             status_code=401,
             detail="Tài khoản không tồn tại hoặc đã bị khóa.",
         )
+    # Token cấp trước lần đổi mật khẩu gần nhất coi như đã chết. Không có chốt
+    # này thì đặt lại mật khẩu chỉ chặn được lần đăng nhập sau, còn phiên đang
+    # mở của người chiếm tài khoản vẫn chạy tiếp tới khi hết hạn.
+    changed_at = user.get("password_changed_at")
+    if changed_at is not None and int(payload.get("iat", 0)) < int(changed_at):
+        raise HTTPException(
+            status_code=401,
+            detail="Mật khẩu đã được đổi. Bạn đăng nhập lại nhé.",
+        )
     return {key: value for key, value in user.items() if key != "password_hash"}
 
 

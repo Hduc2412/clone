@@ -1,6 +1,7 @@
 """
 MongoDB persistence layer for chat sessions, messages, leads, and analytics.
 """
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -1239,9 +1240,18 @@ async def clear_staff_password_flag(email: str) -> bool:
 
 
 async def update_staff_password(email: str, password_hash: str) -> bool:
+    # `password_changed_at` là mốc để `get_user_pending_password` vô hiệu hóa
+    # token cấp trước lần đổi này. Thiếu nó thì đặt lại mật khẩu cho một tài
+    # khoản đang bị chiếm không đuổi được người chiếm ra.
     result = await get_db().staff_users.update_one(
         {"email": email.strip().lower(), "status": "active"},
-        {"$set": {"password_hash": password_hash, "updated_at": _now()}},
+        {
+            "$set": {
+                "password_hash": password_hash,
+                "password_changed_at": int(time.time()),
+                "updated_at": _now(),
+            }
+        },
     )
     return result.modified_count == 1
 

@@ -33,7 +33,9 @@ ADMIN = {"email": "admin@example.com", "full_name": "Quản trị", "role": "adm
 MANAGER = {"email": "manager@example.com", "full_name": "Quản lý", "role": "manager"}
 CONSULTANT = {"email": "tu.van@example.com", "full_name": "Tư vấn", "role": "consultant"}
 
-SESSION = "phien-ung-vien-0001"
+# Đúng hình dạng `crypto.randomUUID()` sinh ra. Dùng chuỗi ngắn tự đặt ở đây
+# sẽ che mất việc máy chủ có siết độ dài mã phiên hay không.
+SESSION = "3f2a9c41-7d18-4b6e-9a05-2c8e1d47b930"
 
 
 def profile(**overrides) -> dict:

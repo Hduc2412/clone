@@ -365,4 +365,140 @@ SAMPLE_CVS: list[dict] = [
             "budget_vnd": 120_000_000,
         },
     },
+    # --- Hai CV bám đúng đơn hàng đang tuyển, thêm 22/09/2026 ---------------
+    #
+    # Sáu CV ở trên kiểm bộ ĐỌC: định dạng khó, bố cục bảng, bản scan. Hai CV
+    # dưới đây kiểm bộ TƯ VẤN, nên chúng được dựng ngược từ điều kiện của đơn
+    # thật trong danh mục:
+    #
+    # - `07_tran_thi_thu_ha` khớp DH-0001 (Tokyo · N4 · 20–35 · cao đẳng).
+    # - `08_le_van_khoa` muốn Kyoto, nhưng DH-0006 đòi N3 và bằng đại học trong
+    #   khi anh ấy có N5 và trung cấp. Đây là ca quan trọng hơn: nó phân biệt
+    #   "chưa đạt điều kiện của đơn này" với "người này không được đi" — và
+    #   kiểm được rằng bot nói về điều kiện chứ không phán về con người.
+    {
+        "slug": "07_tran_thi_thu_ha",
+        "format": "pdf",
+        "layout": "chuan",
+        "note": "Khớp DH-0001 Tokyo. Hồ sơ đủ mạnh, dùng để xem bot có nhận ra không.",
+        "content": {
+            "full_name": "TRẦN THỊ THU HÀ",
+            "title": "Điều dưỡng viên",
+            "contact": [
+                "Ngày sinh: 08/05/1999",
+                "Giới tính: Nữ",
+                "Điện thoại: 0914 552 780",
+                "Email: ha.tran99@gmail.com",
+                "Địa chỉ: Phường Quang Trung, TP Nam Định, tỉnh Nam Định",
+            ],
+            "sections": [
+                [
+                    "MỤC TIÊU NGHỀ NGHIỆP",
+                    [
+                        "Mong muốn làm điều dưỡng tại viện dưỡng lão ở Nhật Bản.",
+                        "Nguyện vọng làm việc tại khu vực Tokyo.",
+                    ],
+                ],
+                [
+                    "HỌC VẤN",
+                    [
+                        "2017 - 2020: Cao đẳng Y tế Nam Định",
+                        "Chuyên ngành: Điều dưỡng. Xếp loại: Giỏi",
+                    ],
+                ],
+                [
+                    "TRÌNH ĐỘ TIẾNG NHẬT",
+                    ["Chứng chỉ JLPT N4, cấp tháng 12/2024"],
+                ],
+                [
+                    "KINH NGHIỆM LÀM VIỆC",
+                    [
+                        "03/2021 - 08/2024: Điều dưỡng viên, Trung tâm Dưỡng lão Thiên Đức, Hà Nội",
+                        "Chăm sóc trực tiếp người cao tuổi: vệ sinh cá nhân, hỗ trợ ăn uống, theo dõi sinh hiệu.",
+                        "Tổng thời gian làm việc: 3 năm.",
+                    ],
+                ],
+                [
+                    "KỸ NĂNG",
+                    [
+                        "Đo huyết áp, nhiệt độ, mạch",
+                        "Chăm sóc người bệnh nằm lâu, phòng loét tì đè",
+                    ],
+                ],
+            ],
+        },
+        "expected": {
+            "full_name": "Trần Thị Thu Hà",
+            "birth_year": 1999,
+            "gender": "nu",
+            "education_level": "cao_dang",
+            "major": "Điều dưỡng",
+            "japanese_level": "N4",
+            "experience_years": 3,
+            "care_experience": True,
+            "phone": "0914552780",
+            "desired_prefecture": "Tokyo",
+            "desired_employer_type": "vien_duong_lao",
+        },
+    },
+    {
+        "slug": "08_le_van_khoa",
+        "format": "pdf",
+        "layout": "chuan",
+        "note": "Muốn Kyoto (DH-0006 đòi N3 + đại học) nhưng có N5 + trung cấp. Ca kiểm 'nói về điều kiện, không phán về người'.",
+        "content": {
+            "full_name": "LÊ VĂN KHOA",
+            "title": "Hộ lý",
+            "contact": [
+                "Ngày sinh: 22/11/2002",
+                "Giới tính: Nam",
+                "Điện thoại: 0987 331 205",
+                "Email: khoa.le02@gmail.com",
+                "Địa chỉ: Xã Nghi Phú, TP Vinh, tỉnh Nghệ An",
+            ],
+            "sections": [
+                [
+                    "MỤC TIÊU NGHỀ NGHIỆP",
+                    [
+                        "Mong muốn sang Nhật Bản làm hộ lý chăm sóc người cao tuổi.",
+                        "Nguyện vọng làm việc tại Kyoto.",
+                    ],
+                ],
+                [
+                    "HỌC VẤN",
+                    [
+                        "2020 - 2022: Trung cấp Y tế Nghệ An",
+                        "Chuyên ngành: Hộ lý",
+                    ],
+                ],
+                [
+                    "TRÌNH ĐỘ TIẾNG NHẬT",
+                    [
+                        "Chứng chỉ JLPT N5, cấp tháng 07/2025",
+                        "Đang học tiếp lên N4 tại trung tâm.",
+                    ],
+                ],
+                [
+                    "KINH NGHIỆM LÀM VIỆC",
+                    [
+                        "06/2023 - 09/2025: Hộ lý, Bệnh viện Đa khoa TP Vinh",
+                        "Hỗ trợ người bệnh vệ sinh, ăn uống, di chuyển.",
+                        "Tổng thời gian làm việc: 2 năm.",
+                    ],
+                ],
+            ],
+        },
+        "expected": {
+            "full_name": "Lê Văn Khoa",
+            "birth_year": 2002,
+            "gender": "nam",
+            "education_level": "trung_cap",
+            "major": "Hộ lý",
+            "japanese_level": "N5",
+            "experience_years": 2,
+            "care_experience": True,
+            "phone": "0987331205",
+            "desired_prefecture": "Kyoto",
+        },
+    },
 ]

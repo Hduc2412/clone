@@ -79,7 +79,7 @@ export const FAQ: FaqItem[] = [
     topic: "luong_thuong",
     question: "Lương điều dưỡng tại Nhật khoảng bao nhiêu?",
     answer:
-      "Lương cơ bản của các đơn hàng hiện tại nằm trong khoảng 150 đến 240 nghìn yên mỗi tháng, chưa tính phụ cấp ca đêm và làm thêm giờ. Mức cụ thể ghi trong từng đơn ở mục Đơn hàng. Đây là lương trước thuế và bảo hiểm.",
+      "Công ty công bố mức 30 đến 35 triệu đồng mỗi tháng, chưa tính phụ cấp ca đêm và làm thêm giờ. Mức cụ thể của từng đơn ghi bằng yên trong mục Đơn hàng. Đây là lương trước thuế và bảo hiểm.",
     featured: true,
   },
   {

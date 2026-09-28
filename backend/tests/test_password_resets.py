@@ -131,10 +131,54 @@ class HandlingTests(unittest.IsolatedAsyncioTestCase):
         ), patch.object(
             api, "update_staff_password", new=AsyncMock(return_value=True)
         ), patch.object(api, "set_staff_password_flag", new=flag), patch.object(
+            api, "get_staff_user_by_email", new=AsyncMock(return_value=CONSULTANT)
+        ), patch.object(
             store, "mark_done", new=AsyncMock(return_value=staff_request)
         ), patch.object(api, "audit_action", new=AsyncMock()):
             await api.handle_reset("YC-A1B2C3", http_request(), current_user=ADMIN)
         self.assertEqual(flag.await_args.args, (CONSULTANT["email"], True))
+
+    async def _reset_staff(self, *, actor: dict, target: dict):
+        staff_request = pending(subject_type=store.SUBJECT_STAFF, subject_id=target["email"])
+        with patch.object(
+            store, "get_request", new=AsyncMock(return_value=staff_request)
+        ), patch.object(
+            api, "get_staff_user_by_email", new=AsyncMock(return_value=target)
+        ), patch.object(
+            api, "update_staff_password", new=AsyncMock(return_value=True)
+        ), patch.object(
+            api, "set_staff_password_flag", new=AsyncMock(return_value=True)
+        ), patch.object(
+            store, "mark_done", new=AsyncMock(return_value=staff_request)
+        ), patch.object(api, "audit_action", new=AsyncMock()):
+            return await api.handle_reset("YC-A1B2C3", http_request(), current_user=actor)
+
+    async def test_a_manager_cannot_reset_an_admin(self):
+        """Leo thang đặc quyền: đặt lại mật khẩu là chiếm được tài khoản đó.
+
+        Dãy mặc định trả thẳng trong phản hồi để người xử lý đọc lại qua điện
+        thoại. Nếu Quản lý bấm được lên tài khoản Quản trị viên thì họ đọc luôn
+        dãy đó cho chính mình và đăng nhập bằng quyền cao nhất.
+        """
+        with self.assertRaises(HTTPException) as caught:
+            await self._reset_staff(actor=MANAGER, target=ADMIN)
+        self.assertEqual(caught.exception.status_code, 403)
+
+    async def test_a_manager_cannot_reset_another_manager(self):
+        other = {"email": "quan.ly.khac@example.com", "role": "manager"}
+        with self.assertRaises(HTTPException) as caught:
+            await self._reset_staff(actor=MANAGER, target=other)
+        self.assertEqual(caught.exception.status_code, 403)
+
+    async def test_a_manager_can_reset_a_consultant(self):
+        result = await self._reset_staff(actor=MANAGER, target=CONSULTANT)
+        self.assertEqual(result["subject_type"], store.SUBJECT_STAFF)
+
+    async def test_an_admin_can_reset_another_admin(self):
+        """Bỏ điều này thì một Quản trị viên quên mật khẩu là không ai cứu được."""
+        other = {"email": "quan.tri.khac@example.com", "role": "admin"}
+        result = await self._reset_staff(actor=ADMIN, target=other)
+        self.assertEqual(result["subject_type"], store.SUBJECT_STAFF)
 
     async def test_resetting_a_candidate_forces_a_change(self):
         """`reset_password` ở tầng dữ liệu luôn bật lại cờ bắt buộc đổi."""

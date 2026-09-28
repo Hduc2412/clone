@@ -23,6 +23,10 @@
  * đòi ghi công và phần ghi công nằm ở chân trang.
  */
 
+"use client";
+
+import { useState } from "react";
+
 type Variant = "hero" | "soft" | "dark";
 
 const ANH = [
@@ -44,11 +48,12 @@ const ANH = [
 ];
 
 export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant }) {
+  const [paused, setPaused] = useState(false);
   const isDark = variant === "dark";
   const isSoft = variant === "soft";
 
   return (
-    <div aria-hidden className="absolute inset-0 overflow-hidden">
+    <div className={`photo-backdrop absolute inset-0 overflow-hidden ${paused ? "is-paused" : ""}`}>
       {/* Dải màu nằm dưới cùng: ảnh chưa tải xong hay tải hỏng thì trang vẫn tử tế. */}
       <div
         className={
@@ -75,7 +80,7 @@ export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant 
           // hiện sau mười giây nên để trình duyệt tải lúc rảnh.
           loading={i === 0 ? "eager" : "lazy"}
           decoding="async"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="landscape-frame absolute inset-0 h-full w-full object-cover"
           // Hai chuyển động chạy cùng lúc trên chính tấm ảnh: chồng mờ lo phần
           // chuyển tiếp, phóng chậm lo phần "ảnh không đứng yên". Viết bằng
           // style thay vì hai lớp Tailwind vì hai lớp đó cùng đặt thuộc tính
@@ -85,8 +90,9 @@ export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant 
           // trễ về 0, nên để trước thì độ trễ bị xoá và ba tấm chồng lên nhau.
           style={{
             animation:
-              "crossfade 30s linear infinite, kenburns 30s ease-out infinite",
+              "crossfade 30s linear infinite, kenburns 30s ease-in-out infinite alternate",
             animationDelay: anh.delay,
+            animationPlayState: paused ? "paused" : "running",
           }}
         />
       ))}
@@ -96,7 +102,7 @@ export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant 
         className={
           isDark
             ? "absolute inset-0 bg-ink-900/70"
-            : "absolute inset-0 bg-gradient-to-r from-white/95 via-white/82 to-white/40 md:from-white/94 md:via-white/78 md:to-white/12"
+            : "landscape-veil absolute inset-0"
         }
       />
       {/* Chuyển mềm xuống phần nội dung bên dưới, tránh đường cắt ngang gắt.
@@ -108,6 +114,16 @@ export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant 
           isDark ? "bg-gradient-to-t from-ink-900" : "bg-gradient-to-t from-white"
         }`}
       />
+      {!isSoft && !isDark && (
+        <button
+          type="button"
+          aria-pressed={paused}
+          onClick={() => setPaused(!paused)}
+          className="motion-toggle absolute bottom-5 right-5 z-20 min-h-11 rounded-full border border-white/80 bg-white/95 px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-white"
+        >
+          {paused ? "Bật chuyển động nền" : "Tạm dừng nền"}
+        </button>
+      )}
 
       {/* Sóng seigaiha giữ lại từ bản cũ: một nét Nhật Bản do mình vẽ, đặt trên
           ảnh thì thành viền trang trí chứ không tranh chỗ. */}

@@ -8,7 +8,7 @@ Phải lưu lại thay vì chạy lại khi cần, vì đơn hàng có thể đ�
 lại hôm nay cho ra kết quả hôm nay, không phải kết quả đã thực sự hiển thị cho
 ứng viên hôm ấy.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -39,10 +39,33 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[COLLECTION].create_index([("session_id", ASCENDING), ("created_at", DESCENDING)])
     await db[COLLECTION].create_index([("assigned_to", ASCENDING), ("created_at", DESCENDING)])
     await db[COLLECTION].create_index([("created_at", DESCENDING)])
+    # Nhật ký của phiên bỏ dở tự hết hạn.
+    #
+    # Đo ngày 22/09/2026: 18 trong 26 bản nhật ký thuộc những phiên chưa bao giờ
+    # dẫn tới một hồ sơ đăng ký — người ta xem thử kết quả đối chiếu rồi đóng
+    # trang. Mỗi bản nặng vài chục KB, và con số đó lớn lên theo số đơn trong
+    # danh mục, nên đây là thứ phình nhanh nhất trong cả cơ sở dữ liệu.
+    #
+    # Chỉ những bản có `expires_at` mới bị xoá. Bản đã gắn với hồ sơ đăng ký
+    # được gỡ mốc ấy đi (xem `attach_application`) nên sống vĩnh viễn — đó là
+    # bằng chứng cho một quyết định có thật, không được phép biến mất.
+    #
+    # Đây cũng là chuyện giữ dữ liệu cá nhân: bản nhật ký chứa cả bảng đối chiếu
+    # hồ sơ của một người. Không giữ thứ không còn ai cần.
+    await db[COLLECTION].create_index("expires_at", expireAfterSeconds=0)
+
+
+# Giữ bao lâu trước khi xoá, với nhật ký chưa dẫn tới hồ sơ đăng ký nào.
+# Đủ dài để một người cân nhắc rồi quay lại trong vài tháng; đủ ngắn để những
+# lần xem thử rồi thôi không nằm lại mãi.
+GIU_NHAT_KY_NGAY = 90
 
 
 async def create_log(document: dict[str, Any]) -> dict[str, Any]:
-    full = {**document, "created_at": now()}
+    luc_nay = now()
+    full = {**document, "created_at": luc_nay}
+    if not full.get("application_code"):
+        full["expires_at"] = luc_nay + timedelta(days=GIU_NHAT_KY_NGAY)
     await get_db()[COLLECTION].insert_one(full)
     return strip_id(full)
 
@@ -124,6 +147,13 @@ async def list_logs(query: dict[str, Any], *, limit: int = 50) -> list[dict[str,
 
 
 async def attach_application(code: str, application_code: str) -> None:
+    """Gắn nhật ký vào hồ sơ đăng ký, và gỡ luôn hạn xoá.
+
+    Từ lúc này nó là bằng chứng cho một quyết định có thật: ứng viên đã chọn đơn
+    nào, dựa trên kết quả đối chiếu nào. Thứ đó không được tự biến mất sau chín
+    mươi ngày.
+    """
     await get_db()[COLLECTION].update_one(
-        {"code": code}, {"$set": {"application_code": application_code}}
+        {"code": code},
+        {"$set": {"application_code": application_code}, "$unset": {"expires_at": ""}},
     )

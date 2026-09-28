@@ -112,6 +112,7 @@ async def me(user=Depends(get_user_pending_password)):
 async def change_password(
     request: ChangePasswordRequest,
     http_request: Request,
+    response: Response,
     current_user=Depends(get_user_pending_password),
 ):
     user = await get_staff_user_by_email(current_user["email"])
@@ -123,6 +124,19 @@ async def change_password(
     # Xóa nợ đổi mật khẩu. Thiếu dòng này thì người vừa đổi vẫn bị chặn ở mọi
     # trang, và họ sẽ đổi mật khẩu vòng thứ hai mà vẫn không vào được.
     await clear_staff_password_flag(user["email"])
+    # Cấp lại cookie. Mọi token cấp trước lần đổi này vừa bị vô hiệu hóa, kể cả
+    # token của chính người đang đổi — không phát lại thì họ bấm xong là văng ra
+    # màn hình đăng nhập.
+    refreshed = await get_staff_user_by_email(user["email"])
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=create_access_token(refreshed or user),
+        max_age=settings.jwt_expire_minutes * 60,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite="lax",
+        path="/",
+    )
     await audit_action(
         http_request,
         action="auth.password_changed",

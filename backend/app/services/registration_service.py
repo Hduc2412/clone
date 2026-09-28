@@ -22,12 +22,14 @@ viên" từ một lời hứa trong tài liệu thành một điều kiện có 
 Thứ tự này không đảo được: phiếu trỏ tới hồ sơ đăng ký, hồ sơ đăng ký trỏ tới
 khách hàng.
 """
+import logging
 from typing import Any
 
 from pymongo.errors import DuplicateKeyError
 
 from app.core.codes import PREFIX_APPLICATION, PREFIX_LEAD, PREFIX_REPORT, new_code
 from app.db import candidate_documents as documents
+from app.db import job_orders
 from app.db import candidate_profiles as profiles
 from app.db import consultation_reports as reports
 from app.db import recommendation_logs as logs
@@ -42,6 +44,8 @@ from app.db.database import (
 )
 from app.services import matching_service, report_builder
 
+
+logger = logging.getLogger(__name__)
 
 SOURCE_SELF = "self_registration"
 INITIAL_STATUS = "draft"
@@ -77,6 +81,7 @@ async def register(*, session_id: str, job_order_code: str) -> dict[str, Any]:
     # phải cái vừa dùng để kiểm tra.
     log = await _latest_log(profile)
     item = _recommended_item(log, job_order_code)
+    await _ensure_order_still_open(job_order_code)
     profiles.decorate(profile)
 
     lead = await _ensure_lead(full_name=full_name, phone=phone)
@@ -114,18 +119,41 @@ async def register(*, session_id: str, job_order_code: str) -> dict[str, Any]:
             "Nhân viên sẽ liên hệ để trao đổi thêm nhé."
         ) from exc
 
-    report = await _create_report(
-        profile=profile,
-        item=item,
-        application_code=application_code,
-        session_id=session_id,
-    )
-    application = (
-        await update_recruitment_application(
-            application_code, {"report_code": report["code"]}
+    # Phiếu hỏng thì hồ sơ đăng ký vẫn phải sống tiếp.
+    #
+    # Trước ngày 22/09/2026, lời gọi này nằm ngoài mọi `try`. Nó ném lỗi là cả
+    # phần dưới không chạy: khách hàng không được gắn, nhật ký không được nối,
+    # và **thông báo cho nhân viên không bao giờ được gửi**. Trong khi hồ sơ
+    # đăng ký đã nằm trong cơ sở dữ liệu với `is_active = True` — mà chỉ mục
+    # `unique_active_application_per_lead` lại chỉ cho mỗi khách một hồ sơ hoạt
+    # động. Hệ quả: khách bấm đăng ký lại đều nhận 409 "đang có hồ sơ được xử
+    # lý", trong khi thực tế chẳng ai biết họ tồn tại. Một lỗi tạm thời của cơ
+    # sở dữ liệu biến thành một cánh cửa đóng vĩnh viễn.
+    #
+    # Thứ tự ưu tiên ở đây rõ ràng: **yêu cầu của khách quan trọng hơn phiếu**.
+    # Phiếu là tiện ích cho nhân viên và dựng lại được bất cứ lúc nào từ dữ liệu
+    # đã lưu; yêu cầu của khách thì không dựng lại được.
+    report = None
+    try:
+        report = await _create_report(
+            profile=profile,
+            item=item,
+            application_code=application_code,
+            session_id=session_id,
         )
-        or application
-    )
+    except Exception:  # noqa: BLE001 — không lỗi nào được phép nuốt mất đăng ký
+        logger.exception(
+            "Không dựng được phiếu tóm tắt cho hồ sơ %s; hồ sơ vẫn vào hàng đợi",
+            application_code,
+        )
+
+    if report is not None:
+        application = (
+            await update_recruitment_application(
+                application_code, {"report_code": report["code"]}
+            )
+            or application
+        )
 
     await profiles.attach_lead(profile["code"], lead["lead_code"], lead["phone"])
     await logs.attach_application(log["code"], application_code)
@@ -138,7 +166,7 @@ async def register(*, session_id: str, job_order_code: str) -> dict[str, Any]:
             "details": {
                 "job_order_code": item["code"],
                 "match_score": item.get("score"),
-                "report_code": report["code"],
+                "report_code": report["code"] if report else None,
             },
         }
     )
@@ -159,12 +187,51 @@ async def register(*, session_id: str, job_order_code: str) -> dict[str, Any]:
 
 
 async def _latest_log(profile: dict[str, Any]) -> dict[str, Any]:
+    """Nhật ký giới thiệu gần nhất, và nó phải nói về **hồ sơ như hiện tại**.
+
+    Nhật ký là ảnh chụp tại một thời điểm. Giữa lúc chụp và lúc bấm đăng ký, ứng
+    viên vẫn mở được tab hồ sơ và sửa: hạ trình độ tiếng Nhật, đổi năm sinh, bỏ
+    bớt kinh nghiệm. Nếu chỉ lấy bản gần nhất mà không soi lại, đơn từng "đạt"
+    với hồ sơ cũ sẽ đi thẳng vào hàng đợi dưới tên hồ sơ mới — nhân viên gọi
+    điện rồi mới phát hiện người này chưa từng đủ điều kiện.
+
+    `version` tăng mỗi lần hồ sơ đổi, và nhật ký lưu sẵn `profile_version` của
+    lần đối chiếu. Hai số khác nhau nghĩa là ảnh chụp đã lỗi thời — bắt đối
+    chiếu lại chứ không đoán hộ.
+    """
     log = await logs.latest_for_profile(profile["code"])
     if log is None:
         raise RegistrationRejected(
             "Bạn xem danh sách đơn phù hợp trước đã, rồi chọn một đơn để đăng ký nhé."
         )
+    if int(log.get("profile_version", -1)) != int(profile.get("version", 1)):
+        raise RegistrationRejected(
+            "Hồ sơ của bạn vừa thay đổi sau lần xem danh sách gần nhất. "
+            "Bạn xem lại danh sách đơn phù hợp rồi chọn lại giúp mình nhé."
+        )
     return log
+
+
+async def _ensure_order_still_open(job_order_code: str) -> None:
+    """Đơn phải còn nhận hồ sơ **ngay lúc này**, không phải lúc đối chiếu.
+
+    Nhật ký chứng minh đơn từng hợp với hồ sơ này; nó không chứng minh đơn còn
+    mở. Giữa hai thời điểm, đơn có thể đã tuyển đủ, bị tạm dừng, bị gỡ công
+    khai, hoặc đơn giản là qua hạn nộp — hạn nộp không cần ai thao tác vẫn tự
+    tới. Nhận đăng ký vào một đơn đã đóng là hẹn một cuộc gọi chỉ để xin lỗi.
+    """
+    order = await job_orders.get_job_order(job_order_code)
+    dieu_kien = job_orders.public_filter()
+    if (
+        order is None
+        or order.get("published") is not True
+        or order.get("status") != dieu_kien["status"]
+        or str(order.get("deadline") or "") < dieu_kien["deadline"]["$gte"]
+    ):
+        raise RegistrationRejected(
+            "Đơn này vừa ngừng nhận hồ sơ. "
+            "Bạn xem lại danh sách đơn phù hợp rồi chọn đơn khác giúp mình nhé."
+        )
 
 
 def _recommended_item(log: dict[str, Any], job_order_code: str) -> dict[str, Any]:
@@ -202,6 +269,38 @@ async def _ensure_lead(*, full_name: str, phone: str) -> dict[str, Any]:
             "assigned_to": None,
             "note": "Ứng viên tự đăng ký qua kênh tư vấn tự động.",
         }
+    )
+
+
+async def rebuild_report(application: dict[str, Any]) -> dict[str, Any]:
+    """Dựng lại phiếu cho một hồ sơ tự đăng ký đang thiếu phiếu.
+
+    Dựng lại được là vì phiếu **không chứa thông tin nào chỉ tồn tại lúc đăng
+    ký**: tất cả đều chép từ hồ sơ ứng viên, nhật ký giới thiệu đã lưu kèm mã
+    hồ sơ đăng ký, và danh sách tài liệu. Không gọi mô hình ngôn ngữ, không sinh
+    số liệu mới.
+
+    Dùng đúng nhật ký mà hồ sơ đăng ký đã trỏ tới (`recommendation_log_code`),
+    không phải nhật ký mới nhất. Nếu hồ sơ ứng viên đã được sửa từ hôm ấy thì
+    phần đối chiếu vẫn là bản cũ — đúng với thứ ứng viên đã nhìn thấy khi bấm
+    đăng ký. Phần thông tin ứng viên thì lấy bản hiện tại và có kèm số phiên
+    bản, nên nhân viên đọc phiếu biết mình đang xem hồ sơ đời nào.
+    """
+    profile = await profiles.get_by_code(application["profile_code"])
+    if profile is None:
+        raise RegistrationRejected("Không còn hồ sơ ứng viên để dựng lại phiếu.")
+
+    log = await logs.get_log(application.get("recommendation_log_code") or "")
+    if log is None:
+        raise RegistrationRejected("Không còn nhật ký giới thiệu để dựng lại phiếu.")
+
+    item = _recommended_item(log, application["job_order_code"])
+    profiles.decorate(profile)
+    return await _create_report(
+        profile=profile,
+        item=item,
+        application_code=application["application_code"],
+        session_id=application.get("session_id") or "",
     )
 
 

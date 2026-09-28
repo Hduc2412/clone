@@ -11,6 +11,8 @@ __pycache__/
 # Kết quả nghiệm thu là ảnh chụp của một lần chạy trên một máy, không phải mã
 # nguồn. Đưa vào kho thì mỗi lần ai đó chạy lại là một lần xung đột vô nghĩa.
 backend/tests/fixtures/chatbot/ket_qua_gan_nhat.json
+backend/tests/fixtures/cv/ket_qua_doc_cv.json
+backend/tests/fixtures/tu_van/ket_qua_tu_van.json
 
 # Debug files
 debug.html

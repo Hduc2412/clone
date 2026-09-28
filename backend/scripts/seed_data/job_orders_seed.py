@@ -16,6 +16,30 @@ thật qua file Excel. Bộ dữ liệu này được chọn để **chứng min
 
 Hạn nộp ghi theo số ngày kể từ hôm nay thay vì ngày cố định, để bộ dữ liệu không
 tự hết hạn sau vài tuần và làm hỏng bản demo.
+
+## Cố ý KHÔNG có chi phí
+
+Bản trước gán cho mỗi đơn một `cost_total_vnd` tự đặt — 110 triệu, 95 triệu, 85
+triệu… Không con số nào có nguồn; chúng chỉ để bảng dữ liệu trông đầy đặn.
+
+Chúng gây ra một lỗi thật, đo được ngày 25/09/2026. Ứng viên hỏi *"em cần chuẩn
+bị tổng cộng bao nhiêu tiền"*, bot đọc thấy hai con số — 110 triệu của đơn và 35
+triệu học phí thuộc gói 90 triệu theo bảng giá thật của công ty — rồi tự nối
+chúng: *"tổng 110 triệu, **trong đó** học phí 35 triệu"*. Với người đang tính
+chuyện vay tiền đi nước ngoài, chữ "trong đó" ấy là khác biệt giữa chuẩn bị 110
+triệu và chuẩn bị 145 triệu.
+
+Gốc rễ không phải mô hình nói sai mà là **hai nguồn chi phí mâu thuẫn**, trong đó
+một nguồn do tôi bịa ra. Nên bỏ hẳn: chi phí chỉ còn đúng một nguồn là bảng giá
+chương trình đọc từ trang của công ty (10 đăng ký + 35 học tiếng + 45 xuất cảnh).
+
+Trường `cost_total_vnd` vẫn còn trong lược đồ đơn, biểu mẫu quản trị và file
+Excel nhập liệu — đơn thật có chi phí riêng thì khai bình thường. Chỉ dữ liệu mẫu
+là không được bịa.
+
+Hệ quả cần biết: tiêu chí mềm "khả năng chi phí" (10 điểm trên 100) nay luôn ra
+"chưa rõ" với đơn mẫu. Đó là đúng — chưa biết thì không chấm, và tiêu chí mềm
+không bao giờ loại ai.
 """
 
 # Mỗi phần tử là dạng "người đọc được"; script seed sẽ chuẩn hóa và bổ sung
@@ -39,7 +63,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 195000,
         "salary_max": 215000,
         "allowances": ["Hỗ trợ ký túc xá", "Phụ cấp ca đêm", "Phụ cấp đi lại"],
-        "cost_total_vnd": 110_000_000,
         "interview_in_days": 30,
         "departure_expected": "2027-03",
         "highlights": [
@@ -68,7 +91,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 180000,
         "salary_max": 200000,
         "allowances": ["Ký túc xá miễn phí", "Hỗ trợ học tiếng Nhật"],
-        "cost_total_vnd": 35_000_000,
         "interview_in_days": 45,
         "departure_expected": "2027-04",
         "highlights": [
@@ -97,7 +119,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 160000,
         "salary_max": 170000,
         "allowances": ["Hỗ trợ tiền nhà", "Phụ cấp chuyên cần"],
-        "cost_total_vnd": 95_000_000,
         "interview_in_days": 21,
         "departure_expected": "2027-02",
         "highlights": ["Không yêu cầu kinh nghiệm", "Tuyển số lượng lớn"],
@@ -123,7 +144,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 190000,
         "salary_max": 205000,
         "allowances": ["Hỗ trợ ký túc xá", "Phụ cấp ca đêm"],
-        "cost_total_vnd": 105_000_000,
         "interview_in_days": 40,
         "departure_expected": "2027-05",
         "highlights": ["Nhận ứng viên trung cấp", "Khoảng tuổi rộng"],
@@ -149,7 +169,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 185000,
         "salary_max": 200000,
         "allowances": ["Hỗ trợ ký túc xá", "Bao ăn ca"],
-        "cost_total_vnd": 100_000_000,
         "interview_in_days": 35,
         "departure_expected": "2027-04",
         "highlights": ["Cộng đồng người Việt đông", "Chi phí sinh hoạt vừa phải"],
@@ -175,7 +194,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 190000,
         "salary_max": 210000,
         "allowances": ["Ký túc xá giá ưu đãi", "Hỗ trợ thi chứng chỉ"],
-        "cost_total_vnd": 30_000_000,
         "interview_in_days": 25,
         "departure_expected": "2027-04",
         "highlights": ["Yêu cầu cao nhưng chi phí thấp", "Môi trường bệnh viện lớn"],
@@ -201,7 +219,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 158000,
         "salary_max": 168000,
         "allowances": ["Ký túc xá gần nơi làm việc", "Phụ cấp chuyên cần"],
-        "cost_total_vnd": 90_000_000,
         "interview_in_days": 20,
         "departure_expected": "2027-03",
         "highlights": ["Tuyển nhiều", "Yêu cầu tiếng Nhật ở mức cơ bản"],
@@ -227,7 +244,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 185000,
         "salary_max": 200000,
         "allowances": ["Hỗ trợ ký túc xá", "Phụ cấp ca đêm", "Thưởng hai kỳ"],
-        "cost_total_vnd": 100_000_000,
         "interview_in_days": 55,
         "departure_expected": "2027-06",
         "highlights": ["Khoảng tuổi rộng nhất trong các đơn đang tuyển", "Có thưởng hai kỳ"],
@@ -253,7 +269,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 155000,
         "salary_max": 165000,
         "allowances": ["Hỗ trợ tiền nhà"],
-        "cost_total_vnd": 85_000_000,
         "interview_in_days": 28,
         "departure_expected": "2027-03",
         "highlights": ["Không yêu cầu bằng cấp chuyên ngành", "Chi phí thấp nhất nhóm thực tập sinh"],
@@ -279,7 +294,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 175000,
         "salary_max": 195000,
         "allowances": ["Ký túc xá miễn phí", "Phụ cấp vùng lạnh"],
-        "cost_total_vnd": 35_000_000,
         "interview_in_days": 50,
         "departure_expected": "2027-05",
         "highlights": ["Chi phí thấp", "Khí hậu mát mẻ, gần khu nghỉ dưỡng"],
@@ -305,7 +319,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 180000,
         "salary_max": 195000,
         "allowances": ["Hỗ trợ ký túc xá", "Bao ăn ca"],
-        "cost_total_vnd": 98_000_000,
         "interview_in_days": 38,
         "departure_expected": "2027-04",
         "highlights": ["Chi phí sinh hoạt thấp", "Gần sân bay quốc tế"],
@@ -331,7 +344,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 152000,
         "salary_max": 162000,
         "allowances": ["Ký túc xá miễn phí", "Phụ cấp chuyên cần"],
-        "cost_total_vnd": 88_000_000,
         "interview_in_days": 60,
         "departure_expected": "2027-07",
         "highlights": ["Số lượng tuyển lớn nhất", "Hạn nộp còn dài"],
@@ -357,7 +369,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 178000,
         "salary_max": 198000,
         "allowances": ["Ký túc xá giá ưu đãi", "Hỗ trợ thi chứng chỉ"],
-        "cost_total_vnd": 32_000_000,
         "interview_in_days": 30,
         "departure_expected": "2027-05",
         "highlights": ["Diện EPA", "Số lượng ít, cạnh tranh cao"],
@@ -383,7 +394,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 175000,
         "salary_max": 190000,
         "allowances": ["Ký túc xá có sưởi", "Phụ cấp vùng lạnh"],
-        "cost_total_vnd": 95_000_000,
         "interview_in_days": 48,
         "departure_expected": "2027-06",
         "highlights": ["Phụ cấp vùng lạnh", "Yêu cầu một năm kinh nghiệm"],
@@ -409,7 +419,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 200000,
         "salary_max": 225000,
         "allowances": ["Phụ cấp đi lại", "Thưởng hiệu suất"],
-        "cost_total_vnd": 105_000_000,
         "interview_in_days": 33,
         "departure_expected": "2027-05",
         "highlights": ["Mức lương cao nhất nhóm chăm sóc tại gia", "Yêu cầu tiếng Nhật N3"],
@@ -435,7 +444,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 150000,
         "salary_max": 160000,
         "allowances": ["Ký túc xá miễn phí"],
-        "cost_total_vnd": 85_000_000,
         "interview_in_days": 8,
         "departure_expected": "2027-02",
         "highlights": ["Sắp hết hạn nộp hồ sơ", "Phỏng vấn sớm"],
@@ -462,7 +470,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 220000,
         "salary_max": 240000,
         "allowances": ["Phụ cấp trung tâm thành phố", "Thưởng hai kỳ"],
-        "cost_total_vnd": 120_000_000,
         "interview_in_days": -30,
         "departure_expected": "2027-01",
         "highlights": ["Mức lương cao nhất", "Đã quá hạn nộp hồ sơ"],
@@ -489,7 +496,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 185000,
         "salary_max": 205000,
         "allowances": ["Ký túc xá miễn phí"],
-        "cost_total_vnd": 33_000_000,
         "interview_in_days": 65,
         "departure_expected": "2027-06",
         "highlights": ["Đang soạn thảo, chưa công bố"],
@@ -516,7 +522,6 @@ JOB_ORDERS_SEED: list[dict] = [
         "salary_min": 188000,
         "salary_max": 202000,
         "allowances": ["Hỗ trợ ký túc xá", "Phụ cấp đi lại"],
-        "cost_total_vnd": 100_000_000,
         "interview_in_days": 42,
         "departure_expected": "2027-05",
         "highlights": ["Đang tạm dừng nhận hồ sơ"],

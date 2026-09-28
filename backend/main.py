@@ -1,7 +1,9 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
+from app.api.journey import router as journey_router
 from app.api.analytics import router as analytics_router
 from app.api.appointments import appointment_router, notification_router
 from app.api.management import router as management_router
@@ -13,6 +15,11 @@ from app.api.documents import public_router as public_document_router
 from app.api.documents import router as document_router
 from app.api.job_orders import public_router as public_job_order_router
 from app.api.job_orders import router as job_order_router
+from app.advisor import client as advisor_client
+from app.api.consultation_room import public_router as public_consultation_room_router
+from app.api.consultation_room import router as advisor_router
+from app.api.support import public_router as public_support_router
+from app.api.support import router as support_router
 from app.api.matching import public_router as public_match_router
 from app.api.matching import router as recommendation_log_router
 from app.api.profiles import public_router as public_profile_router
@@ -31,6 +38,19 @@ from app.core.config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Ghi ngay tình trạng khóa của engine tư vấn. Biết mình đang dùng chung hạn
+    # mức với khung chat là thứ phải thấy ở dòng log đầu tiên, không phải thứ
+    # phát hiện ra giữa buổi demo khi câu trả lời bỗng nhạt đi.
+    # Bật log mức INFO cho log của ứng dụng. Uvicorn chỉ dựng handler cho logger
+    # của chính nó, nên nếu không có dòng này thì mọi `logger.info` của app rơi
+    # vào hư không — và dòng xác nhận "engine tư vấn dùng khóa riêng" không bao
+    # giờ hiện. Khi ấy người vận hành chỉ còn cách suy từ việc **vắng** một dòng
+    # cảnh báo, mà vắng thì cũng có thể vì log hỏng.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s:     %(message)s",
+    )
+    advisor_client.bao_cau_hinh()
     yield
     await close_db()
 
@@ -47,6 +67,7 @@ app.add_middleware(
 )
 
 app.include_router(chat_router)
+app.include_router(journey_router)
 app.include_router(analytics_router)
 app.include_router(appointment_router)
 app.include_router(notification_router)
@@ -59,6 +80,10 @@ app.include_router(public_job_order_router)
 app.include_router(job_order_router)
 app.include_router(public_profile_router)
 app.include_router(profile_router)
+app.include_router(public_consultation_room_router)
+app.include_router(advisor_router)
+app.include_router(public_support_router)
+app.include_router(support_router)
 app.include_router(public_match_router)
 app.include_router(recommendation_log_router)
 app.include_router(public_document_router)

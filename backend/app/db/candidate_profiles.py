@@ -285,6 +285,41 @@ async def list_profiles(query: dict[str, Any], *, limit: int = 100) -> list[dict
     return await cursor.to_list(length=limit)
 
 
+def _chi_so(so: Any) -> str | None:
+    """Số điện thoại ở dạng chuẩn để tra ngược, hoặc `None` nếu không đọc được.
+
+    Không ném lỗi: đây là việc phụ trợ cho tra cứu, không được phép làm hỏng một
+    lần lưu hồ sơ vốn đã hợp lệ. Số sai định dạng thì đơn giản là không tra
+    ngược được, chứ không mất luôn cả hồ sơ.
+    """
+    from app.core.phone import normalize_vietnamese_phone
+
+    try:
+        return normalize_vietnamese_phone(str(so))
+    except ValueError:
+        return None
+
+
+async def tim_ho_so_trung_so(
+    phone_normalized: str, *, tru_ma: str | None = None
+) -> list[dict[str, Any]]:
+    """Những hồ sơ khác cùng số điện thoại — để nhân viên đối chiếu, không tự gộp.
+
+    Trả về bản rút gọn: nhân viên chỉ cần biết *có* hồ sơ khác và nó trông thế
+    nào để quyết định có phải cùng một người hay không.
+    """
+    if not phone_normalized:
+        return []
+    truy_van: dict[str, Any] = {"phone_normalized": phone_normalized}
+    if tru_ma:
+        truy_van["code"] = {"$ne": tru_ma}
+    cursor = get_db()[COLLECTION].find(
+        truy_van,
+        {"_id": 0, "code": 1, "status": 1, "created_at": 1, "fields.full_name": 1},
+    ).sort("created_at", -1).limit(10)
+    return [row async for row in cursor]
+
+
 async def apply_changes(
     session_id: str,
     *,
@@ -316,6 +351,21 @@ async def apply_changes(
         changes["consultation"] = consultation
     if confirmed_at is not None:
         changes["confirmed_at"] = confirmed_at
+
+    # Ghi chỉ mục số điện thoại ngay khi biết số, đừng đợi tới lúc đăng ký đơn.
+    #
+    # Trước 22/09/2026 `phone_normalized` chỉ được đặt trong `attach_lead`, tức
+    # chỉ khi ứng viên đã chọn đơn và bấm đăng ký. Đo trên dữ liệu thật:
+    # **5 trên 88 hồ sơ** có nó. Tám mươi ba hồ sơ còn lại có số điện thoại nằm
+    # trong `fields.phone` nhưng không tra ngược được, nên cùng một người quay
+    # lại là thành một hồ sơ mới toanh, không ai biết.
+    #
+    # Chỉ ghi chỉ mục, **không tự gộp hồ sơ**: hai anh em dùng chung một số, hay
+    # một người khai nhầm một chữ số, mà gộp tự động thì hai người dính vào nhau
+    # và gỡ ra rất khó. Việc gộp để nhân viên quyết sau khi gọi điện xác minh.
+    so_dien_thoai = (fields.get("phone") or {}).get("value")
+    if so_dien_thoai:
+        changes["phone_normalized"] = _chi_so(so_dien_thoai)
 
     return await get_db()[COLLECTION].find_one_and_update(
         {"session_id": session_id, "version": expected_version},

@@ -2,9 +2,12 @@
 Intent Classifier — Sprint 2
 Phân loại câu hỏi của user thuộc nhóm nào.
 """
+import logging
 import re
 
 from app.rag.taxonomy import normalize_text
+
+logger = logging.getLogger(__name__)
 
 INTENT_PATTERNS = {
     "chi_phi": [
@@ -118,5 +121,13 @@ def classify(query: str) -> str:
     if scores[best_intent] == 0:
         return "chung"
 
-    print(f"[IntentClassifier] '{query}' → {best_intent} (score: {scores[best_intent]})")
+    # Ghi kết quả phân loại, không ghi câu hỏi. Câu của khách có thể chứa tên,
+    # số điện thoại hay tình trạng sức khoẻ; log máy chủ không phải chỗ để những
+    # thứ đó nằm lại.
+    logger.debug(
+        "Phân loại ý định: %s (điểm %d, câu dài %d ký tự)",
+        best_intent,
+        scores[best_intent],
+        len(query),
+    )
     return best_intent

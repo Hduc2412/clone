@@ -96,7 +96,7 @@ export default function SystemPage() {
         <SectionHeading
           eyebrow="Cách dùng"
           title="Ba bước"
-          lead="Dừng ở bước nào cũng được. Thông tin đã nhập vẫn nằm trên máy của bạn, quay lại là thấy."
+          lead="Dừng ở bước nào cũng được. Thông tin đã nhập được giữ lại cho phiên của bạn, quay lại là thấy."
         />
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_1fr]">
           <Steps items={BA_BUOC} />

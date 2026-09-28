@@ -22,6 +22,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.auth.security import get_current_user
+from app.auth.journey_security import require_journey_session
+from app.core.session_id import SESSION_PATTERN
 from app.core.rate_limit import client_ip, rate_limiter
 from app.db import candidate_accounts
 from app.db import consultation_reports as reports
@@ -43,14 +45,16 @@ from app.services.assignment import (
 from app.services.audit_service import audit_action
 
 
-public_router = APIRouter(prefix="/public/registrations", tags=["Đăng ký sơ bộ (công khai)"])
+public_router = APIRouter(
+    prefix="/public/registrations",
+    tags=["Đăng ký sơ bộ (công khai)"],
+    dependencies=[Depends(require_journey_session)],
+)
 router = APIRouter(
     prefix="/registrations",
     tags=["Đăng ký sơ bộ"],
     dependencies=[Depends(get_current_user)],
 )
-
-SESSION_PATTERN = r"^[A-Za-z0-9_-]{8,64}$"
 
 
 class RegisterRequest(BaseModel):
@@ -364,10 +368,67 @@ async def registration_report(
 
     report = await reports.get_by_application(application_code)
     if report is None:
+        # Hai nguyên nhân khác hẳn nhau, và nhân viên cần biết mình đang gặp
+        # cái nào. Hồ sơ do nhân viên tạo tay thì vốn không có phiếu — bình
+        # thường. Hồ sơ do ứng viên tự đăng ký mà thiếu phiếu thì là **hỏng**:
+        # lúc đăng ký việc dựng phiếu đã thất bại. Câu cũ gộp cả hai làm một và
+        # khẳng định sai rằng hồ sơ "được tạo tay".
+        if application.get("source") == registration_service.SOURCE_SELF:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Hồ sơ này chưa dựng được phiếu tóm tắt lúc ứng viên đăng ký. "
+                    "Bấm 'Dựng lại phiếu' để tạo từ dữ liệu đã lưu."
+                ),
+            )
         raise HTTPException(
             status_code=404,
             detail="Hồ sơ này chưa có phiếu tóm tắt (được tạo tay, không qua đăng ký sơ bộ).",
         )
+    return report
+
+
+@router.post("/{application_code}/dung-lai-phieu")
+async def rebuild_registration_report(
+    application_code: str,
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    """Dựng lại phiếu tóm tắt cho hồ sơ tự đăng ký bị thiếu phiếu.
+
+    Việc dựng phiếu lúc đăng ký có thể thất bại — cơ sở dữ liệu trục trặc một
+    nhịp là đủ. Khi đó hồ sơ vẫn vào hàng đợi (yêu cầu của khách quan trọng hơn
+    phiếu), nhưng nhân viên mở ra thì không có gì để đọc.
+
+    Phiếu dựng lại được vì nó **hoàn toàn là bản chụp dữ liệu đã lưu**: hồ sơ
+    ứng viên, nhật ký giới thiệu, tài liệu đã gửi. Không có gì phải sinh mới,
+    không gọi mô hình ngôn ngữ, nên phiếu dựng lại hôm nay giống hệt phiếu lẽ
+    ra đã có hôm đăng ký — trừ phần hồ sơ ứng viên nếu nó đã được sửa từ đó,
+    và chính vì vậy phiếu ghi kèm số phiên bản hồ sơ.
+    """
+    application = await _load(application_code)
+    if application.get("assigned_to") and not can_access(application, current_user):
+        raise HTTPException(status_code=403, detail="Hồ sơ này do người khác phụ trách.")
+
+    existing = await reports.get_by_application(application_code)
+    if existing is not None:
+        # Không dựng đè. Phiếu cũ là bản chụp tại thời điểm đăng ký; dựng đè sẽ
+        # âm thầm thay nó bằng bản chụp hôm nay.
+        raise HTTPException(status_code=409, detail="Hồ sơ này đã có phiếu tóm tắt.")
+
+    try:
+        report = await registration_service.rebuild_report(application)
+    except registration_service.RegistrationRejected as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    await create_application_event(
+        {
+            "application_code": application_code,
+            "action": "report_rebuilt",
+            "actor_email": current_user["email"],
+            "actor_name": current_user["full_name"],
+            "details": {"report_code": report["code"]},
+        }
+    )
     return report
 
 

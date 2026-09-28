@@ -50,6 +50,10 @@ async def load_pool() -> list[dict[str, Any]]:
     return await job_orders.list_job_orders(dict(POOL_QUERY), limit=500)
 
 
+class DonKhongCo(Exception):
+    """Mã đơn không có trong danh mục đang công khai."""
+
+
 async def run_matching(
     profile: dict[str, Any],
     *,
@@ -57,11 +61,28 @@ async def run_matching(
     actor_email: str | None = None,
     as_of: date | None = None,
     force: bool = False,
+    chi_don: str | None = None,
 ) -> tuple[dict[str, Any], bool]:
-    """Chạy đối chiếu và ghi nhật ký. Trả về bản ghi và cờ cho biết có dùng lại không."""
+    """Chạy đối chiếu và ghi nhật ký. Trả về bản ghi và cờ cho biết có dùng lại không.
+
+    `chi_don` giới hạn danh mục xuống **đúng một đơn**, cho luồng tư vấn theo đơn:
+    khách đang xem một đơn cụ thể và hỏi "tôi có hợp đơn này không".
+
+    Bộ đối chiếu không phải sửa gì — nó vốn nhận một danh sách, truyền vào một
+    phần tử là xong. Nhật ký vẫn ghi như thường, nên mọi chốt chặn của luồng
+    đăng ký (phải có trong nhật ký, phải đạt điều kiện, phải đúng phiên bản hồ
+    sơ) vẫn áp dụng nguyên vẹn — luồng mới **không nới điều nào**.
+
+    Bộ nhớ đệm không lẫn giữa hai luồng: khóa đệm gồm `orders_fingerprint`, mà
+    vân tay của một đơn khác hẳn vân tay của cả danh mục.
+    """
     reference_date = as_of or local_today()
     weights = load_weights()
     pool = await load_pool()
+    if chi_don is not None:
+        pool = [don for don in pool if don.get("code") == chi_don]
+        if not pool:
+            raise DonKhongCo(chi_don)
     fingerprint = orders_fingerprint(pool)
 
     if not force:
@@ -96,11 +117,68 @@ async def run_matching(
         "eligible_count": payload["eligible_count"],
         "top_codes": [item.code for item in result.top(DEFAULT_TOP_N)],
         "missing_info": payload["missing_info"],
-        "items": payload["items"],
+        "items": [_gon_lai(item) for item in payload["items"]],
         "trigger": trigger,
         "actor_email": actor_email,
     }
     return await recommendation_logs.create_log(document), False
+
+
+def _gon_lai(item: dict[str, Any]) -> dict[str, Any]:
+    """Rút gọn một đơn **bị loại** trước khi lưu vào nhật ký.
+
+    ## Đo được gì
+
+    Một bản nhật ký nặng 50 KB — bằng 140 tin nhắn chat — và chiếm 68% toàn bộ
+    cơ sở dữ liệu dù chỉ có 26 bản ghi. Bóc ra: 49/50 KB là mảng `items`, trong
+    đó **37 KB là 15 đơn bị loại**. Mỗi đơn mang đủ bảy dòng tiêu chí, mà với đơn
+    đã trượt thì năm sáu dòng trong đó ghi "ĐẠT" — chúng không nói gì về lý do
+    trượt, chỉ tốn chỗ.
+
+    Con số này còn xấu đi theo quy mô: nó tỉ lệ thuận với số đơn trong danh mục.
+    Mười tám đơn cho 50 KB; hai trăm đơn thì một lần đối chiếu là nửa megabyte.
+
+    ## Giữ lại đúng thứ cần cho việc đối chứng
+
+    Nhật ký tồn tại để trả lời hai câu: *bộ lọc có chạy không* và *vì sao đơn này
+    trượt*. Nên đơn bị loại giữ lại những dòng **không đạt** cùng `gaps` và
+    `missing_info`, thêm `hard_rows_passed` đếm số dòng đã đạt — đủ chứng minh
+    cả bảy tiêu chí đều được xét. Phần bỏ đi là các dòng đạt, và `soft_rows` vốn
+    luôn rỗng với đơn bị loại vì bộ đối chiếu không chấm điểm đơn đã trượt.
+
+    Đơn **đạt** giữ nguyên không đụng tới: ứng viên xem được bảng lý do đầy đủ
+    của chúng, và phiếu bàn giao dựng lại khối giải thích từ chính dữ liệu này.
+    """
+    gon = {
+        **item,
+        "hard_rows": [_bo_nhan_suy_ra(row) for row in item.get("hard_rows") or []],
+        "soft_rows": [_bo_nhan_suy_ra(row) for row in item.get("soft_rows") or []],
+    }
+    if item.get("eligible"):
+        return gon
+
+    tat_ca = gon["hard_rows"]
+    khong_dat = [row for row in tat_ca if row.get("result") != engine.DAT]
+    gon["hard_rows"] = khong_dat
+    gon["hard_rows_passed"] = len(tat_ca) - len(khong_dat)
+    # `soft_rows` của đơn bị loại luôn rỗng; bỏ hẳn khóa cho gọn bản ghi.
+    gon.pop("soft_rows", None)
+    return gon
+
+
+def _bo_nhan_suy_ra(row: dict[str, Any]) -> dict[str, Any]:
+    """Bỏ nhãn hiển thị suy ra được, đừng lưu bản sao của nó.
+
+    `result_label` chỉ là `RESULT_LABELS[result]`. Lưu nó vào từng dòng, của
+    từng đơn, của từng lần đối chiếu là nhân bản cùng một chuỗi hàng nghìn lần:
+    đo được 109 KB trên 26 bản nhật ký, tức 7% toàn bộ cơ sở dữ liệu.
+
+    Không mất gì khi đọc: `CriterionRow.as_dict()` sinh lại nhãn từ `result`,
+    nên API vẫn trả về đủ như cũ. Và làm vậy còn đúng hơn — sửa cách gọi tên một
+    kết quả thì mọi bản ghi cũ hiển thị theo tên mới, thay vì đóng băng tên cũ
+    trong dữ liệu.
+    """
+    return {khoa: gia_tri for khoa, gia_tri in row.items() if khoa != "result_label"}
 
 
 def to_public_payload(log: dict[str, Any], *, limit: int) -> dict[str, Any]:

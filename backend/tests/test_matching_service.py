@@ -177,7 +177,70 @@ class RunMatchingTests(unittest.IsolatedAsyncioTestCase):
             if not item["eligible"]:
                 self.assertEqual(item["score"], 0)
                 self.assertIsNone(item["rank"])
-                self.assertEqual(item["soft_rows"], [])
+                # Đơn bị loại không được chấm điểm mềm, nên khóa `soft_rows` bị
+                # bỏ hẳn khỏi bản ghi thay vì lưu một mảng rỗng — xem
+                # `matching_service._gon_lai`. Bên đọc dùng `.get(...)` nên
+                # không vỡ.
+                self.assertNotIn("soft_rows", item)
+
+
+class NhatKyKhongGiuThuThuaTests(unittest.IsolatedAsyncioTestCase):
+    """Nhật ký đối chiếu là thứ phình nhanh nhất trong cả cơ sở dữ liệu.
+
+    Đo ngày 22/09/2026: 26 bản nhật ký chiếm 68% toàn bộ dữ liệu, mỗi bản ~50 KB
+    — bằng 140 tin nhắn chat. Và con số đó lớn lên theo số đơn trong danh mục:
+    mười tám đơn cho 50 KB thì hai trăm đơn là nửa megabyte mỗi lần đối chiếu.
+
+    Ba thứ được cắt, theo đúng thứ tự hiệu quả đo được:
+
+    1. **18/26 bản thuộc phiên bỏ dở** — xem thử rồi đóng trang, không dẫn tới
+       hồ sơ đăng ký nào. Những bản này tự hết hạn.
+    2. **Dòng "ĐẠT" của đơn đã trượt** — 931 dòng, 228 KB. Chúng không nói gì về
+       lý do trượt.
+    3. **`result_label`** — 109 KB nhân bản của một chuỗi suy ra được.
+
+    Cắt nhưng không được mất khả năng đối chứng: nhật ký vẫn phải trả lời được
+    *bộ lọc có chạy không* và *vì sao đơn này trượt*.
+    """
+
+    setUp = RunMatchingTests.setUp
+    _patches = RunMatchingTests._patches
+    _run = RunMatchingTests._run
+
+    async def test_don_bi_loai_van_noi_duoc_vi_sao_no_truot(self):
+        log, _, _ = await self._run()
+        bi_loai = [item for item in log["items"] if not item["eligible"]]
+        self.assertTrue(bi_loai, "cần ít nhất một đơn bị loại để kiểm")
+
+        for item in bi_loai:
+            ly_do = [row for row in item["hard_rows"] if row["result"] != "DAT"]
+            self.assertTrue(ly_do, f"{item['code']} bị loại mà không còn dòng nào nói lý do")
+
+    async def test_van_chung_minh_duoc_du_bay_tieu_chi_deu_da_xet(self):
+        """Bỏ dòng đạt nhưng giữ số đếm — vẫn trả lời được 'bộ lọc có chạy không'."""
+        log, _, _ = await self._run()
+        for item in log["items"]:
+            if item["eligible"]:
+                continue
+            da_xet = len(item["hard_rows"]) + item["hard_rows_passed"]
+            self.assertEqual(da_xet, 7, f"{item['code']} phải xét đủ 7 tiêu chí cứng")
+
+    async def test_khong_luu_nhan_suy_ra_duoc(self):
+        log, _, _ = await self._run()
+        for item in log["items"]:
+            for row in item.get("hard_rows", []) + item.get("soft_rows", []):
+                self.assertNotIn("result_label", row)
+
+    async def test_don_dat_giu_nguyen_bang_ly_do_day_du(self):
+        """Đơn đạt là thứ ứng viên nhìn thấy — không được rút gọn."""
+        log, _, _ = await self._run()
+        dat = [item for item in log["items"] if item["eligible"]]
+        self.assertTrue(dat)
+
+        for item in dat:
+            self.assertEqual(len(item["hard_rows"]), 7)
+            self.assertTrue(item["soft_rows"])
+            self.assertNotIn("hard_rows_passed", item)
 
     async def test_the_log_carries_everything_needed_to_reproduce_the_run(self):
         log, _, _ = await self._run()

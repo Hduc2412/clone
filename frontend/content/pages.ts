@@ -54,26 +54,49 @@ export const PROGRAMS = [
   },
 ] as const;
 
+/**
+ * Điều kiện **mức nền của chương trình** — không phải điều kiện của một đơn cụ thể.
+ *
+ * Sửa ngày 24/09/2026 cho khớp trang điều kiện chính thức của công ty
+ * (`xklddieuduong.vn/?product=dieu-kien-di-nhat-o-don-hang-dieu-duong`). Bản cũ
+ * lấy yêu cầu của một đơn diện kỹ năng đặc định rồi trình bày như mức chung, và
+ * hai dòng sai theo hướng nguy hiểm nhất: **loại oan người đủ điều kiện**.
+ *
+ * Dòng bằng cấp ghi "Trung cấp Điều dưỡng trở lên" trong khi công ty không yêu
+ * cầu bằng cấp. Một người không có bằng đọc trang này sẽ tự loại mình rồi bỏ đi
+ * — mất khách vì chính trang giới thiệu của mình.
+ *
+ * Dòng sức khỏe ghi "13 nhóm bệnh theo Bộ Y tế" thì không có nguồn nào: công ty
+ * nêu ba bệnh truyền nhiễm cụ thể, không nhắc tới danh mục nào của Bộ Y tế.
+ *
+ * Mỗi đơn vẫn có điều kiện riêng chặt hơn mức nền này, và trang chi tiết đơn
+ * hiện đúng điều kiện của đơn đó.
+ */
 export const CONDITIONS = [
   {
     criterion: "Độ tuổi",
-    requirement: "18 đến 35 tuổi",
-    note: "Một số đơn hàng nhận tới 40 tuổi, xem điều kiện từng đơn",
+    requirement: "18 đến 40 tuổi, cả nam và nữ",
+    note: "Từng đơn hàng có khoảng tuổi riêng hẹp hơn, xem điều kiện từng đơn",
   },
   {
     criterion: "Bằng cấp",
-    requirement: "Trung cấp Điều dưỡng trở lên",
-    note: "Một số đơn thực tập sinh nhận tốt nghiệp trung học phổ thông",
+    requirement: "Không yêu cầu bằng cấp",
+    note: "Có bằng y, điều dưỡng hoặc dược là một lợi thế. Một số đơn hàng yêu cầu bằng cụ thể",
   },
   {
     criterion: "Tiếng Nhật",
-    requirement: "N5 đến N3 tùy diện chương trình",
-    note: "Chưa biết tiếng vẫn đăng ký được, học trước khi xuất cảnh",
+    requirement: "Chưa biết tiếng vẫn đăng ký được",
+    note: "Học tại trung tâm trước khi bay. Từng đơn yêu cầu N5 đến N3 tùy diện chương trình",
   },
   {
     criterion: "Sức khỏe",
-    requirement: "Đủ điều kiện theo danh mục của Bộ Y tế",
-    note: "Khám tại bệnh viện được chỉ định, có 13 nhóm bệnh không đủ điều kiện",
+    requirement: "Khỏe mạnh, không nhiễm bệnh truyền nhiễm",
+    note: "Viêm gan B, HIV, bệnh lao là những bệnh không đủ điều kiện. Khám tại bệnh viện được chỉ định mới có kết luận",
+  },
+  {
+    criterion: "Ngoại hình",
+    requirement: "Không yêu cầu chiều cao, cân nặng",
+    note: "Mắt cận đeo kính vẫn đi được",
   },
   {
     criterion: "Hình xăm",
@@ -87,47 +110,62 @@ export const CONDITIONS = [
   },
   {
     criterion: "Kinh nghiệm",
-    requirement: "Không bắt buộc với phần lớn đơn hàng",
+    requirement: "Không yêu cầu kinh nghiệm",
     note: "Một số đơn lương cao yêu cầu từ một đến hai năm chăm sóc",
   },
 ] as const;
 
+/**
+ * Chi phí — ba chặng đóng tiền, tổng 90 triệu.
+ *
+ * Viết lại ngày 28/09/2026 theo đúng trang chi phí chính thức của công ty
+ * (`xklddieuduong.vn/?product=chi-phi-di-don-dieu-duong-tron-goi-la-90-trieu`).
+ *
+ * Bản cũ toàn chữ chung chung — "Theo hợp đồng", "Theo khóa học" — trong khi
+ * công ty nói thẳng từng con số. Người đọc rời trang mà vẫn không biết mình phải
+ * chuẩn bị bao nhiêu, đúng câu hỏi họ vào đây để tìm.
+ *
+ * Bản cũ còn có một dòng sai hẳn: "Khám sức khỏe · Khoảng 1 triệu đồng · Đóng
+ * trực tiếp cho bệnh viện". Công ty ghi rõ *"công ty sẽ đưa đi khám không mất
+ * tiền"*. Con số 1 triệu ấy không có nguồn nào, và nó sai theo hướng tệ nhất:
+ * dọa người ta bằng một khoản họ không phải trả.
+ */
 export const COSTS = [
   {
-    item: "Phí dịch vụ",
-    amount: "Theo hợp đồng",
-    when: "Sau khi trúng tuyển đơn hàng",
-    note: "Mức trần do pháp luật quy định, ghi rõ trong hợp đồng",
+    item: "1. Khi đăng ký — đặt cọc",
+    amount: "10 triệu đồng",
+    when: "Lúc nộp hồ sơ đăng ký đơn",
+    note: "Phỏng vấn không đỗ thì công ty trả lại luôn. Đỗ thì tính vào chi phí đã đóng",
   },
   {
-    item: "Đào tạo tiếng Nhật",
-    amount: "Theo khóa học",
-    when: "Đóng theo từng giai đoạn học",
-    note: "Diện EPA được hỗ trợ phần lớn chi phí này",
+    item: "2. Khi nhập học tiếng Nhật",
+    amount: "35 triệu đồng",
+    when: "Lúc bắt đầu khóa học tại trung tâm",
+    note: "Khóa học kéo dài 6–7 tháng, học hết 50 bài",
+  },
+  {
+    item: "3. Trước khi xuất cảnh",
+    amount: "45 triệu đồng",
+    when: "Sau khi có visa, trước ngày bay",
+    note: "Được nợ lại và sang Nhật làm trả sau, trong 8 tháng",
+  },
+  {
+    item: "Tổng cộng",
+    amount: "90 triệu đồng",
+    when: "Chia làm ba chặng như trên",
+    note: "Công ty cấp hồ sơ vay vốn, vay dưới 100 triệu từ Ngân hàng chính sách địa phương",
   },
   {
     item: "Khám sức khỏe",
-    amount: "Khoảng 1 triệu đồng",
+    amount: "Không mất tiền",
     when: "Trước khi phỏng vấn",
-    note: "Đóng trực tiếp cho bệnh viện, không qua công ty",
+    note: "Công ty đưa đi khám tại bệnh viện được chỉ định",
   },
   {
     item: "Hộ chiếu, visa, lý lịch tư pháp",
     amount: "Theo mức phí nhà nước",
     when: "Sau khi có kết quả trúng tuyển",
     note: "Đóng theo biên lai của cơ quan cấp",
-  },
-  {
-    item: "Vé máy bay một chiều",
-    amount: "Theo giá vé thời điểm bay",
-    when: "Trước khi xuất cảnh",
-    note: "Một số đơn hàng do cơ sở tiếp nhận chi trả",
-  },
-  {
-    item: "Ký túc xá trong thời gian học",
-    amount: "Theo tháng",
-    when: "Hằng tháng trong thời gian đào tạo",
-    note: "Bao gồm chỗ ở, điện nước và ăn ca",
   },
 ] as const;
 
@@ -142,13 +180,15 @@ export const PROCESS = [
     title: "Khám sức khỏe",
     duration: "1 ngày",
     detail:
-      "Khám tại bệnh viện được chỉ định theo danh mục của Bộ Y tế. Có kết quả mới nộp hồ sơ vào đơn hàng.",
+      "Công ty đưa đi khám tại bệnh viện được chỉ định, không mất tiền. Có kết quả mới nộp hồ sơ vào đơn hàng.",
   },
   {
     title: "Nhập học tiếng Nhật",
-    duration: "4 đến 8 tháng",
+    // Công ty ghi "học hết 50 bài tiếng Nhật mất 6-7 tháng". Bản cũ ghi "4 đến 8
+    // tháng" — một khoảng tôi tự đặt, rộng hơn thực tế ở cả hai đầu.
+    duration: "6 đến 7 tháng",
     detail:
-      "Học tập trung tại trung tâm, ở ký túc xá. Học đến trình độ mà đơn hàng yêu cầu, thường là N4 với diện kỹ năng đặc định.",
+      "Học tập trung tại trung tâm, sáng và chiều, tối tự ôn. Học từ thứ Hai đến thứ Bảy, cuối tháng nghỉ 3–4 ngày. Có ký túc xá.",
   },
   {
     title: "Phỏng vấn với cơ sở tiếp nhận",

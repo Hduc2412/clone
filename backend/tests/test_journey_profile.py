@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 from app.api.chat import ChatRequest
 from app.db import candidate_profiles as store
 from app.services import journey_profile as service
+from tests.cookie_phien import cookies_cho
 from app.services.report_builder import build
 from app.services.cv_service import _merge_into_profile
 from app.documents.extractor import Extraction
@@ -120,7 +121,7 @@ class JourneyIntegrationTests(unittest.IsolatedAsyncioTestCase):
             await _merge_into_profile(sid, Extraction(fields={"birth_year": 2000}, evidence={"birth_year": "Sinh năm 2000"}))
             self.assertEqual(saved["code"], original_code)
             self.assertEqual(saved["fields"]["birth_year"]["source"], "cv")
-            with TestClient(app) as client:
+            with TestClient(app, cookies=cookies_cho(sid)) as client:
                 response = client.get(f"/public/profiles/{sid}")
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json()["consultation_profile"]["preferences"]["desired_prefecture"]["value"], "Osaka")

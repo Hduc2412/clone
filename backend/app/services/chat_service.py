@@ -5,6 +5,11 @@ import asyncio
 import logging
 from app.services.journey_profile import capture as capture_profile
 
+from app.consultation import context_builder, next_question
+from app.db import candidate_profiles as profiles
+from app.db import session_memory
+from app.memory import render as bo_nho_render
+from app.memory import topics as bo_nho_topics
 from app.rag import job_lookup
 from app.rag.retriever import search
 from app.rag.prompt_builder import build_context, build_prompt
@@ -20,6 +25,9 @@ from app.conversation.fallback_messages import (
 )
 from app.db.database import get_booking_draft, get_messages, save_message
 from app.booking.booking_service import process_booking_message
+
+logger = logging.getLogger(__name__)
+
 
 async def process_message(user_query: str, session_id: str) -> dict:
     # 1. Load / tạo session
@@ -44,7 +52,7 @@ async def process_message(user_query: str, session_id: str) -> dict:
     intent = classify(user_query)
     if intent == "chung" and resolved_query != user_query:
         intent = classify(resolved_query)
-    print(f"[ChatService] intent = '{intent}'")
+    logger.debug("Ý định của lượt này: %s", intent)
 
     # Booking là luồng nghiệp vụ riêng, không tạo hoặc cập nhật lead.
     if intent == "booking" or session.booking_step is not None:
@@ -62,6 +70,31 @@ async def process_message(user_query: str, session_id: str) -> dict:
     # vì đáp án nằm ở nửa kia. Việc dò tỉnh là tất định, không hỏi mô hình.
     job_block = await job_lookup.context_for(resolved_query)
 
+    # Hồ sơ của chính người đang nhắn.
+    #
+    # Trước 22/09/2026 luồng chat chưa bao giờ đọc hồ sơ, dù nó và trang tư vấn
+    # dùng chung một mã phiên. Đo trên máy chủ thật: một khách đã khai N4, ba năm
+    # kinh nghiệm, muốn đi Tokyo, và hệ thống đã xếp hạng 11 đơn cho họ — nhưng
+    # hỏi trong chat thì bot trả lời như với người lạ. Hệ thống biết, chatbot
+    # không, chỉ vì không ai nối hai nửa lại.
+    #
+    # Khối này sinh bằng mã, tách rõ đã-xác-nhận / đọc-từ-CV / nghe-trong-hội-thoại.
+    profile_block = await _profile_context(session_id)
+
+    # Bộ nhớ dùng chung với phòng tư vấn theo đơn.
+    #
+    # Mẩu quan trọng nhất ở đây là ĐƠN KHÁCH ĐANG XEM. Không có nó thì khối
+    # `job_block` ngay trên phải đoán đơn bằng cách dò tên tỉnh trong câu hỏi —
+    # nên khách đang mở một đơn Tokyo rồi hỏi trống không "đơn này lương bao
+    # nhiêu" thì hoặc là chịu, hoặc tệ hơn là vớ nhầm một đơn Tokyo khác và trả
+    # lời rất trôi chảy bằng số của đơn không liên quan.
+    #
+    # Khối này KHÔNG chứa câu trả lời nào của phía tư vấn, chỉ chứa chủ đề đã
+    # bàn. Xem `app/memory/__init__.py`.
+    bo_nho_block = bo_nho_render.render(
+        await _bo_nho(session_id), cho=session_memory.BEN_CHAT
+    )
+
     if not hits and not job_block:
         answer = LEAD_NO_KNOWLEDGE if intent == "lead" else NO_KNOWLEDGE
         session.add_message("assistant", answer)
@@ -70,10 +103,11 @@ async def process_message(user_query: str, session_id: str) -> dict:
 
     # 3. Build prompt có lịch sử
     context = build_context(hits)
-    # Danh mục đơn đứng trước tài liệu chính sách: khi câu hỏi hỏi về địa điểm,
-    # đây mới là phần trả lời đúng câu hỏi, còn tài liệu chỉ là nền.
-    if job_block:
-        context = f"{job_block}\n\n---\n\n{context}" if context else job_block
+    # Thứ tự có chủ ý: hồ sơ khách trước, rồi danh mục đơn, rồi tài liệu chính
+    # sách. Hai khối đầu nói về đúng người đang hỏi; tài liệu chỉ là nền.
+    for khoi in (bo_nho_block, job_block, profile_block):
+        if khoi:
+            context = f"{khoi}\n\n---\n\n{context}" if context else khoi
     prompt = build_prompt(context, user_query, history_text)
 
     # 4. Gọi Gemini
@@ -116,6 +150,27 @@ async def process_message(user_query: str, session_id: str) -> dict:
     return _response(
         answer, _build_sources(hits), session_id, intent, is_fallback=False
     )
+
+
+async def _profile_context(session_id: str) -> str:
+    """Khối hồ sơ khách, kèm gợi ý hỏi thêm nếu còn thiếu dữ liệu.
+
+    Không được phép làm hỏng một câu trả lời vốn đã trả lời được. Hồ sơ là thứ
+    làm câu trả lời *tốt hơn*, không phải điều kiện để có câu trả lời — nên cơ
+    sở dữ liệu trục trặc thì bot vẫn trả lời như trước khi có tính năng này.
+    """
+    try:
+        profile = await profiles.get_by_session(session_id)
+    except Exception:  # noqa: BLE001
+        logger.warning("Không đọc được hồ sơ cho ngữ cảnh chat", exc_info=True)
+        return ""
+
+    if profile is None:
+        return ""
+
+    profiles.decorate(profile)
+    cac_khoi = [context_builder.render(profile), next_question.render(profile)]
+    return "\n\n".join(khoi for khoi in cac_khoi if khoi)
 
 
 def _response(
@@ -166,9 +221,44 @@ async def _save_exchange(
     await save_message(
         session_id, "assistant", answer, intent, is_fallback=is_fallback
     )
+    # Ghi chủ đề khách vừa hỏi vào bộ nhớ chung, để phòng tư vấn theo đơn biết
+    # mối lo thật của họ. Chỉ ghi nhãn chủ đề và câu hỏi nguyên văn của khách —
+    # không bao giờ ghi câu trả lời, xem `app/memory/__init__.py`.
+    chu_de = bo_nho_topics.phan_loai(user_query)
+    if chu_de:
+        try:
+            await session_memory.ghi_moi_quan_tam(
+                session_id,
+                chu_de=chu_de,
+                cau_hoi=user_query,
+                ben=session_memory.BEN_CHAT,
+            )
+            if not is_fallback:
+                await session_memory.ghi_da_giai_thich(
+                    session_id, chu_de=chu_de, ben=session_memory.BEN_CHAT
+                )
+        except Exception:
+            # Bộ nhớ chung là phần thêm vào. Hỏng nó không được làm hỏng một câu
+            # trả lời vốn đã đúng và đã lưu xong.
+            logger.warning("Không ghi được bộ nhớ chung của phiên", exc_info=True)
+
     try:
         await asyncio.wait_for(capture_profile(session_id, user_query, intent), timeout=3)
     except Exception:
         # The exchange is durable already. Do not fail an otherwise valid answer
         # or log the customer's personal message when enrichment is unavailable.
-        logging.getLogger(__name__).warning("Chat profile intake unavailable", exc_info=True)
+        logger.warning("Chat profile intake unavailable", exc_info=True)
+
+
+async def _bo_nho(session_id: str) -> dict | None:
+    """Đọc bộ nhớ chung, nuốt lỗi.
+
+    Cùng lý do với `_profile_context`: khung chat vẫn phải trả lời được khi phần
+    nghiệp vụ chưa dựng xong hoặc database trục trặc. Không có bộ nhớ thì câu
+    trả lời nghèo đi một chút, còn ném lỗi ra thì khách không nhận được gì.
+    """
+    try:
+        return await session_memory.lay(session_id)
+    except Exception:
+        logger.warning("Không đọc được bộ nhớ chung của phiên", exc_info=True)
+        return None

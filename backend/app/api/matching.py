@@ -1,10 +1,14 @@
 """API đối chiếu hồ sơ và nhật ký giới thiệu."""
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.auth.security import get_current_user, require_roles
+from app.auth.journey_security import require_journey_session
+from app.core.session_id import SESSION_PATTERN
 from app.core.rate_limit import client_ip, rate_limiter
 from app.db import candidate_profiles as profile_store
 from app.db import recommendation_logs as log_store
@@ -13,7 +17,11 @@ from app.services.assignment import can_access, is_privileged
 from app.services.audit_service import audit_action
 
 
-public_router = APIRouter(prefix="/public/matches", tags=["Đối chiếu đơn hàng (công khai)"])
+public_router = APIRouter(
+    prefix="/public/matches",
+    tags=["Đối chiếu đơn hàng (công khai)"],
+    dependencies=[Depends(require_journey_session)],
+)
 router = APIRouter(
     prefix="/recommendation-logs",
     tags=["Nhật ký giới thiệu"],
@@ -29,7 +37,7 @@ class RerunRequest(BaseModel):
 
 @public_router.get("/{session_id}")
 async def matches_for_session(
-    session_id: str,
+    session_id: Annotated[str, Path(pattern=SESSION_PATTERN)],
     http_request: Request,
     limit: int = Query(default=matching_service.DEFAULT_TOP_N, ge=1, le=10),
     refresh: bool = False,
@@ -59,7 +67,9 @@ async def matches_for_session(
 
 
 @public_router.get("/{session_id}/orders/{code}")
-async def match_detail(session_id: str, code: str):
+async def match_detail(
+    session_id: Annotated[str, Path(pattern=SESSION_PATTERN)], code: str
+):
     """Lý do chi tiết cho một đơn, dùng cho ô "vì sao đơn này"."""
     profile = await profile_store.get_by_session(session_id)
     if profile is None:

@@ -3,7 +3,10 @@ Entity Extractor — Sprint 3
 Tách tên và số điện thoại từ câu trả lời tự nhiên của user.
 """
 
-import re 
+import logging
+import re
+
+logger = logging.getLogger(__name__)
 
 PHONE_PATTERN = r"(0\d{9,10})"
 NAME_PATTERNS = [
@@ -33,6 +36,13 @@ def extract_lead_info(text: str) -> dict:
         "name": extract_name(text),
         "phone": extract_phone(text),
     }
-    print(f"[EntityExtractor] '{text}' → {result}")
+    # Chỉ ghi ĐÃ tìm được hay chưa, không ghi giá trị. Tên và số điện thoại là
+    # đúng hai thứ nhạy cảm nhất mà hàm này chạm tới — in chúng ra log là đem
+    # dữ liệu cá nhân ra khỏi vùng có kiểm soát truy cập.
+    logger.debug(
+        "Bóc thực thể: tên=%s, số điện thoại=%s",
+        "có" if result["name"] else "không",
+        "có" if result["phone"] else "không",
+    )
     return result
 

@@ -1,0 +1,236 @@
+"""Yêu cầu hỗ trợ: khách gửi, nhân viên trả lời trong giờ làm việc.
+
+## Vì sao không làm chat thời gian thực
+
+Khách thấy đúng một màn hình trò chuyện và gõ được bất cứ lúc nào — kể cả mười
+một giờ đêm, giờ phần lớn người lao động rảnh để tìm hiểu. Khác biệt nằm ở chỗ
+giao diện nói rõ **nhân viên trả lời trong giờ làm việc**, thay vì hứa một thứ
+không giữ được rồi để người ta ngồi đợi trước màn hình im lặng.
+
+Chat thời gian thực đòi có người trực liên tục — đó là bài toán vận hành, không
+phải bài toán kỹ thuật, và `docs/design/13 §1.2` đã xếp nó ngoài phạm vi. Cách
+này giữ đúng phạm vi mà vẫn cho khách hỏi lúc nửa đêm: trợ lý trả lời ngay,
+nhân viên trả lời sáng hôm sau.
+
+## Không nới chốt chặn đăng ký
+
+Người chưa đủ điều kiện đi qua cửa này, **không** đi qua cửa đăng ký. Chốt chặn ở
+`registration_service` giữ nguyên: đơn phải nằm trong nhật ký giới thiệu và phải
+đạt điều kiện. Nhờ vậy hàng đợi tuyển dụng vẫn chỉ chứa hồ sơ dùng được.
+
+## Không hỏi và không lưu chuyện bệnh tật
+
+Khách thấy mình có thể không đủ điều kiện sức khỏe thì gửi một yêu cầu hỗ trợ —
+và yêu cầu đó **không ghi bệnh gì**. Hệ thống chỉ biết "người này muốn được tư
+vấn", không biết vì sao.
+"""
+from typing import Annotated, Any, Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.auth.journey_security import require_journey_session
+from app.auth.security import get_current_user
+from app.core.codes import PREFIX_SUPPORT, new_code
+from app.core.phone import normalize_vietnamese_phone
+from app.core.rate_limit import client_ip, rate_limiter
+from app.core.session_id import SESSION_PATTERN
+from app.db import support_requests as store
+from app.db.database import create_notification
+from app.services.assignment import is_privileged
+from app.services.audit_service import audit_action
+
+
+public_router = APIRouter(
+    prefix="/tu-van/v1",
+    tags=["Yêu cầu hỗ trợ (công khai)"],
+    dependencies=[Depends(require_journey_session)],
+)
+router = APIRouter(
+    prefix="/ho-tro",
+    tags=["Yêu cầu hỗ trợ"],
+    dependencies=[Depends(get_current_user)],
+)
+
+# Khung giờ nói với khách khi mời họ liên hệ. Cố ý gọn hơn giờ làm việc chính
+# thức (08:00–11:30 và 13:30–17:00): khoảng nghỉ trưa chỉ cần chi tiết ở phần đặt
+# lịch hẹn, nơi hệ thống thật sự chặn khung giờ đó. Còn khi chỉ mời người ta nhắn
+# tin hay gọi điện thì bắt họ nhớ hai khoảng giờ rời nhau là đặt một rào cản
+# không cần thiết.
+GIO_LIEN_HE = "8h đến 17h"
+
+CODE_PATTERN = r"^HT-[0-9A-F]{6}$"
+
+
+class SupportRequestBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["nhan_tin", "hoc_tap", "gap_mat"]
+    message: str = Field(min_length=1, max_length=2000)
+    full_name: str = Field(min_length=2, max_length=100)
+    phone: str = Field(min_length=6, max_length=20)
+    job_order_code: str | None = Field(default=None, max_length=20)
+    # Ảnh chụp kết quả đối chiếu khách đã nhìn thấy lúc bấm nút. Nhân viên gọi
+    # lại đọc được chính thứ khách đã đọc, thay vì tự dựng lại rồi đoán.
+    advice_block: str | None = Field(default=None, max_length=6000)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def _phone(cls, value: object) -> str:
+        return normalize_vietnamese_phone(str(value or ""))
+
+
+class ReplyBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reply: str = Field(min_length=1, max_length=4000)
+
+
+@public_router.post("/{session_id}/ho-tro", status_code=201)
+async def gui_yeu_cau(
+    session_id: Annotated[str, Path(pattern=SESSION_PATTERN)],
+    payload: SupportRequestBody,
+    http_request: Request,
+) -> dict[str, Any]:
+    """Khách gửi một yêu cầu cần người xử lý."""
+    # Chặt hơn các đường đọc: đây là đường ghi và nó tạo việc cho nhân viên thật.
+    rate_limiter.check(f"ho-tro:{client_ip(http_request)}", limit=5, window_seconds=600)
+
+    document = await store.create_request(
+        {
+            "code": new_code(PREFIX_SUPPORT),
+            "kind": payload.kind,
+            "session_id": session_id,
+            "full_name": payload.full_name.strip(),
+            "phone": payload.phone,
+            "message": payload.message.strip(),
+            "job_order_code": payload.job_order_code,
+            "advice_block": payload.advice_block,
+        }
+    )
+
+    await create_notification(
+        notification_type="new_support_request",
+        title=_TIEU_DE_THONG_BAO[payload.kind],
+        reference_type="support_request",
+        reference_code=document["code"],
+        detail={"customer_name": document["full_name"], "kind": payload.kind},
+    )
+    return {
+        "code": document["code"],
+        "kind": document["kind"],
+        "message": (
+            "Đã gửi tới nhân viên tư vấn. Xin vui lòng liên hệ với nhân viên "
+            f"trong khoảng thời gian từ {GIO_LIEN_HE}, thứ Hai đến thứ Bảy."
+        ),
+    }
+
+
+@public_router.get("/{session_id}/ho-tro")
+async def yeu_cau_cua_toi(
+    session_id: Annotated[str, Path(pattern=SESSION_PATTERN)],
+) -> dict[str, Any]:
+    """Khách xem lại mình đã hỏi gì và nhân viên đã trả lời chưa."""
+    items = await store.list_for_session(session_id)
+    return {"items": [_ban_cho_khach(item) for item in items]}
+
+
+_TIEU_DE_THONG_BAO = {
+    store.KIND_NHAN_TIN: "Khách để lại tin nhắn",
+    store.KIND_HOC_TAP: "Khách muốn tư vấn về việc học",
+    store.KIND_GAP_MAT: "Khách xin gặp mặt",
+}
+
+# Trường khách được xem lại. Danh sách cho phép, không phải danh sách loại trừ:
+# thêm một trường nội bộ vào bản ghi sau này sẽ không vô tình lọt ra.
+_KHACH_XEM = ("code", "kind", "status", "message", "reply", "created_at", "handled_at")
+
+
+def _ban_cho_khach(item: dict[str, Any]) -> dict[str, Any]:
+    return {key: item.get(key) for key in _KHACH_XEM}
+
+
+# --- Cửa nội bộ ---
+
+
+@router.get("")
+async def hang_doi(
+    status: str | None = Query(default=store.STATUS_CHO, max_length=20),
+    kind: str | None = Query(default=None, max_length=20),
+    limit: int = Query(default=100, ge=1, le=300),
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    """Hàng đợi hỗ trợ. Không lọc theo người phụ trách — ai rảnh thì nhận.
+
+    Cố ý giống `/registrations/queue`: hàng đợi là chỗ việc chưa có chủ, nên lọc
+    theo người phụ trách ở đây sẽ biến nó thành một danh sách rỗng với người mới.
+    """
+    items = await store.list_requests(status=status, kind=kind, limit=limit)
+    return {"items": items, "count": len(items)}
+
+
+@router.get("/cua-toi")
+async def cua_toi(current_user=Depends(get_current_user)) -> dict[str, Any]:
+    items = await store.list_requests(
+        status=None, assigned_to=current_user["email"], limit=200
+    )
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/{code}/nhan")
+async def nhan_xu_ly(
+    code: Annotated[str, Path(pattern=CODE_PATTERN)],
+    http_request: Request,
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    document = await store.claim(code, email=current_user["email"])
+    if document is None:
+        # Phân biệt "không có" với "người khác vừa nhận" — hai chuyện dẫn tới hai
+        # hành động khác nhau cho người đang bấm.
+        hien_co = await store.get_request(code)
+        if hien_co is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu này.")
+        raise HTTPException(
+            status_code=409,
+            detail=f"Yêu cầu này vừa được {hien_co.get('assigned_to') or 'người khác'} nhận.",
+        )
+    await audit_action(
+        http_request,
+        "support.claimed",
+        actor=current_user,
+        target_type="support_request",
+        target_id=code,
+    )
+    return document
+
+
+@router.post("/{code}/tra-loi")
+async def tra_loi(
+    code: Annotated[str, Path(pattern=CODE_PATTERN)],
+    payload: ReplyBody,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    hien_co = await store.get_request(code)
+    if hien_co is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu này.")
+    # Người đang giữ mới được trả lời; quản lý thì được, để việc không kẹt khi
+    # người nhận nghỉ.
+    giu = hien_co.get("assigned_to")
+    if giu and giu != current_user["email"] and not is_privileged(current_user):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Yêu cầu này do {giu} đang xử lý.",
+        )
+
+    document = await store.close_request(
+        code, email=current_user["email"], reply=payload.reply.strip()
+    )
+    await audit_action(
+        http_request,
+        "support.replied",
+        actor=current_user,
+        target_type="support_request",
+        target_id=code,
+    )
+    return document

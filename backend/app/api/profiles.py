@@ -10,13 +10,16 @@ thì một người bất kỳ có thể gửi `{"source": "staff"}` và giá tr
 thứ nhân viên đã sửa. Mọi mô hình dữ liệu vào đều đặt `extra="forbid"` nên trường
 lạ bị chặn ngay chứ không âm thầm bỏ qua.
 """
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pymongo.errors import DuplicateKeyError
 
 from app.auth.security import get_current_user, require_roles
+from app.auth.journey_security import require_journey_session, session_from_cookie
+from app.core.config import settings
+from app.core.session_id import SESSION_PATTERN
 from app.core.codes import PREFIX_PROFILE, new_code
 from app.core.phone import normalize_vietnamese_phone
 from app.core.rate_limit import client_ip, rate_limiter
@@ -33,8 +36,6 @@ router = APIRouter(
     tags=["Hồ sơ ứng viên"],
     dependencies=[Depends(get_current_user)],
 )
-
-SESSION_PATTERN = r"^[A-Za-z0-9_-]{8,64}$"
 
 
 def _optional(normalizer, label: str):
@@ -142,7 +143,10 @@ class PreferencesPayload(BaseModel):
 class ProfileCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    session_id: str = Field(pattern=SESSION_PATTERN)
+    # Giữ lại cho tương thích với giao diện đang chạy, nhưng **không còn được
+    # tin**: hồ sơ luôn được tạo dưới mã phiên trong cookie đã ký. Xem lý do ở
+    # `create_profile` bên dưới.
+    session_id: str | None = Field(default=None, pattern=SESSION_PATTERN)
     mode: Literal["manual", "extracted"] = "manual"
     fields: FieldsPayload = Field(default_factory=FieldsPayload)
     preferences: PreferencesPayload = Field(default_factory=PreferencesPayload)
@@ -267,8 +271,28 @@ async def profile_meta():
 
 
 @public_router.post("", status_code=201)
-async def create_profile(payload: ProfileCreateRequest, http_request: Request):
+async def create_profile(
+    payload: ProfileCreateRequest,
+    http_request: Request,
+    journey_cookie: str | None = Cookie(
+        default=None, alias=settings.journey_cookie_name
+    ),
+):
     rate_limiter.check(f"profile-write:{client_ip(http_request)}", limit=20, window_seconds=60)
+
+    # Mã phiên lấy từ cookie đã ký, KHÔNG lấy từ thân yêu cầu.
+    #
+    # Đường này không có mã phiên trên URL nên không dùng được `require_journey_session`,
+    # nhưng nó vẫn ghi dữ liệu vào một phiên cụ thể — và trước đây phiên ấy do
+    # client tự khai trong `payload.session_id`. Tin vào con số client gửi lên
+    # nghĩa là ai cũng tạo được hồ sơ dưới mã phiên của người khác, rồi từ đó
+    # mọi thứ gắn với mã ấy đều bị chiếm.
+    session_id = session_from_cookie(journey_cookie)
+    if session_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Phiên tư vấn chưa được mở. Bạn tải lại trang nhé.",
+        )
 
     fields, _ = store.merge_section(
         {}, _payload_values(payload.fields), source="user_confirmed", allowed=store.FIELD_KEYS
@@ -285,7 +309,7 @@ async def create_profile(payload: ProfileCreateRequest, http_request: Request):
     confirmed = payload.mode == "manual"
     document = {
         "code": new_code(PREFIX_PROFILE),
-        "session_id": payload.session_id,
+        "session_id": session_id,
         "status": store.STATUS_CONFIRMED if confirmed else store.STATUS_EXTRACTED,
         "fields": fields,
         "preferences": preferences,
@@ -300,14 +324,14 @@ async def create_profile(payload: ProfileCreateRequest, http_request: Request):
     return _decorate(store.public_view(profile))
 
 
-@public_router.get("/{session_id}")
-async def get_profile(session_id: str):
+@public_router.get("/{session_id}", dependencies=[Depends(require_journey_session)])
+async def get_profile(session_id: Annotated[str, Path(pattern=SESSION_PATTERN)]):
     return _decorate(store.public_view(await _load_or_404(session_id)))
 
 
-@public_router.patch("/{session_id}")
+@public_router.patch("/{session_id}", dependencies=[Depends(require_journey_session)])
 async def patch_profile(
-    session_id: str,
+    session_id: Annotated[str, Path(pattern=SESSION_PATTERN)],
     payload: ProfilePatchRequest,
     http_request: Request,
 ):
@@ -324,8 +348,10 @@ async def patch_profile(
     return _decorate(store.public_view(updated))
 
 
-@public_router.post("/{session_id}/confirm")
-async def confirm_profile(session_id: str, http_request: Request):
+@public_router.post("/{session_id}/confirm", dependencies=[Depends(require_journey_session)])
+async def confirm_profile(
+    session_id: Annotated[str, Path(pattern=SESSION_PATTERN)], http_request: Request
+):
     """Ứng viên xác nhận hồ sơ đúng. Bộ đối chiếu chỉ chạy sau bước này."""
     rate_limiter.check(f"profile-write:{client_ip(http_request)}", limit=20, window_seconds=60)
     profile = await _load_or_404(session_id)

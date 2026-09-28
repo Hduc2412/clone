@@ -3,6 +3,7 @@ Response Validator — Sprint 2
 Kiểm tra câu trả lời của Gemini trước khi trả về user.
 """
 
+import logging
 import re
 
 from app.conversation.fallback_messages import (
@@ -10,6 +11,8 @@ from app.conversation.fallback_messages import (
     INVALID_ANSWER,
     RATE_LIMITED,
 )
+
+logger = logging.getLogger(__name__)
 
 CORRECT_PHONE = list(ALLOWED_PHONES)
 MIN_LENGTH = 20
@@ -54,11 +57,11 @@ def validate(
     muốn bảo vệ, mà không mở cửa cho số bịa.
     """
     if not answer or len(answer.strip()) < MIN_LENGTH:
-        print(f"[Validator] Câu trả lời quá ngắn: '{answer}'")
+        logger.debug("Chặn câu trả lời quá ngắn: %d ký tự", len(answer or ""))
         return False, FALLBACK
 
     if answer.strip().startswith("Lỗi Gemini:"):
-        print(f"[Validator] Phát hiện lỗi Gemini: '{answer[:50]}'")
+        logger.warning("Gemini trả về lỗi; dùng câu dự phòng")
         normalized_error = answer.lower()
         if (
             "429" in normalized_error
@@ -76,7 +79,10 @@ def validate(
 
     for phone in _phones_in(answer):
         if phone not in allowed:
-            print(f"[Validator] Phát hiện SĐT lạ: {phone}")
+            # Không ghi chính con số ra log. Số này hoặc là số mô hình bịa ra,
+            # hoặc — tệ hơn — là số thật của một khách khác lọt vào kho tri
+            # thức. Cả hai trường hợp đều không nên nhân bản nó sang log.
+            logger.warning("Chặn câu trả lời có số điện thoại ngoài danh sách cho phép")
             return False, FALLBACK
 
     return True, answer

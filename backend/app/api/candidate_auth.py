@@ -5,6 +5,7 @@ dưới `/public/*` cùng nhóm với phần tư vấn: nhóm kia định danh b
 trình duyệt và không có khái niệm tài khoản. Để chung sẽ khiến người đọc mã
 nguồn tưởng hai thứ cùng một mức bảo vệ.
 """
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -66,6 +67,39 @@ def _set_session_cookie(response: Response, account: dict[str, Any]) -> None:
     )
 
 
+def _tu_choi_neu_day_mac_dinh_da_qua_han(account: dict[str, Any]) -> None:
+    """Dãy mặc định có hạn dùng; hết hạn thì phải xin nhân viên cấp lại.
+
+    `must_change_password` bắt người đăng nhập đổi mật khẩu, nhưng nó **không
+    xác minh được người đăng nhập là ai**. Dãy mặc định thì ai cũng biết, nên
+    trong quãng tài khoản còn nằm ở dãy đó, bất cứ ai biết số điện thoại đều
+    đăng nhập được — và người vào trước mới là người đặt mật khẩu mới.
+
+    Không có hạn dùng thì quãng ấy kéo dài vô tận kể từ lúc nhân viên cấp tài
+    khoản: một tài khoản cấp từ tháng trước mà chủ nhân chưa từng đăng nhập vẫn
+    là một cánh cửa mở. Cắt nó xuống còn vài ngày không làm dãy mặc định trở
+    nên an toàn, nhưng thu hẹp khung giờ có thể lợi dụng từ vô hạn xuống một
+    con số đếm được.
+
+    Chỉ áp cho tài khoản còn nợ đổi mật khẩu. Người đã tự đặt mật khẩu riêng thì
+    dấu thời gian kia không còn nói về dãy mặc định nữa.
+    """
+    if not account.get("must_change_password"):
+        return
+    dat_luc = account.get("password_changed_at")
+    if dat_luc is None:
+        return
+    if time.time() - int(dat_luc) <= settings.default_password_hours * 3600:
+        return
+    raise HTTPException(
+        status_code=401,
+        detail=(
+            "Mật khẩu tạm đã hết hạn. "
+            "Bạn gọi nhân viên để được cấp lại mật khẩu mới nhé."
+        ),
+    )
+
+
 @router.post("/dang-nhap")
 async def login(
     payload: LoginRequest,
@@ -89,6 +123,8 @@ async def login(
             status_code=401,
             detail="Số điện thoại hoặc mật khẩu không đúng.",
         )
+
+    _tu_choi_neu_day_mac_dinh_da_qua_han(account)
 
     await accounts.record_login(payload.phone)
     rate_limiter.reset(f"candidate-login-phone:{payload.phone}")

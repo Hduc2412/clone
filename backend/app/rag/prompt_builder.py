@@ -62,6 +62,26 @@ def build_prompt(
 {history_text}
 """
 
+    # Nhắc lại đúng hai luật, ngay sát chỗ mô hình bắt đầu viết.
+    #
+    # Cả hai luật này đã có ở phần trên từ lâu và vẫn bị bỏ qua — đo trên máy
+    # chủ thật ngày 22/09/2026: hai lượt liên tiếp trong cùng một phiên đều mở
+    # bằng "Chào bạn," và đều kết bằng số tổng đài, dù prompt cấm cả hai. Lý do
+    # không phải mô hình bướng: luật nằm cách chỗ sinh chữ hơn bốn mươi dòng, lẫn
+    # trong một danh sách sáu gạch đầu dòng.
+    #
+    # Không thêm luật mới, chỉ đổi vị trí. Đây là hai lỗi về *hình thức* nên
+    # nhắc sát lúc viết là chỗ có tác dụng nhất; các luật về *nội dung* thì phải
+    # ở trên, trước khi mô hình đọc tài liệu.
+    nhac_cuoi = [
+        "Bắt đầu ngay bằng nội dung trả lời, KHÔNG viết lời chào."
+        if history_text
+        else "Vào thẳng nội dung trả lời.",
+        "Chỉ đưa số tổng đài khi khách hỏi cách liên hệ, hoặc khi việc này cần "
+        "người thật xác minh. Không kết thúc mọi câu trả lời bằng số điện thoại.",
+    ]
+    nhac_cuoi_text = "\n".join(f"- {dong}" for dong in nhac_cuoi)
+
     return f"""Bạn là chuyên viên tư vấn chương trình xuất khẩu lao động điều dưỡng Nhật Bản của công ty DC.
 Trả lời bằng tiếng Việt tự nhiên, thân thiện và đi thẳng vào câu hỏi hiện tại.
 
@@ -107,5 +127,8 @@ QUY TẮC VỀ CÁCH VIẾT
 
 --- CÂU HỎI HIỆN TẠI ---
 {user_query}
+
+TRƯỚC KHI VIẾT, NHỚ HAI ĐIỀU NÀY
+{nhac_cuoi_text}
 
 TRẢ LỜI:"""

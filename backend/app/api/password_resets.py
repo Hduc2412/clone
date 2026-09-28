@@ -136,6 +136,30 @@ async def list_pending(
     return {"items": items, "count": len(items)}
 
 
+def _ensure_can_reset_staff(actor: dict[str, Any], target: dict[str, Any]) -> None:
+    """Chặn leo thang đặc quyền qua đường đặt lại mật khẩu.
+
+    Đặt lại mật khẩu là **chiếm được tài khoản đó**: dãy mặc định trả thẳng
+    trong phản hồi để người xử lý đọc lại cho chủ tài khoản. Nếu chỉ kiểm tra
+    người bấm nút là Quản lý mà không xem họ bấm lên ai, thì một Quản lý đặt lại
+    mật khẩu của Quản trị viên rồi đăng nhập bằng chính dãy vừa đọc được — leo
+    lên quyền cao nhất trong hai bước, không để lại dấu vết nào ngoài một dòng
+    nhật ký trông rất bình thường.
+
+    Quy tắc: Quản trị viên xử lý được mọi tài khoản, kể cả tài khoản Quản trị
+    viên khác — bỏ điều đó thì một Quản trị viên quên mật khẩu là không ai cứu
+    được ngoài việc sửa thẳng cơ sở dữ liệu. Quản lý chỉ xử lý được Tư vấn viên.
+    """
+    if actor.get("role") == "admin":
+        return
+    if target.get("role") == "consultant":
+        return
+    raise HTTPException(
+        status_code=403,
+        detail="Chỉ Quản trị viên được đặt lại mật khẩu cho tài khoản Quản lý và Quản trị viên.",
+    )
+
+
 @router.post("/{code}/dat-lai")
 async def handle_reset(
     code: str,
@@ -152,11 +176,16 @@ async def handle_reset(
     subject_type = request["subject_type"]
     subject_id = request["subject_id"]
 
-    if subject_type == store.SUBJECT_STAFF and not is_privileged(current_user):
-        raise HTTPException(
-            status_code=403,
-            detail="Chỉ Quản lý và Quản trị viên được đặt lại mật khẩu cho nhân viên.",
-        )
+    if subject_type == store.SUBJECT_STAFF:
+        if not is_privileged(current_user):
+            raise HTTPException(
+                status_code=403,
+                detail="Chỉ Quản lý và Quản trị viên được đặt lại mật khẩu cho nhân viên.",
+            )
+        target = await get_staff_user_by_email(subject_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Tài khoản nhân viên không còn tồn tại.")
+        _ensure_can_reset_staff(current_user, target)
 
     password = settings.default_password
     if subject_type == store.SUBJECT_CANDIDATE:

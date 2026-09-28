@@ -23,7 +23,7 @@ html {
 body {
   font-family: var(--font-sans), system-ui, "Segoe UI", sans-serif;
   color: theme("colors.slate.800");
-  background: #ffffff;
+  background: #fffdf9;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -113,8 +113,23 @@ svg {
     transform: scale(1) translate3d(0, 0, 0);
   }
   100% {
-    transform: scale(1.14) translate3d(-2%, -1.5%, 0);
+    transform: scale(1.06) translate3d(-1%, -0.5%, 0);
   }
+}
+
+/* Warm paper and quiet landscapes: readable even during image transitions. */
+.landscape-veil {
+  background: linear-gradient(90deg, rgba(255,253,249,.97) 0%, rgba(255,253,249,.91) 35%, rgba(255,253,249,.52) 63%, rgba(255,253,249,.08) 100%);
+}
+.landscape-frame:first-of-type { opacity: 1; }
+.home-hero h1 { max-width: 660px; line-height: 1.18; }
+.home-hero .landscape-frame { object-position: 65% center; }
+.photo-backdrop > div { pointer-events: none; }
+.skip-link { position: fixed; left: 1rem; top: -5rem; z-index: 100; padding: .8rem 1rem; background: white; color: #801e2c; border-radius: .7rem; }
+.skip-link:focus { top: 1rem; }
+@media (max-width: 767px) {
+  .landscape-veil { background: rgba(255,253,249,.9); }
+  .home-hero .landscape-veil { background: linear-gradient(180deg,rgba(255,253,249,.96),rgba(255,253,249,.88) 65%,rgba(255,253,249,.95)); }
 }
 
 @keyframes crossfade {
@@ -133,6 +148,9 @@ svg {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .landscape-frame { animation: none !important; opacity: 0 !important; transform: none !important; }
+  .landscape-frame:first-of-type { opacity: 1 !important; }
+  .motion-toggle { display: none; }
   html {
     scroll-behavior: auto;
   }
