@@ -357,7 +357,8 @@
 
 <div class="stats">
   <div class="stat"><div class="n ok">924</div><div class="l">ca backend</div></div>
-  <div class="stat"><div class="n ok">10</div><div class="l">ca frontend</div></div>
+  <div class="stat"><div class="n ok">36</div><div class="l">ca website</div></div>
+  <div class="stat"><div class="n ok">12</div><div class="l">ca quản trị</div></div>
   <div class="stat"><div class="n">~24s</div><div class="l">chạy hết backend</div></div>
   <div class="stat"><div class="n">0</div><div class="l">lời gọi mạng</div></div>
 </div>
@@ -479,24 +480,50 @@
 <h3>Frontend</h3>
 <div class="cmd">
   <div class="cmd-top"><span class="dots"><i></i><i></i><i></i></span>
-    <span class="cmd-name">PowerShell · frontend</span>
+    <span class="cmd-name">PowerShell · giao diện</span>
     <button class="copy">sao chép</button></div>
-<pre><span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\frontend
+<pre><span class="c"># Website khách hàng — 36 ca</span>
+<span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\frontend
 <span class="p">PS&gt;</span> npm run test
 
-<span class="o">✔ chưa có gì thì không bịa ra mã</span>
-<span class="o">✔ khong_tu_sinh_ma_khi_chua_hoi_may_chu</span>
-<span class="o">✔ mở phiên thì lấy mã của máy chủ và ghi lại</span>
-<span class="r">…</span>
-<span class="r">ℹ tests 10</span>
-<span class="o">ℹ pass 10</span>
+<span class="c"># Hệ quản trị — 12 ca</span>
+<span class="p">PS&gt;</span> cd F:\DoAnTotNghiep\xkld-chatbot\admin-frontend
+<span class="p">PS&gt;</span> npm run test
+
+<span class="o">ℹ pass 36</span>
 <span class="r">ℹ fail 0</span></pre>
 </div>
+<div class="note bad">
+  <b>Chạy bằng PowerShell, đừng chạy bằng Git Bash</b>
+  <p>
+    Trong Git Bash, <code>npm test</code> trả mã thoát khác 0 <b>kể cả khi mọi ca đều
+    xanh</b> — chuỗi glob <code>tests/**/*.test.cjs</code> bị shell nuốt mất. Chạy ở đó
+    thì một bộ kiểm thử hoàn toàn tốt trông như đang hỏng, và tệ hơn: một bộ đang hỏng
+    cũng trông y hệt.
+  </p>
+  <p>
+    Cần chạy từ Bash thì gọi thẳng <code>node --test tests/ten-tep.test.cjs</code>.
+    Phát hiện ngày 29/09 lúc dùng mã thoát để đo xem bộ kiểm thử có bắt được lỗi thật
+    không — bốn phép thử đầu cho kết quả sai vì đúng chỗ này.
+  </p>
+</div>
 <p>
-  Bộ này canh đúng một điều nhưng là điều quan trọng: <b>trình duyệt không được tự sinh
-  mã phiên</b>. Mã phải do máy chủ cấp kèm cookie đã ký. Ai lỡ tay đưa việc sinh mã về
-  lại phía trình duyệt thì ca thứ hai đỏ ngay.
+  Bốn nhóm, không nhóm nào cần trình duyệt thật: biên dịch TypeScript rồi chạy trong
+  hộp kín <code>vm</code>, tự dựng <code>fetch</code> và <code>localStorage</code>.
 </p>
+<table>
+  <thead><tr><th>Tệp</th><th>Số ca</th><th>Canh điều gì</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">frontend/candidateApi</td><td class="port">16</td>
+        <td>Tầng gọi API của ứng viên. Nặng nhất là <b><code>credentials: "include"</code></b>: xóa một dòng ấy thì mọi đường <code>/public/*</code> trả 401 và cả luồng ứng viên chết — mà mã vẫn biên dịch sạch và <code>npm run build</code> vẫn xanh. Và <b>ô trống không được gửi lên</b>: gửi <code>""</code> cho ô khách chưa điền là biến "chưa hỏi tới" thành "đã hỏi và khách không có", hai thứ bộ đối chiếu đọc khác nhau.</td></tr>
+    <tr><td class="mono">frontend/noiDungTrang</td><td class="port">10</td>
+        <td>Chưa khai cấu hình thì trang phải hiện số hotline <b>giả</b>. Ai viết số thật làm mặc định "cho tiện khi chạy máy mình" thì đỏ ngay — còn nhìn bằng mắt thì trang trông hoàn toàn bình thường.</td></tr>
+    <tr><td class="mono">frontend/journeySession</td><td class="port">10</td>
+        <td><b>Trình duyệt không được tự sinh mã phiên.</b> Mã phải do máy chủ cấp kèm cookie đã ký.</td></tr>
+    <tr><td class="mono">admin/managementApi</td><td class="port">12</td>
+        <td>Lỗi 422 của FastAPI phải thành câu chỉ đúng ô sai — ném thẳng vào <code>new Error</code> cho ra <code>[object Object]</code>, và người nhập liệu phải đoán ô nào hỏng trong ba mươi ô. Kèm <code>cache: "no-store"</code>: thiếu nó thì hai nhân viên cùng nhận một hồ sơ đã có người lấy, và lỗi chỉ lộ ra khi cả hai đã gọi khách.</td></tr>
+  </tbody>
+</table>
 
 <h3>Soát mã nguồn</h3>
 <div class="cmd">
