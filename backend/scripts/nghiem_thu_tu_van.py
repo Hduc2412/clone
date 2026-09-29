@@ -67,7 +67,7 @@ from pathlib import Path
 from typing import Any
 
 import app  # noqa: F401  — đặt stdout về UTF-8 để in được tiếng Việt
-from app.advisor import client, qa
+from app.advisor import client, phrasing, qa
 from app.core.config import settings
 from app.consultation import advice as advice_builder
 from app.consultation import eligibility, lien_he, order_context
@@ -325,8 +325,47 @@ def dau_prompt() -> str:
     # Cố ý KHÔNG băm khối đơn và khối đối chiếu: chúng chứa hạn nộp tính từ ngày
     # chạy, nên băm vào là mọi phép đo hết hiệu lực mỗi ngày — một thước đo không ai
     # dùng được. Hai khối kia là thứ mình chủ động sửa khi đổi hành vi của bot.
-    van = qa.PROMPT + eligibility.render_muc_nen() + lien_he.render()
+    #
+    # Và băm cả **mã của các chốt hậu kiểm**. Lần thứ năm của cùng một sai sót,
+    # phát hiện 29/09: ca BE-01 hiện HỎNG với câu cụt "Về điều kiện sức khỏe của
+    # chương trình", trong khi chốt "câu chưa nói xong" đã bắt được câu ấy từ vài
+    # giờ trước. Dòng kia đo trước khi có chốt, nhưng dấu nhận dạng không băm mã
+    # chốt nên bảng coi nó vẫn còn hiệu lực.
+    #
+    # Chốt hậu kiểm quyết định ứng viên nhận câu nào — nó là một phần của "bot là
+    # cái gì", đúng như prompt. Đổi chốt thì mọi phép đo trước hết hiệu lực.
+    van = qa.PROMPT + eligibility.render_muc_nen() + lien_he.render() + _ma_chot()
     return hashlib.sha256(van.encode("utf-8")).hexdigest()[:8]
+
+
+def _ma_chot() -> str:
+    """Cấu trúc mã của hai module chốt hậu kiểm, bỏ chú thích và docstring.
+
+    Băm `ast.dump` chứ không băm chuỗi nguồn: sửa một dấu phẩy trong chú thích thì
+    không đổi hành vi của bot, mà lại làm mọi phép đo trước hết hiệu lực — thước đo
+    nhiễu tới mức không ai dùng. Cây cú pháp bỏ qua chú thích sẵn; docstring thì
+    phải bỏ tay.
+    """
+    import ast
+
+    phan = []
+    for mo_dun in (qa, phrasing):
+        cay = ast.parse(Path(mo_dun.__file__).read_text(encoding="utf-8"))
+        for nut in ast.walk(cay):
+            if not isinstance(
+                nut, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
+                continue
+            than = nut.body
+            if (
+                than
+                and isinstance(than[0], ast.Expr)
+                and isinstance(than[0].value, ast.Constant)
+                and isinstance(than[0].value.value, str)
+            ):
+                nut.body = than[1:]
+        phan.append(ast.dump(cay))
+    return "".join(phan)
 
 
 def doc_bang() -> dict[str, dict]:
