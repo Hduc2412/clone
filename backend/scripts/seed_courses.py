@@ -24,41 +24,14 @@ from scripts.seed_data.courses_seed import COURSES
 def kiem_tra(entry: dict) -> None:
     """Chặn dữ liệu hỏng ngay ở cửa nạp, không để nó vào bảng.
 
-    Một khóa khai ngược trình độ sẽ bị bộ ghép lộ trình bỏ qua trong im lặng —
-    triệu chứng duy nhất là ứng viên không bao giờ nhận được lộ trình, mà không
-    ai hiểu vì sao. Thà đổ ở đây kèm lý do rõ ràng.
+    Gọi thẳng `courses.kiem_tra` chứ không giữ bản sao thứ hai của bộ luật. Trước
+    đây luật nằm ở đây, và khi mở API quản trị thì thành hai cửa vào cùng một bảng
+    với hai mức khắt khe khác nhau — cửa lỏng hơn sẽ nhận những dòng cửa kia từ
+    chối, và bảng mất tính nhất quán mà không ai thấy ngay.
     """
-    code = entry.get("code") or "(thiếu mã)"
-    for truong in ("code", "title", "level_from", "level_to", "months_min", "status"):
-        if entry.get(truong) in (None, ""):
-            raise ValueError(f"{code}: thiếu trường bắt buộc {truong!r}")
+    from app.db import courses
 
-    tu = path.JAPANESE_RANK.get(entry["level_from"])
-    toi = path.JAPANESE_RANK.get(entry["level_to"])
-    if tu is None:
-        raise ValueError(f"{code}: level_from không có trong danh mục: {entry['level_from']!r}")
-    if toi is None:
-        raise ValueError(f"{code}: level_to không có trong danh mục: {entry['level_to']!r}")
-    if tu >= toi:
-        raise ValueError(
-            f"{code}: khóa phải nâng trình độ lên — đang khai "
-            f"{entry['level_from']!r} → {entry['level_to']!r}"
-        )
-
-    thang_min = entry["months_min"]
-    thang_max = entry.get("months_max")
-    if thang_min <= 0:
-        raise ValueError(f"{code}: months_min phải lớn hơn 0")
-    if thang_max is not None and thang_max < thang_min:
-        raise ValueError(f"{code}: months_max ({thang_max}) nhỏ hơn months_min ({thang_min})")
-
-    tong = entry.get("package_total_vnd")
-    hoc_phi = entry.get("tuition_vnd")
-    if tong is not None and hoc_phi is not None and tong < hoc_phi:
-        raise ValueError(
-            f"{code}: tổng gói ({tong:,}) nhỏ hơn học phí ({hoc_phi:,}) — "
-            "một trong hai con số đang sai"
-        )
+    courses.kiem_tra(entry)
 
 
 def mo_ta(entry: dict) -> str:

@@ -52,6 +52,68 @@ NULLABLE = frozenset({"months_max", "tuition_vnd", "package_total_vnd", "source_
 PROJECTION = {"_id": 0}
 
 
+class KhoaHocKhongHopLe(ValueError):
+    """Dữ liệu khóa học sai luật. Mang câu tiếng Việt nói rõ sai ở đâu."""
+
+
+def kiem_tra(entry: dict[str, Any]) -> None:
+    """Luật hợp lệ của một dòng khóa học. Thuần, không chạm database.
+
+    Đặt ở tầng dữ liệu để **bộ nạp và API dùng chung một bộ luật**. Trước đây luật
+    này chỉ nằm trong `scripts/seed_courses.py`, nên khi mở API quản trị thì có
+    ngay hai cửa vào bảng với hai mức khắt khe khác nhau — và cửa lỏng hơn sẽ nhận
+    những dòng mà cửa kia từ chối.
+
+    Sai nguy hiểm nhất là **khai ngược trình độ**. Bộ ghép lộ trình sẽ bỏ qua khóa
+    ấy trong im lặng, và triệu chứng duy nhất là ứng viên không bao giờ nhận được
+    lộ trình học — không lỗi, không cảnh báo, không ai hiểu vì sao.
+    """
+    from app.matching.catalog import JAPANESE_RANK
+
+    code = entry.get("code") or "(thiếu mã)"
+    for truong in ("code", "title", "level_from", "level_to", "months_min", "status"):
+        if entry.get(truong) in (None, ""):
+            raise KhoaHocKhongHopLe(f"{code}: thiếu trường bắt buộc {truong!r}")
+
+    tu = JAPANESE_RANK.get(entry["level_from"])
+    toi = JAPANESE_RANK.get(entry["level_to"])
+    if tu is None:
+        raise KhoaHocKhongHopLe(
+            f"{code}: trình độ nhận vào không có trong danh mục: {entry['level_from']!r}"
+        )
+    if toi is None:
+        raise KhoaHocKhongHopLe(
+            f"{code}: trình độ đầu ra không có trong danh mục: {entry['level_to']!r}"
+        )
+    if tu >= toi:
+        raise KhoaHocKhongHopLe(
+            f"{code}: khóa phải nâng trình độ lên — đang khai "
+            f"{entry['level_from']!r} → {entry['level_to']!r}"
+        )
+
+    thang_min = entry["months_min"]
+    thang_max = entry.get("months_max")
+    if thang_min <= 0:
+        raise KhoaHocKhongHopLe(f"{code}: số tháng tối thiểu phải lớn hơn 0")
+    if thang_max is not None and thang_max < thang_min:
+        raise KhoaHocKhongHopLe(
+            f"{code}: số tháng tối đa ({thang_max}) nhỏ hơn tối thiểu ({thang_min})"
+        )
+
+    tong = entry.get("package_total_vnd")
+    hoc_phi = entry.get("tuition_vnd")
+    if tong is not None and hoc_phi is not None and tong < hoc_phi:
+        raise KhoaHocKhongHopLe(
+            f"{code}: tổng gói ({tong:,}) nhỏ hơn học phí ({hoc_phi:,}) — "
+            "một trong hai con số đang sai"
+        )
+
+    if entry["status"] not in (STATUS_PUBLISHED, STATUS_DRAFT):
+        raise KhoaHocKhongHopLe(
+            f"{code}: trạng thái phải là {STATUS_PUBLISHED!r} hoặc {STATUS_DRAFT!r}"
+        )
+
+
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[COLLECTION].create_index([("code", ASCENDING)], unique=True)
     # Bộ ghép lộ trình luôn tra theo "nhận người ở trình độ nào", nên đánh index

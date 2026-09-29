@@ -19,6 +19,7 @@ const navigation = [
   { href: "/admin/profiles", label: "Hồ sơ ứng viên", icon: "☺" },
   { href: "/admin/applications", label: "Hồ sơ tuyển dụng", icon: "▤" },
   { href: "/admin/job-orders", label: "Đơn tuyển dụng", icon: "▣" },
+  { href: "/admin/courses", label: "Khóa học tiếng Nhật", icon: "▨" },
   { href: "/admin/recommendation-logs", label: "Nhật ký giới thiệu", icon: "◈" },
   { href: "/admin/conversations", label: "Hội thoại", icon: "◌" },
   { href: "/admin/knowledge", label: "Tri thức AI", icon: "◇" },

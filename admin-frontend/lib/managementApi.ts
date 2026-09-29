@@ -105,6 +105,40 @@ export interface StaffUser {
   created_at: string;
 }
 
+/**
+ * Một khóa học tiếng Nhật trong danh mục.
+ *
+ * Khác đơn hàng mẫu: **đây là dữ liệu thật của trung tâm**, và mỗi ô số là một
+ * lời hứa với người đang tính chuyện vay tiền đi nước ngoài. Nên `source_url` và
+ * `source_note` không phải trang trí — ô nào không có nguồn thì để trống chứ
+ * không điền phỏng đoán.
+ *
+ * `months_max` để trống nghĩa là thời lượng đúng một con số, không phải khoảng.
+ * `tuition_vnd` để trống nghĩa là **chưa biết học phí**, không phải miễn phí —
+ * phần tư vấn đã biết cách nói định tính khi thiếu số.
+ */
+export interface Course {
+  code: string;
+  title: string;
+  level_from: string;
+  level_to: string;
+  months_min: number;
+  months_max: number | null;
+  tuition_vnd: number | null;
+  package_total_vnd: number | null;
+  format: string | null;
+  curriculum: string | null;
+  status: "published" | "draft";
+  source_url: string | null;
+  source_note: string | null;
+  updated_at?: string;
+}
+
+export interface CourseMeta {
+  levels: { value: string; label: string }[];
+  statuses: { value: string; label: string }[];
+}
+
 export interface RecruitmentApplication {
   application_code: string;
   lead_code: string;
@@ -1007,6 +1041,30 @@ export const managementApi = {
     request<RecruitmentApplication & { canh_bao: string | null }>(
       `/applications/${encodeURIComponent(code)}/so-tuyen`,
       { method: "POST", body: JSON.stringify(payload) },
+    ),
+
+  // --- Danh mục khóa học tiếng Nhật ---
+  //
+  // Trước đường này, bảng khóa học chỉ vào được bằng `python -m scripts.seed_courses`.
+  // Với một bảng mà nhân viên trung tâm là người biết nội dung, đó là rào cản sai
+  // chỗ: người biết thì không sửa được, người sửa được thì không biết.
+  courses: (status?: string) =>
+    request<{ items: Course[]; count: number }>(
+      `/khoa-hoc${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+    ),
+  courseMeta: () => request<CourseMeta>("/khoa-hoc/meta"),
+  createCourse: (payload: Omit<Course, "updated_at">) =>
+    request<Course>("/khoa-hoc", { method: "POST", body: JSON.stringify(payload) }),
+  updateCourse: (code: string, payload: Omit<Course, "code" | "updated_at">) =>
+    request<Course>(`/khoa-hoc/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  /** Chỉ xóa được khóa nháp — khóa đang áp dụng có thể nằm trong lộ trình đã tư vấn. */
+  deleteCourse: (code: string) =>
+    request<{ code: string; deleted: boolean }>(
+      `/khoa-hoc/${encodeURIComponent(code)}`,
+      { method: "DELETE" },
     ),
 
   // --- Hàng đợi hỗ trợ ---

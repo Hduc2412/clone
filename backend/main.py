@@ -18,6 +18,7 @@ from app.api.job_orders import router as job_order_router
 from app.advisor import client as advisor_client
 from app.api.consultation_room import public_router as public_consultation_room_router
 from app.api.consultation_room import router as advisor_router
+from app.api.courses import router as course_router
 from app.api.support import public_router as public_support_router
 from app.api.support import router as support_router
 from app.api.matching import public_router as public_match_router
@@ -84,6 +85,7 @@ app.include_router(public_consultation_room_router)
 app.include_router(advisor_router)
 app.include_router(public_support_router)
 app.include_router(support_router)
+app.include_router(course_router)
 app.include_router(public_match_router)
 app.include_router(recommendation_log_router)
 app.include_router(public_document_router)
