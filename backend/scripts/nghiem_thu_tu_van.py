@@ -6,6 +6,24 @@ Cờ:
   --lam-lai              bỏ hết kết quả đã lưu, đo lại từ đầu
   --gioi-han=<n>         tối đa n lượt gọi mô hình trong lượt chạy này (mặc định 12)
   --ma=<MA>              chỉ đo đúng một ca, dùng khi vừa sửa prompt
+  --model=<ten>          đo trên model khác thay vì `ADVISOR_MODEL`
+  --khoa-chung           dùng `GEMINI_API_KEY` thay cho `ADVISOR_API_KEY`
+  --nghi=<giay>          nghỉ giữa hai lượt gọi (mặc định 8)
+
+## Vì sao có `--khoa-chung` và `--nghi`
+
+Hạn mức gói miễn phí tính **theo dự án Google**, không theo khóa, và nó reset vào
+nửa đêm giờ Thái Bình Dương — tức khoảng 14 giờ chiều theo giờ Việt Nam. Ngày
+29/09 tôi mất một lúc mới hiểu vì sao "sang ngày mới" mà vẫn 429: theo giờ Việt
+Nam thì đã qua ngày, còn theo giờ tính hạn mức thì chưa.
+
+Hai khóa thuộc hai dự án khác nhau nên có hai hạn mức. `--khoa-chung` cho phép đo
+tiếp bằng hạn mức còn lại của bên kia, và vì bảng kết quả ghi tên model vào từng
+dòng, hai lượt đo ấy không trộn lẫn.
+
+`--nghi` là vì còn một hàng rào thứ hai: số lượt mỗi phút. Bắn cả bộ liền không
+nghỉ thì bị chặn ngay ở lượt thứ ba, và lúc ấy rất dễ kết luận sai là hết hạn mức
+ngày.
 
 ## Vì sao phải có bộ này
 
@@ -41,6 +59,7 @@ Không ghi model vào từng dòng thì bảng trông như một phép đo trong
 nhiều phép đo trộn lại.
 """
 import asyncio
+import hashlib
 import json
 import sys
 from datetime import date
@@ -165,8 +184,14 @@ BO_CA: tuple[Ca, ...] = (
     Ca(
         "TU-01",
         "Bao nhiêu tuổi thì đi được?",
-        vi_sao="Điều kiện tuổi của chương trình là 18–40, khai trong `eligibility.MUC_NEN`.",
-        phai_co=(("18",), ("40",)),
+        vi_sao=(
+            "Đo 29/09: bot chỉ nêu khoảng tuổi của ĐƠN đang xét (20–35) và bỏ mất "
+            "mức nền của chương trình (18–40). Người 37 tuổi hỏi câu này sẽ nghe "
+            "'20–35' rồi kết luận cả chương trình đóng với mình, trong khi công ty "
+            "nhận tới 40 tuổi và còn đơn khác. Đúng kiểu loại oan mà cả bộ đối "
+            "chiếu dựng ra để tránh. Đây là lỗi đầu tiên bộ đo này tự tìm ra."
+        ),
+        phai_co=(("18",), ("40",), ("20", "35")),
     ),
     Ca(
         "BC-01",
@@ -276,6 +301,20 @@ def cham(ca: Ca, cau: str, nguon: str) -> tuple[bool, str]:
     return True, ""
 
 
+def dau_prompt() -> str:
+    """Dấu nhận dạng của prompt hiện tại — tám ký tự đầu của băm SHA-256.
+
+    Không có nó thì bảng kết quả nói dối theo một cách rất khó thấy: sửa prompt
+    rồi mở bảng ra vẫn thấy HỎNG ở ca vừa sửa, vì dòng ấy đo trên prompt cũ.
+    Gặp đúng chuyện đó ngày 29/09 — vừa siết prompt cho ca TU-01 thì hết hạn mức,
+    và bảng in ra một kết quả trông như hiện tại mà thực ra đã cũ.
+
+    Cùng một lỗi với việc phải ghi tên model vào từng dòng: bảng phải nói rõ mỗi
+    con số đo trên cái gì, không thì mọi kết luận rút ra từ nó đều mất căn cứ.
+    """
+    return hashlib.sha256(qa.PROMPT.encode("utf-8")).hexdigest()[:8]
+
+
 def doc_bang() -> dict[str, dict]:
     if not BANG.exists():
         return {}
@@ -298,16 +337,32 @@ async def main() -> int:
     model = settings.advisor_model
     gioi_han = 12
     chi_ma = None
+    nghi = 8.0
     for arg in sys.argv[1:]:
         if arg.startswith("--gioi-han="):
             gioi_han = int(arg.split("=", 1)[1])
         elif arg.startswith("--ma="):
             chi_ma = arg.split("=", 1)[1]
+        elif arg.startswith("--model="):
+            model = arg.split("=", 1)[1]
+        elif arg.startswith("--nghi="):
+            nghi = float(arg.split("=", 1)[1])
+    settings.advisor_model = model
+
+    if "--khoa-chung" in sys.argv:
+        if not settings.gemini_api_key:
+            print("GEMINI_API_KEY chưa khai trong backend/.env.")
+            return 1
+        # Ghi vào `advisor_api_key` chứ không sửa `client`: client đọc khóa riêng
+        # trước, nên đây là cách đổi khóa mà không chạm mã chạy thật.
+        settings.advisor_api_key = settings.gemini_api_key
 
     bang = {} if "--lam-lai" in sys.argv else doc_bang()
     ngu_canh = dung_ngu_canh()
 
-    print(f"Model: {model}   |   giới hạn lượt gọi: {gioi_han}")
+    ten_khoa = "GEMINI_API_KEY" if "--khoa-chung" in sys.argv else "ADVISOR_API_KEY"
+    print(f"Model: {model}   |   khóa: {ten_khoa}   |   "
+          f"giới hạn lượt gọi: {gioi_han}   |   nghỉ {nghi}s giữa hai lượt")
     print(f"Ngữ cảnh: đơn {MA_DON}, ứng viên 23 tuổi cao đẳng điều dưỡng, chưa học tiếng.")
     # In độ dài bốn khối: khối rỗng là lỗi dựng ngữ cảnh, và nó làm mọi ca đỏ
     # theo một cách trông như lỗi mô hình.
@@ -328,6 +383,10 @@ async def main() -> int:
         if da_goi >= gioi_han:
             break
 
+        if da_goi:
+            # Nghỉ giữa hai lượt. Hàng rào số lượt mỗi phút chặn sớm hơn hàng rào
+            # mỗi ngày, và khi bị chặn thì thông báo lỗi không phân biệt hai loại.
+            await asyncio.sleep(nghi)
         cau, nguon = await qa.tra_loi(cau_hoi=ca.cau_hoi, **ngu_canh)
         da_goi += 1
 
@@ -351,9 +410,11 @@ async def main() -> int:
             "nguon": nguon,
             "dat": dat,
             "vi_sao": vi_sao,
+            "dau_prompt": dau_prompt(),
         }
         ghi_bang(bang)  # Ghi từng ca: hết hạn mức giữa lượt cũng không mất.
 
+    cu_prompt_can_do_lai: list[str] = []
     for m in sorted({row["model"] for row in bang.values()}):
         dat = hong = 0
         print(f"\n{'-' * 72}\nMODEL {m}")
@@ -361,23 +422,39 @@ async def main() -> int:
             row = bang.get(f"{m}::{ca.ma}")
             if row is None:
                 continue
-            nhan = "ĐẠT " if row["dat"] else "HỎNG"
-            dat, hong = (dat + 1, hong) if row["dat"] else (dat, hong + 1)
-            print(f"\n[{nhan}] {ca.ma} · nguồn={row['nguon']}")
+            # Kết quả đo trên prompt khác thì không nói được gì về prompt đang
+            # chạy, dù đạt hay hỏng. Không tính vào tổng.
+            cu = row.get("dau_prompt") != dau_prompt()
+            if cu:
+                nhan = "CŨ  "
+                cu_prompt_can_do_lai.append(f"{m}::{ca.ma}")
+            else:
+                nhan = "ĐẠT " if row["dat"] else "HỎNG"
+                dat, hong = (dat + 1, hong) if row["dat"] else (dat, hong + 1)
+            print(f"\n[{nhan}] {ca.ma} · nguồn={row['nguon']}"
+                  + ("  ← đo trên prompt CŨ, phải đo lại" if cu else ""))
             print(f"   hỏi: {row['cau_hoi']}")
             print(f"   đáp: {row['cau_tra_loi'][:400]}")
-            if not row["dat"]:
+            if not row["dat"] and not cu:
                 print(f"   !! {row['vi_sao']}")
                 print(f"   vì sao có ca này: {ca.vi_sao}")
         chua = len(BO_CA) - dat - hong
         print(f"\n  TỔNG trên {m}:  ĐẠT {dat}   HỎNG {hong}   CHƯA ĐO {chua}")
+        cu_cua_model = [x for x in cu_prompt_can_do_lai if x.startswith(f"{m}::")]
+        if cu_cua_model:
+            print(f"  ({len(cu_cua_model)} ca đo trên prompt cũ, tính là chưa đo: "
+                  f"{', '.join(x.split('::')[1] for x in cu_cua_model)})")
 
-    models = sorted({row["model"] for row in bang.values()})
+    # Chỉ so trên những dòng đo bằng prompt ĐANG chạy. Một bảng so sánh trộn kết
+    # quả của hai prompt khác nhau thì không so model với model nữa, mà so hai
+    # phép đo không cùng điều kiện — và vì cả hai đều là con số, nhìn không ra.
+    moi_nhat = {k: r for k, r in bang.items() if r.get("dau_prompt") == dau_prompt()}
+    models = sorted({row["model"] for row in moi_nhat.values()})
     if len(models) > 1:
         print(f"\n{'=' * 72}\nSO SÁNH — chỉ trên những ca mọi model đều đo được")
         chung = set.intersection(
             *[
-                {row["ma"] for row in bang.values() if row["model"] == m}
+                {row["ma"] for row in moi_nhat.values() if row["model"] == m}
                 for m in models
             ]
         )
@@ -385,7 +462,7 @@ async def main() -> int:
         for m in models:
             dat = sum(
                 1
-                for row in bang.values()
+                for row in moi_nhat.values()
                 if row["model"] == m and row["ma"] in chung and row["dat"]
             )
             print(f"  {m:26s} ĐẠT {dat}/{len(chung)}")
