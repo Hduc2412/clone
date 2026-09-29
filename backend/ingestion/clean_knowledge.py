@@ -29,6 +29,9 @@ STAGING = "xkld_knowledge_staging"
 
 IMAGE_MARKER = "[NỘI DUNG TỪ ẢNH]"
 
+# Dưới ngần này ký tự thì đoạn không đủ để trả lời bất kỳ câu hỏi nào.
+NGUONG_NOI_DUNG = 160
+
 # Dạng số bị đọc sót cụm giữa. Chỉ sửa đúng dạng này, không đụng chuỗi số khác.
 #
 # Suy ra từ `SUPPORT_PHONE` chứ không ghi thẳng số vào đây: kho mã này công khai,
@@ -58,6 +61,46 @@ PREAMBLE = re.compile(
 )
 
 
+# Mô hình **mô tả bức ảnh** thay vì chép chữ trong ảnh: "(Đây là tiêu đề chính,
+# nằm ở phía trên cùng)", "(Số điện thoại này xuất hiện mờ trên bức tường phía sau
+# lớp học)", "(xuất hiện dưới dạng watermark)".
+#
+# Khác rác dẫn nhập ở một điểm quyết định cách xử lý: nó **nằm rải khắp đoạn**,
+# không chỉ ở đầu — nên phải quét cả đoạn chứ không cắt một lần. Đo ngày 29/09:
+# 20 trên 32 đoạn dính, tổng 91 chỗ.
+#
+# Vì sao đáng bỏ: đây là lời của máy nói về bố cục tấm ảnh, không phải thông tin
+# công ty muốn truyền đạt. Nó chiếm chỗ trong vector và kéo đoạn ấy lại gần những
+# câu hỏi không liên quan — ai hỏi "ký túc xá thế nào" mà trúng một đoạn toàn
+# "ảnh trên bên trái", "góc dưới bên phải" thì nhận một câu trả lời vô nghĩa.
+#
+# Chỉ cắt phần trong ngoặc đơn, và chỉ khi trong ngoặc có một trong những cụm chỉ
+# vị trí ở trên. Cắt mọi ngoặc đơn sẽ mất cả chú thích thật của tài liệu.
+MO_TA_ANH = re.compile(
+    r"\s*\((?=[^)]{0,200}?(?:xuất hiện|nằm ở|phía trên|phía sau|góc (?:trên|dưới)|"
+    r"bên (?:trái|phải)|watermark|in mờ|khung ảnh|bức ảnh|trong ảnh|tiêu đề chính))"
+    r"[^)]{0,200}?\)",
+    re.I,
+)
+
+# Nhãn vị trí dùng làm tiêu đề: "**Ở phía trên (tiêu đề):**", "**Ở góc dưới bên
+# trái:**", "**Tiêu đề lớn ở trên cùng:**".
+#
+# Dạng này thoát khỏi `MO_TA_ANH` vì nó không nằm trong ngoặc — nó LÀ tiêu đề của
+# mục. Mà thứ theo sau mới là nội dung thật, còn nhãn chỉ nói chữ ấy nằm chỗ nào
+# trên tấm ảnh — điều không ai hỏi và không giúp trả lời gì.
+NHAN_VI_TRI = re.compile(
+    r"\*{0,2}(?:Ở |Nằm ở )?"
+    r"(?:phía trên|phía dưới|trên cùng|dưới cùng|góc (?:trên|dưới)|bên (?:trái|phải)|"
+    r"tiêu đề(?: lớn| chính)?|chân trang|giữa ảnh)"
+    r"[^:\n*]{0,60}:\*{0,2}\s*",
+    re.I,
+)
+
+# Dòng chỉ còn lại dấu đầu dòng sau khi cắt — "*", "* **", "- ", hoặc "1." trơ trọi.
+DONG_RONG = re.compile(r"^\s*(?:[*\-•]+|\d+\.)\s*\**\s*$", re.M)
+
+
 def clean_text(text: str) -> str:
     """Trả về phần chữ đã bỏ rác, giữ nguyên nội dung thật của tài liệu."""
     text = BROKEN_PHONE.sub(SUPPORT_PHONE, text)
@@ -67,6 +110,10 @@ def clean_text(text: str) -> str:
         head, _, tail = text.partition(IMAGE_MARKER)
         tail = PREAMBLE.sub("", tail, count=1)
         text = f"{head.strip()}\n{IMAGE_MARKER}\n{tail.strip()}".strip()
+
+    text = MO_TA_ANH.sub("", text)
+    text = NHAN_VI_TRI.sub("", text)
+    text = DONG_RONG.sub("", text)
 
     # Gộp dòng trống thừa sinh ra sau khi cắt.
     return re.sub(r"\n{3,}", "\n\n", text).strip()
@@ -106,6 +153,38 @@ def main() -> None:
     print(f"Đoạn có thay đổi   : {changed}/{len(points)}")
     print(f"Số chỗ sửa điện thoại: {phone_fixed}")
     print(f"Ký tự rác bỏ đi    : {shrunk:,}")
+
+    # Đoạn gần như không còn nội dung sau khi dọn.
+    #
+    # Đây là phát hiện quan trọng hơn cả việc dọn chữ, và bộ dọn KHÔNG tự xử lý nó.
+    # Vài trang nguồn là **album ảnh sự kiện**, không phải tài liệu: toàn bộ chữ
+    # đọc được chỉ là tiêu đề với số điện thoại. Dọn xong thì lộ ra — trước đó
+    # chúng trông dài vì đầy lời mô tả bố cục tấm ảnh.
+    #
+    # Chúng vẫn thắng truy hồi ở đúng chủ đề của mình. Đo ngày 29/09: hỏi "ký túc
+    # xá của trung tâm ra sao" thì đoạn thắng với điểm 0,76 chỉ chứa "KÝ TÚC XÁ CỦA
+    # HỌC VIÊN / Trung Tâm Hà Nội" — khách hỏi và nhận về một tiêu đề.
+    #
+    # Chỉ báo ra, không tự xóa. Bỏ một trang khỏi kho là quyết định về phạm vi tri
+    # thức, và chỗ sửa đúng nằm ở bộ nạp (đừng lập chỉ mục trang chỉ có ảnh) chứ
+    # không phải ở bộ dọn.
+    rong = [
+        (p.payload.get("title", "?"), len(than))
+        for p, after in cleaned
+        if len(than := after.replace(IMAGE_MARKER, "").strip()) < NGUONG_NOI_DUNG
+    ]
+    if rong:
+        print(
+            f"\nCẢNH BÁO — {len(rong)}/{len(points)} đoạn gần như KHÔNG CÒN NỘI DUNG "
+            f"(dưới {NGUONG_NOI_DUNG} ký tự):"
+        )
+        for ten, n in sorted(rong, key=lambda x: x[1]):
+            print(f"   {n:4d} ký tự  {ten}")
+        print(
+            "   Đây là trang ảnh, không phải tài liệu. Chúng vẫn thắng truy hồi ở\n"
+            "   đúng chủ đề của mình và trả về một tiêu đề thay cho câu trả lời.\n"
+            "   Chỗ sửa nằm ở bộ nạp, không phải ở đây."
+        )
 
     if not args.write:
         print("\n--- XEM TRƯỚC 2 đoạn ---")
