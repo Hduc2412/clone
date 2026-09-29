@@ -17,6 +17,7 @@ from app.api.job_orders import public_router as public_job_order_router
 from app.api.job_orders import router as job_order_router
 from app.advisor import client as advisor_client
 from app.api.consultation_room import public_router as public_consultation_room_router
+from app.api.consultation_room import public_router_mo as public_consultation_open_router
 from app.api.consultation_room import router as advisor_router
 from app.api.courses import router as course_router
 from app.api.support import public_router as public_support_router
@@ -82,6 +83,7 @@ app.include_router(job_order_router)
 app.include_router(public_profile_router)
 app.include_router(profile_router)
 app.include_router(public_consultation_room_router)
+app.include_router(public_consultation_open_router)
 app.include_router(advisor_router)
 app.include_router(public_support_router)
 app.include_router(support_router)

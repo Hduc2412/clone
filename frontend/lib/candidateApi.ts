@@ -477,12 +477,21 @@ export type SupportKind = "nhan_tin" | "hoc_tap" | "gap_mat";
 
 export interface SupportRequestInput {
   kind: SupportKind;
-  message: string;
+  /** Không bắt buộc. Để trống thì máy chủ tự điền một câu theo loại yêu cầu. */
+  message?: string;
   full_name: string;
   phone: string;
   job_order_code?: string;
-  /** Ảnh chụp kết quả đối chiếu khách vừa đọc, để nhân viên không phải đoán. */
-  advice_block?: string;
+
+  // KHÔNG có `advice_block`, và đó là chủ ý.
+  //
+  // Bản trước gửi kèm khối kết quả đối chiếu, máy chủ lưu nguyên văn. Trình duyệt
+  // gửi gì máy chủ tin nấy — nên khách sửa được trước khi gửi, và nhân viên đọc
+  // một bản "kết quả đối chiếu" không do bộ đối chiếu sinh ra. Cùng loại sai với
+  // việc tin mã phiên trình duyệt tự đặt.
+  //
+  // Nay máy chủ tự dựng lại từ nhật ký giới thiệu, và thân yêu cầu khai
+  // `extra="forbid"` nên gửi thừa trường này là 422.
 }
 
 export interface SupportRequestResult {

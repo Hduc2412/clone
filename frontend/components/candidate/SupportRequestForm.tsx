@@ -52,17 +52,17 @@ const O_NHAP =
 export default function SupportRequestForm({
   sessionId,
   orderCode,
-  adviceBlock,
   loaiMacDinh = "nhan_tin",
   onDone,
 }: {
   sessionId: string;
   orderCode?: string;
-  /** Kết quả đối chiếu khách vừa đọc — gửi kèm để nhân viên không phải đoán. */
-  adviceBlock?: string;
   loaiMacDinh?: SupportKind;
   onDone?: (code: string) => void;
 }) {
+  // Không nhận `adviceBlock` nữa. Máy chủ tự dựng lại khối kết quả đối chiếu từ
+  // nhật ký giới thiệu — trình duyệt không còn là nguồn của thứ nhân viên đọc.
+  // Chỉ cần `orderCode` là máy chủ tra ra đúng khối khách đã nhìn thấy.
   const [kind, setKind] = useState<SupportKind>(loaiMacDinh);
   const [dangGui, setDangGui] = useState(false);
   const [loi, setLoi] = useState("");
@@ -82,7 +82,6 @@ export default function SupportRequestForm({
         full_name: String(form.get("full_name") || ""),
         phone: String(form.get("phone") || ""),
         job_order_code: orderCode,
-        advice_block: adviceBlock,
       });
       setMaDaGui(ket_qua.code);
       onDone?.(ket_qua.code);

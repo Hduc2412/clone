@@ -100,12 +100,29 @@ def order_doc(**overrides) -> dict:
 class GuardrailTests(unittest.IsolatedAsyncioTestCase):
     """Những trường hợp phải bị từ chối."""
 
-    async def _register(self, *, profile, log, job_order_code="DH-0016", order=...):
+    async def _register(
+        self, *, profile, log, job_order_code="DH-0016", order=..., gan_nhat=...
+    ):
+        """`log` là nhật ký về ĐÚNG đơn đang chốt, đã lọc theo phiên bản hồ sơ.
+
+        `gan_nhat` là bản mới nhất bất kể phiên bản — mã chỉ đọc nó để phân biệt
+        "chưa từng xem đơn nào" với "hồ sơ vừa đổi". Mặc định bằng `log`; đặt riêng
+        khi cần dựng cảnh hồ sơ đã sửa sau lần đối chiếu.
+        """
+        if gan_nhat is ...:
+            gan_nhat = log
         if order is ...:
             order = order_doc()
         with (
             patch.object(service.profiles, "get_by_session", AsyncMock(return_value=profile)),
-            patch.object(service.logs, "latest_for_profile", AsyncMock(return_value=log)),
+            patch.object(
+                service.logs, "tim_don_da_gioi_thieu", AsyncMock(return_value=log)
+            ),
+            # Vẫn vá bản gần nhất: khi không tìm thấy nhật ký về đúng đơn, mã sẽ
+            # đọc bản này để phân biệt "chưa xem đơn nào" với "hồ sơ vừa đổi".
+            patch.object(
+                service.logs, "latest_for_profile", AsyncMock(return_value=gan_nhat)
+            ),
             patch.object(service.job_orders, "get_job_order", AsyncMock(return_value=order)),
         ):
             return await service.register(
@@ -154,8 +171,13 @@ class GuardrailTests(unittest.IsolatedAsyncioTestCase):
         tên bản mới, và nhân viên gọi điện rồi mới biết người này không đủ điều
         kiện.
         """
+        # Truy vấn thật lọc theo `profile_version`, nên nhật ký chụp bản 2 KHÔNG
+        # được trả về khi hồ sơ đã sang bản 3 — dựng đúng cảnh đó: `log=None`, còn
+        # bản gần nhất vẫn là nhật ký cũ để mã nói đúng lý do từ chối.
         with self.assertRaises(service.RegistrationRejected) as ctx:
-            await self._register(profile=profile_doc(version=3), log=log_doc())
+            await self._register(
+                profile=profile_doc(version=3), log=None, gan_nhat=log_doc()
+            )
         self.assertIn("vừa thay đổi", str(ctx.exception))
 
     async def test_don_qua_han_giua_luc_doi_chieu_va_luc_dang_ky(self):
@@ -190,6 +212,7 @@ class RegisterTests(unittest.IsolatedAsyncioTestCase):
         created_report = {"code": "PT-BBB222", "text": "PHIẾU TÓM TẮT TƯ VẤN"}
         defaults = {
             "get_by_session": AsyncMock(return_value=profile_doc()),
+            "tim_don_da_gioi_thieu": AsyncMock(return_value=log_doc()),
             "latest_for_profile": AsyncMock(return_value=log_doc()),
             "get_job_order": AsyncMock(return_value=order_doc()),
             "lead_by_phone": AsyncMock(return_value=None),
@@ -216,6 +239,7 @@ class RegisterTests(unittest.IsolatedAsyncioTestCase):
         stack = ExitStack()
         for target, attribute, mock in (
             (service.profiles, "get_by_session", mocks["get_by_session"]),
+            (service.logs, "tim_don_da_gioi_thieu", mocks["tim_don_da_gioi_thieu"]),
             (service.logs, "latest_for_profile", mocks["latest_for_profile"]),
             (service.profiles, "attach_lead", mocks["attach_lead"]),
             (service.logs, "attach_application", mocks["attach_application"]),

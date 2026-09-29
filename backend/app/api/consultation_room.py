@@ -62,6 +62,23 @@ public_router = APIRouter(
     dependencies=[Depends(require_journey_session)],
 )
 
+# Đường không cần phiên tư vấn.
+#
+# `public_router` gắn `require_journey_session` ở cấp router, và hàm ấy đọc
+# `session_id` từ **đường dẫn**. Đường nào không có tham số đó thì FastAPI coi
+# `session_id` là query bắt buộc và trả 422 — đúng chuyện đã xảy ra với
+# `/tu-van/v1/dieu-kien`, một đường mà docstring của nó ghi rõ là "để trang giới
+# thiệu dùng được mà không phải mở phiên tư vấn".
+#
+# Không gỡ dependency ở cấp router để sửa: nó đang canh mọi đường còn lại, và bỏ
+# đi thì phải nhớ gắn tay cho từng đường mới — thứ sẽ quên đúng một lần là thủng.
+# Dựng router thứ hai cùng tiền tố, không có dependency, và chỉ những đường thật
+# sự không cần phiên mới được đặt vào đây.
+public_router_mo = APIRouter(
+    prefix="/tu-van/v1",
+    tags=["Engine tư vấn"],
+)
+
 router = APIRouter(
     prefix="/advisor",
     tags=["Engine tư vấn (nội bộ)"],
@@ -103,7 +120,7 @@ async def thong_ke_bot(
     }
 
 
-@public_router.get("/dieu-kien")
+@public_router_mo.get("/dieu-kien")
 async def dieu_kien_chuong_trinh() -> dict[str, Any]:
     """Điều kiện mức nền, không phụ thuộc phiên hay đơn nào.
 
@@ -229,7 +246,12 @@ async def hoi_them(
             detail="Chưa có hồ sơ cho phiên này. Bạn gửi CV hoặc khai nhanh vài mục nhé.",
         )
 
-    don = await job_orders.get_job_order(code)
+    # `public=True` bắt buộc, không phải tối ưu. Thiếu nó thì đường công khai này
+    # trả lời được về đơn NHÁP, đơn tạm dừng và đơn đã quá hạn — ai đoán được mã
+    # đơn là hỏi bot ra tên cơ sở tiếp nhận, lương, điều kiện của một đơn công ty
+    # chưa muốn ai biết. Nó còn lấy projection quản trị, tức kéo cả `internal_note`
+    # và `created_by` vào bộ nhớ tiến trình ở một đường không cần đăng nhập.
+    don = await job_orders.get_job_order(code, public=True)
     if don is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn này.")
 
@@ -324,7 +346,7 @@ async def _yeu_cau_tieng_nhat(code: str) -> str | None:
     bằng giây, và nếu đơn đổi thật thì dấu vân tay danh mục đổi theo nên lần đối
     chiếu kế tiếp tự chạy lại.
     """
-    don = await job_orders.get_job_order(code)
+    don = await job_orders.get_job_order(code, public=True)
     if don is None:
         return None
     return (don.get("requirements") or {}).get("japanese_required")

@@ -79,7 +79,7 @@ async def register(*, session_id: str, job_order_code: str) -> dict[str, Any]:
     # Tra nhật ký đúng một lần rồi truyền đi. Gọi lại nhiều lần thì mỗi lần có
     # thể ra một bản khác nhau, và hồ sơ đăng ký sẽ trỏ tới một nhật ký không
     # phải cái vừa dùng để kiểm tra.
-    log = await _latest_log(profile)
+    log = await _log_da_gioi_thieu_don(profile, job_order_code)
     item = _recommended_item(log, job_order_code)
     await _ensure_order_still_open(job_order_code)
     profiles.decorate(profile)
@@ -186,30 +186,66 @@ async def register(*, session_id: str, job_order_code: str) -> dict[str, Any]:
     return {"application": application, "report": report}
 
 
-async def _latest_log(profile: dict[str, Any]) -> dict[str, Any]:
-    """Nhật ký giới thiệu gần nhất, và nó phải nói về **hồ sơ như hiện tại**.
+async def _log_da_gioi_thieu_don(
+    profile: dict[str, Any], job_order_code: str
+) -> dict[str, Any]:
+    """Nhật ký đã giới thiệu ĐÚNG đơn này, và nó phải nói về **hồ sơ như hiện tại**.
 
     Nhật ký là ảnh chụp tại một thời điểm. Giữa lúc chụp và lúc bấm đăng ký, ứng
     viên vẫn mở được tab hồ sơ và sửa: hạ trình độ tiếng Nhật, đổi năm sinh, bỏ
-    bớt kinh nghiệm. Nếu chỉ lấy bản gần nhất mà không soi lại, đơn từng "đạt"
-    với hồ sơ cũ sẽ đi thẳng vào hàng đợi dưới tên hồ sơ mới — nhân viên gọi
-    điện rồi mới phát hiện người này chưa từng đủ điều kiện.
+    bớt kinh nghiệm. Không soi lại thì đơn từng "đạt" với hồ sơ cũ sẽ đi thẳng
+    vào hàng đợi dưới tên hồ sơ mới — nhân viên gọi điện rồi mới phát hiện người
+    này chưa từng đủ điều kiện.
 
     `version` tăng mỗi lần hồ sơ đổi, và nhật ký lưu sẵn `profile_version` của
     lần đối chiếu. Hai số khác nhau nghĩa là ảnh chụp đã lỗi thời — bắt đối
     chiếu lại chứ không đoán hộ.
+
+    ## Vì sao không còn dùng "nhật ký gần nhất"
+
+    Bản trước đọc `latest_for_profile` rồi tìm đơn trong đó. Cách ấy đúng khi mỗi
+    lần đối chiếu quét cả danh mục, nhưng phòng tư vấn theo đơn ghi **một nhật ký
+    cho mỗi đơn khách mở**, nên nó hỏng ngay ở một kịch bản rất thường:
+
+        mở DH-0001  → nhật ký A (chỉ chứa DH-0001), màn hình ghi "đăng ký được"
+        mở DH-0004  → nhật ký B (chỉ chứa DH-0004)
+        quay lại chốt DH-0001 → bị từ chối, vì bản gần nhất là B
+
+    Mở lại DH-0001 cũng không cứu: bộ đối chiếu thấy kết quả còn nguyên nên dùng
+    lại nhật ký A thay vì ghi bản mới, và A vẫn không phải bản gần nhất. Khách
+    nhìn thấy "đăng ký được" rồi bấm vào thì bị bảo đơn ấy chưa từng được giới
+    thiệu cho mình — một câu vừa sai vừa không chỉ được đường nào đi tiếp.
+
+    Nay tìm theo **đúng đơn khách đang chốt**, trong các nhật ký của đúng phiên
+    bản hồ sơ hiện tại. Chốt chặn không nới một ly: chỉ bỏ điều kiện "phải là bản
+    mới nhất", vốn là hệ quả của cách cài đặt chứ không ai cố ý đặt ra.
     """
-    log = await logs.latest_for_profile(profile["code"])
-    if log is None:
+    phien_ban = int(profile.get("version", 1))
+    log = await logs.tim_don_da_gioi_thieu(
+        profile_code=profile["code"],
+        profile_version=phien_ban,
+        job_order_code=job_order_code,
+    )
+    if log is not None:
+        return log
+
+    # Không có nhật ký nào về ĐÚNG đơn này ở phiên bản hồ sơ hiện tại. Hai lý do
+    # rất khác nhau, và nói nhầm thì khách đi sai đường: hoặc họ chưa từng xem đơn
+    # này, hoặc họ vừa sửa hồ sơ nên mọi lời giới thiệu cũ hết hiệu lực.
+    gan_nhat = await logs.latest_for_profile(profile["code"])
+    if gan_nhat is None:
         raise RegistrationRejected(
             "Bạn xem danh sách đơn phù hợp trước đã, rồi chọn một đơn để đăng ký nhé."
         )
-    if int(log.get("profile_version", -1)) != int(profile.get("version", 1)):
+    if int(gan_nhat.get("profile_version", -1)) != phien_ban:
         raise RegistrationRejected(
             "Hồ sơ của bạn vừa thay đổi sau lần xem danh sách gần nhất. "
             "Bạn xem lại danh sách đơn phù hợp rồi chọn lại giúp mình nhé."
         )
-    return log
+    raise RegistrationRejected(
+        "Đơn này không có trong danh sách đã giới thiệu cho bạn. "
+        "Bạn mở lại đơn để xem kết quả đối chiếu rồi chọn giúp mình nhé."
+    )
 
 
 async def _ensure_order_still_open(job_order_code: str) -> None:

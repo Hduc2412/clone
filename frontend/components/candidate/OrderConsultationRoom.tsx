@@ -217,7 +217,6 @@ export default function OrderConsultationRoom({
               // Gửi kèm đúng khối chữ khách vừa đọc. Nhân viên gọi lại đọc được
               // chính thứ khách đã đọc, thay vì tự dựng lại rồi đoán xem khách
               // đang hiểu thế nào.
-              adviceBlock={advice.text_template}
               loaiMacDinh={loaiHoTro}
             />
           )}

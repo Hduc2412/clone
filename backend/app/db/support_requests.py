@@ -78,6 +78,35 @@ async def create_request(document: dict[str, Any]) -> dict[str, Any]:
     return strip_id(full)
 
 
+async def tim_yeu_cau_dang_cho(
+    *, session_id: str, kind: str, job_order_code: str | None
+) -> dict[str, Any] | None:
+    """Yêu cầu cùng loại, cùng đơn, của cùng phiên, **chưa ai xử lý xong**.
+
+    Dùng để bấm hai lần không tạo hai việc. Nút gửi nằm cuối một màn hình dài,
+    mạng di động thì chậm, và không có gì nhúc nhích trong một giây — người ta bấm
+    lại. Mỗi lần bấm một dòng thì hai nhân viên nhận hai yêu cầu của cùng một
+    người rồi gọi cho họ hai lần.
+
+    Chỉ tính yêu cầu **đang mở**. Đã xử lý xong mà khách quay lại hỏi tiếp thì đó
+    là một việc mới thật, không phải bấm nhầm — chặn nó là bịt đường của người cần
+    hỏi thêm.
+
+    Cũng chỉ gộp khi **cùng loại và cùng đơn**: xin gặp mặt về DH-0001 và hỏi
+    chuyện học là hai việc khác nhau, dù cùng một người gửi trong một phút.
+    """
+    return await get_db()[COLLECTION].find_one(
+        {
+            "session_id": session_id,
+            "kind": kind,
+            "job_order_code": job_order_code,
+            "status": {"$in": [STATUS_CHO, STATUS_DANG_XU_LY]},
+        },
+        PROJECTION,
+        sort=[("created_at", DESCENDING)],
+    )
+
+
 async def get_request(code: str) -> dict[str, Any] | None:
     return await get_db()[COLLECTION].find_one({"code": code}, PROJECTION)
 

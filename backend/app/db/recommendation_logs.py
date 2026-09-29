@@ -108,6 +108,47 @@ async def latest_for_profile(profile_code: str) -> dict[str, Any] | None:
     )
 
 
+async def tim_don_da_gioi_thieu(
+    *, profile_code: str, profile_version: int, job_order_code: str
+) -> dict[str, Any] | None:
+    """Nhật ký nào đã từng giới thiệu đơn này cho hồ sơ này, ở đúng phiên bản này.
+
+    Trước 30/09 chỗ đăng ký chỉ đọc `latest_for_profile`. Nhưng phòng tư vấn theo
+    đơn ghi **một nhật ký cho mỗi đơn khách mở**, nên kịch bản rất thường gặp này
+    hỏng:
+
+        mở DH-0001  → nhật ký A (chỉ chứa DH-0001), thấy "đăng ký được"
+        mở DH-0004  → nhật ký B (chỉ chứa DH-0004)
+        quay lại chốt DH-0001 → bị từ chối, vì bản gần nhất là B
+
+    Mở lại DH-0001 cũng không cứu được: bộ đối chiếu thấy kết quả còn nguyên nên
+    dùng lại nhật ký A thay vì ghi bản mới, và A vẫn không phải bản gần nhất.
+    Khách thấy một đơn ghi rõ "đăng ký được" rồi bấm vào thì bị bảo là đơn ấy
+    chưa từng được giới thiệu cho mình.
+
+    **Chốt chặn không nới ra một ly.** Ba điều kiện cũ giữ nguyên, chỉ bỏ điều kiện
+    thứ tư vốn không ai cố ý đặt ra — "phải là nhật ký mới nhất":
+
+    - đúng hồ sơ ấy (`profile_code`)
+    - đúng phiên bản hồ sơ hiện tại (`profile_version`) — sửa hồ sơ xong thì mọi
+      lời giới thiệu cũ hết hiệu lực, đây mới là thứ chặn việc đăng ký bằng ảnh
+      chụp lỗi thời
+    - đơn ấy thật sự nằm trong nhật ký, và nơi gọi còn kiểm tiếp cờ `eligible`
+
+    Lấy bản mới nhất trong số các bản khớp, để hồ sơ đăng ký trỏ tới lần đối chiếu
+    gần nhất về chính đơn đó.
+    """
+    return await get_db()[COLLECTION].find_one(
+        {
+            "profile_code": profile_code,
+            "profile_version": profile_version,
+            "items.code": job_order_code,
+        },
+        DETAIL_PROJECTION,
+        sort=[("created_at", DESCENDING)],
+    )
+
+
 def build_query(
     *,
     profile_code: str | None = None,

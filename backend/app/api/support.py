@@ -31,7 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.auth.journey_security import require_journey_session
 from app.auth.security import get_current_user
-from app.consultation import lien_he
+from app.consultation import khoi_doi_chieu, lien_he
 from app.core.codes import PREFIX_SUPPORT, new_code
 from app.core.phone import normalize_vietnamese_phone
 from app.core.rate_limit import client_ip, rate_limiter
@@ -70,13 +70,25 @@ class SupportRequestBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["nhan_tin", "hoc_tap", "gap_mat"]
-    message: str = Field(min_length=1, max_length=2000)
+    # Lời nhắn KHÔNG bắt buộc.
+    #
+    # Khách vừa đọc một khối kết quả nói rõ họ vướng ở đâu, rồi bấm "xin gặp nhân
+    # viên". Bắt họ gõ lại bằng lời của mình là bắt diễn đạt lại một thứ hệ thống
+    # đã biết — và với người đang thất vọng vì vừa bị báo chưa đủ điều kiện thì
+    # đó là một bậc thềm đủ cao để họ bỏ đi. Để trống thì máy chủ tự điền một câu
+    # theo loại yêu cầu, xem `_LOI_NHAN_MAC_DINH`.
+    message: str = Field(default="", max_length=2000)
     full_name: str = Field(min_length=2, max_length=100)
     phone: str = Field(min_length=6, max_length=20)
     job_order_code: str | None = Field(default=None, max_length=20)
-    # Ảnh chụp kết quả đối chiếu khách đã nhìn thấy lúc bấm nút. Nhân viên gọi
-    # lại đọc được chính thứ khách đã đọc, thay vì tự dựng lại rồi đoán.
-    advice_block: str | None = Field(default=None, max_length=6000)
+
+    # KHÔNG có trường `advice_block`, và đó là chủ ý.
+    #
+    # Bản trước nhận khối kết quả đối chiếu từ thân yêu cầu rồi lưu nguyên văn —
+    # trình duyệt gửi gì máy chủ tin nấy, nên khách sửa được trước khi gửi và
+    # nhân viên đọc một bản "kết quả đối chiếu" không do bộ đối chiếu sinh ra.
+    # Cùng loại sai với việc tin mã phiên trình duyệt tự đặt. Nay máy chủ tự dựng
+    # lại từ nhật ký giới thiệu, xem `consultation/khoi_doi_chieu.py`.
 
     @field_validator("phone", mode="before")
     @classmethod
@@ -100,6 +112,23 @@ async def gui_yeu_cau(
     # Chặt hơn các đường đọc: đây là đường ghi và nó tạo việc cho nhân viên thật.
     rate_limiter.check(f"ho-tro:{client_ip(http_request)}", limit=5, window_seconds=600)
 
+    # Bấm hai lần không tạo hai việc.
+    #
+    # Nút gửi nằm ở cuối một màn hình dài, mạng di động thì chậm, và không có gì
+    # nhúc nhích trong một giây — người ta bấm lại. Trước đây mỗi lần bấm là một
+    # dòng trong hàng đợi, nên hai nhân viên nhận hai yêu cầu của cùng một người
+    # rồi gọi cho họ hai lần.
+    #
+    # Trả lại đúng yêu cầu đang chờ thay vì báo lỗi: nhìn từ phía khách thì lần
+    # bấm nào cũng thành công, mà hàng đợi chỉ có một việc.
+    dang_cho = await store.tim_yeu_cau_dang_cho(
+        session_id=session_id,
+        kind=payload.kind,
+        job_order_code=payload.job_order_code,
+    )
+    if dang_cho is not None:
+        return _da_nhan(dang_cho)
+
     document = await store.create_request(
         {
             "code": new_code(PREFIX_SUPPORT),
@@ -107,9 +136,12 @@ async def gui_yeu_cau(
             "session_id": session_id,
             "full_name": payload.full_name.strip(),
             "phone": payload.phone,
-            "message": payload.message.strip(),
+            "message": payload.message.strip() or _LOI_NHAN_MAC_DINH[payload.kind],
             "job_order_code": payload.job_order_code,
-            "advice_block": payload.advice_block,
+            # Máy chủ tự dựng, không nhận từ trình duyệt.
+            "advice_block": await khoi_doi_chieu.dung_tu_nhat_ky(
+                session_id, payload.job_order_code or ""
+            ),
         }
     )
 
@@ -120,6 +152,15 @@ async def gui_yeu_cau(
         reference_code=document["code"],
         detail={"customer_name": document["full_name"], "kind": payload.kind},
     )
+    return _da_nhan(document)
+
+
+def _da_nhan(document: dict[str, Any]) -> dict[str, Any]:
+    """Câu trả lời cho khách. Giống hệt nhau dù là yêu cầu mới hay yêu cầu đã có.
+
+    Nói "bạn đã gửi rồi" chỉ làm người ta lo là lần này không tính. Thứ họ cần
+    biết là yêu cầu đã tới nơi và bao giờ có người trả lời.
+    """
     return {
         "code": document["code"],
         "kind": document["kind"],
@@ -138,6 +179,14 @@ async def yeu_cau_cua_toi(
     items = await store.list_for_session(session_id)
     return {"items": [_ban_cho_khach(item) for item in items]}
 
+
+# Lời nhắn máy chủ tự điền khi khách để trống. Viết ở ngôi của khách, vì nhân
+# viên đọc hàng đợi sẽ đọc nó như lời khách nói.
+_LOI_NHAN_MAC_DINH = {
+    store.KIND_NHAN_TIN: "Khách để lại yêu cầu, chưa ghi nội dung cụ thể.",
+    store.KIND_HOC_TAP: "Khách muốn được tư vấn về việc học tiếng Nhật.",
+    store.KIND_GAP_MAT: "Khách muốn gặp nhân viên tư vấn để trao đổi thêm.",
+}
 
 _TIEU_DE_THONG_BAO = {
     store.KIND_NHAN_TIN: "Khách để lại tin nhắn",

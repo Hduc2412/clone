@@ -34,7 +34,8 @@ def body(**ghi_de) -> support.SupportRequestBody:
         "full_name": "Nguyễn Thị Lan",
         "phone": "0912345678",
         "job_order_code": "DH-0001",
-        "advice_block": "ĐƠN ĐANG XÉT: DH-0001\nKẾT LUẬN: chưa đạt điều kiện bắt buộc",
+        # KHÔNG có `advice_block`: thân yêu cầu không còn nhận nó nữa. Máy chủ tự
+        # dựng lại từ nhật ký giới thiệu — xem `KhoiDoiChieuDoMayChuDungTests`.
     }
     gia_tri.update(ghi_de)
     return support.SupportRequestBody(**gia_tri)
@@ -60,16 +61,23 @@ def ban_ghi(**ghi_de) -> dict:
 
 
 class GuiYeuCauTests(unittest.IsolatedAsyncioTestCase):
-    async def _gui(self, payload):
+    async def _gui(self, payload, *, khoi="ĐƠN ĐANG XÉT: DH-0001", dang_cho=None):
         viet = AsyncMock(side_effect=lambda doc: {**doc, "status": store.STATUS_CHO})
         with patch.object(store, "create_request", viet), \
+             patch.object(
+                 store, "tim_yeu_cau_dang_cho", AsyncMock(return_value=dang_cho)
+             ), \
+             patch.object(
+                 support.khoi_doi_chieu, "dung_tu_nhat_ky",
+                 AsyncMock(return_value=khoi),
+             ), \
              patch.object(support, "create_notification", AsyncMock()), \
              patch.object(support.rate_limiter, "check", lambda *a, **k: None):
             ra = await support.gui_yeu_cau(SESSION, payload, http_request())
-        return ra, viet.await_args.args[0]
+        return ra, (viet.await_args.args[0] if viet.await_args else None), viet
 
     async def test_tao_duoc_yeu_cau_va_tra_ma(self):
-        ra, _ = await self._gui(body())
+        ra, _, _ = await self._gui(body())
         self.assertTrue(ra["code"].startswith("HT-"))
 
     async def test_noi_ro_khung_gio_lien_he_ngay_trong_cau_tra_ve(self):
@@ -79,17 +87,17 @@ class GuiYeuCauTests(unittest.IsolatedAsyncioTestCase):
         một câu trả lời không tới — và đó là cách nhanh nhất để mất một người
         thật sự đang quan tâm.
         """
-        ra, _ = await self._gui(body())
+        ra, _, _ = await self._gui(body())
         self.assertIn(support.GIO_LIEN_HE, ra["message"])
         self.assertIn("liên hệ", ra["message"].lower())
 
     async def test_mang_theo_anh_chup_ket_qua_doi_chieu(self):
         """Nhân viên gọi lại đọc được chính thứ khách đã đọc."""
-        _, doc = await self._gui(body())
+        _, doc, _ = await self._gui(body())
         self.assertIn("DH-0001", doc["advice_block"])
 
     async def test_chuan_hoa_so_dien_thoai(self):
-        _, doc = await self._gui(body(phone="+84912345678"))
+        _, doc, _ = await self._gui(body(phone="+84912345678"))
         self.assertEqual(doc["phone"], "0912345678")
 
     async def test_khong_luu_bat_ky_du_lieu_suc_khoe_nao(self):
@@ -99,7 +107,7 @@ class GuiYeuCauTests(unittest.IsolatedAsyncioTestCase):
         không — buổi khám mới là chỗ kết luận. Ca này chặn việc ai đó thêm một
         trường kiểu `health_status` về sau.
         """
-        _, doc = await self._gui(body(kind="hoc_tap", message="Em lo về sức khỏe"))
+        _, doc, _ = await self._gui(body(kind="hoc_tap", message="Em lo về sức khỏe"))
         cam = ("health", "disease", "benh", "hepatitis", "hiv", "diagnosis", "medical")
         for khoa in doc:
             for tu in cam:
@@ -108,7 +116,7 @@ class GuiYeuCauTests(unittest.IsolatedAsyncioTestCase):
     async def test_ba_loai_deu_gui_duoc(self):
         for loai in store.KINDS:
             with self.subTest(loai=loai):
-                _, doc = await self._gui(body(kind=loai))
+                _, doc, _ = await self._gui(body(kind=loai))
                 self.assertEqual(doc["kind"], loai)
 
     async def test_loai_la_bi_tu_choi_ngay_o_mo_hinh_du_lieu(self):
