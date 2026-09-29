@@ -9,13 +9,16 @@ không phải bằng lời:
 - **Chỉ loại khi chắc chắn**: thiếu dữ liệu không được phép loại đơn.
 - **Không đọc đồng hồ**: thời điểm là tham số truyền vào, không phải thứ hàm tự lấy.
 """
+import ast
 import json
+import pathlib
 import random
 import unittest
 from datetime import date, timedelta
 from unittest.mock import patch
 
 from app.matching import catalog
+from app.matching import engine as engine_module
 from app.matching.engine import (
     CHUA_RO,
     DAT,
@@ -508,12 +511,73 @@ class MatchOrdersTests(unittest.TestCase):
         self.assertTrue(result.weights_fingerprint.startswith("sha256:"))
 
     def test_engine_never_reads_the_clock(self):
-        """Đọc đồng hồ bên trong sẽ phá tính tái lập; thời điểm phải là tham số."""
-        with patch("app.core.timeutil.local_today", side_effect=AssertionError("đã gọi đồng hồ")):
-            match_orders(
-                self._pool(), facts_for(FULL_FIELDS, FULL_PREFERENCES),
-                weights=WEIGHTS, as_of=AS_OF,
-            )
+        """Đọc đồng hồ bên trong sẽ phá tính tái lập; thời điểm phải là tham số.
+
+        Quét mã nguồn thay vì vá hàm đồng hồ. Bản trước vá
+        `app.core.timeutil.local_today` và bắt lỗi nếu nó được gọi — nhưng
+        `engine.py` **không hề tham chiếu tên đó**, nó chỉ import `age_on`. Nên ca
+        kiểm thử ấy không thể đỏ: nó vẫn xanh kể cả khi engine gọi thẳng
+        `date.today()`, `datetime.now()` hay `time.time()`.
+
+        Phát hiện ngày 29/09/2026 trong lượt soát bộ kiểm thử. Bài học không phải
+        là "vá sai tên" mà là: **chốt chặn kiểu 'không được làm X' thì quét nguồn
+        mới chắc**, còn vá một cái tên cụ thể chỉ chặn đúng con đường mình nghĩ
+        ra, và bỏ ngỏ mọi con đường khác.
+        """
+        nguon = (
+            pathlib.Path(engine_module.__file__).read_text(encoding="utf-8")
+        )
+        cay = ast.parse(nguon)
+
+        # Mọi cách đọc thời điểm hiện tại mà engine có thể chạm tới.
+        CAM = {
+            "today", "now", "utcnow", "local_today", "local_now",
+            "time", "monotonic", "fromtimestamp",
+        }
+        vi_pham = []
+        for node in ast.walk(cay):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr in CAM:
+                    vi_pham.append(f"dòng {node.lineno}: gọi .{node.func.attr}()")
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                if node.func.id in CAM:
+                    vi_pham.append(f"dòng {node.lineno}: gọi {node.func.id}()")
+            elif isinstance(node, ast.ImportFrom) and node.module in (
+                "time", "app.core.timeutil"
+            ):
+                lay = {a.name for a in node.names}
+                if lay & CAM:
+                    vi_pham.append(f"dòng {node.lineno}: import {sorted(lay & CAM)}")
+
+        self.assertEqual(
+            vi_pham,
+            [],
+            "engine đọc thời điểm hiện tại bên trong. Thời điểm phải vào qua tham "
+            "số `as_of`, không thì cùng một hồ sơ chạy hai ngày ra hai kết quả và "
+            "không nhật ký nào giải thích được vì sao.\n  " + "\n  ".join(vi_pham),
+        )
+
+    def test_as_of_that_su_duoc_dung(self):
+        """Ca đi kèm ca trên: chứng minh `as_of` không bị bỏ qua.
+
+        Quét nguồn chỉ nói engine **không đọc đồng hồ**. Nó không nói engine có
+        dùng tham số thời điểm hay không — một engine phớt lờ luôn `as_of` cũng
+        qua được ca ấy. Hai ca cùng nhau mới khép kín: thời điểm đến từ tham số,
+        và tham số có tác dụng.
+        """
+        pool = self._pool()
+        facts = facts_for(FULL_FIELDS, FULL_PREFERENCES)
+        hom_nay = match_orders(pool, facts, weights=WEIGHTS, as_of=AS_OF)
+        # Sau hạn nộp của mọi đơn thì phải có đơn bị loại vì quá hạn.
+        rat_xa = match_orders(
+            pool, facts, weights=WEIGHTS, as_of=AS_OF + timedelta(days=3650)
+        )
+        self.assertNotEqual(
+            hom_nay.eligible_count,
+            rat_xa.eligible_count,
+            "đổi `as_of` mười năm mà kết quả không đổi — engine đang bỏ qua tham số",
+        )
+        self.assertEqual(rat_xa.eligible_count, 0)
 
 
 class FactsAndFormattingTests(unittest.TestCase):
