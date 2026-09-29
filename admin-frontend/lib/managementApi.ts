@@ -359,6 +359,37 @@ export interface QueuedRegistration {
   created_at: string;
 }
 
+/**
+ * Một yêu cầu hỗ trợ do khách gửi từ website.
+ *
+ * Khác `QueuedRegistration`: đăng ký sơ bộ là khách **đã chọn được một đơn và đủ
+ * điều kiện**; yêu cầu hỗ trợ thì thường là khách **chưa phù hợp** nhưng vẫn muốn
+ * nói chuyện với người. Hai loại việc khác nhau nên hai hàng đợi khác nhau — trộn
+ * chung thì việc chốt hồ sơ tuyển dụng lẫn với việc tư vấn dài hạn.
+ *
+ * `advice_block` là khối kết quả đối chiếu khách đang nhìn thấy lúc bấm gửi. Nhân
+ * viên đọc nó trước khi gọi là biết ngay khách đang vướng ở đâu, thay vì hỏi lại
+ * từ đầu một người vừa bị từ chối.
+ *
+ * **Không có trường nào về sức khỏe**, kể cả khi khách gửi yêu cầu vì lý do sức
+ * khỏe. Đó là quyết định có chủ ý, xem `app/consultation/eligibility.py`.
+ */
+export interface SupportRequest {
+  code: string;
+  kind: "nhan_tin" | "hoc_tap" | "gap_mat";
+  status: "cho_xu_ly" | "dang_xu_ly" | "da_xong" | "da_huy";
+  full_name: string;
+  phone: string;
+  message: string;
+  job_order_code: string | null;
+  advice_block: string | null;
+  assigned_to: string | null;
+  reply: string | null;
+  created_at: string;
+  claimed_at: string | null;
+  closed_at: string | null;
+}
+
 export interface ConsultationReport {
   code: string;
   application_code: string;
@@ -950,5 +981,55 @@ export const managementApi = {
     request<RecommendationLog>("/recommendation-logs/rerun", {
       method: "POST",
       body: JSON.stringify({ profile_code: profileCode }),
+    }),
+  /**
+   * Ghi kết quả buổi sơ tuyển: chốt trình độ tiếng Nhật VÀ trạng thái hồ sơ.
+   *
+   * Một lời gọi đổi cả hai. Tách làm hai nút thì sớm muộn có hồ sơ bấm cái này
+   * quên cái kia, và khi ấy hồ sơ năng lực với hồ sơ tuyển dụng nói hai điều khác
+   * nhau về cùng một người.
+   *
+   * `chung_cu` là cách đối chứng tại buổi gặp. **Không nhận ảnh chụp bằng** —
+   * nhìn ảnh không phân biệt được thật với giả, còn ngồi đối diện thì hỏi vài câu
+   * tiếng Nhật là biết ngay. Chọn "không xuất trình được gì" thì trình độ vẫn
+   * được ghi là tự khai, dù nhân viên vẫn cho hồ sơ đi tiếp.
+   */
+  recordScreening: (
+    code: string,
+    payload: {
+      japanese_level: string;
+      chung_cu: "ban_goc" | "tra_cuu_truc_tuyen" | "khong_xuat_trinh";
+      hinh_thuc: "truc_tiep" | "truc_tuyen";
+      next_status: string;
+      note?: string;
+    },
+  ) =>
+    request<RecruitmentApplication & { canh_bao: string | null }>(
+      `/applications/${encodeURIComponent(code)}/so-tuyen`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+
+  // --- Hàng đợi hỗ trợ ---
+  //
+  // Đường dưới `/ho-tro`, tách hẳn `/registrations/queue`. Xem `SupportRequest`.
+  supportQueue: (params: { status?: string; kind?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.status) query.set("status", params.status);
+    if (params.kind) query.set("kind", params.kind);
+    const duoi = query.toString();
+    return request<{ items: SupportRequest[]; count: number }>(
+      `/ho-tro${duoi ? `?${duoi}` : ""}`,
+    );
+  },
+  mySupportRequests: () =>
+    request<{ items: SupportRequest[]; count: number }>("/ho-tro/cua-toi"),
+  claimSupportRequest: (code: string) =>
+    request<SupportRequest>(`/ho-tro/${encodeURIComponent(code)}/nhan`, {
+      method: "POST",
+    }),
+  replySupportRequest: (code: string, reply: string) =>
+    request<SupportRequest>(`/ho-tro/${encodeURIComponent(code)}/tra-loi`, {
+      method: "POST",
+      body: JSON.stringify({ reply }),
     }),
 };

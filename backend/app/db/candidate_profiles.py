@@ -94,6 +94,59 @@ def cell(value: Any, source: str, evidence: str | None = None) -> dict[str, Any]
     }
 
 
+# --- Mức xác thực của trình độ tiếng Nhật ---
+#
+# Trình độ tiếng Nhật là tiêu chí loại người nhiều nhất trong bảy điều kiện bắt
+# buộc, nên nó là chỗ duy nhất đáng ghi lại **đã tin vào căn cứ nào**.
+#
+# Cố ý KHÔNG nhận ảnh chụp bằng. Nhìn ảnh không phân biệt được bằng thật với bằng
+# giả, còn ngồi đối diện thì hỏi vài câu tiếng Nhật là biết ngay — nên việc xác
+# thực là của buổi gặp giữa người với người, và hệ thống chỉ ghi lại kết quả cùng
+# cách đối chứng. Thêm một loại giấy tờ cá nhân vào kho là thêm một thứ để mất.
+XAC_THUC_TRUNG_TAM = "center"      # học tại chính trung tâm — chắc nhất, khỏi đối chứng
+XAC_THUC_DOI_CHUNG = "verified"    # đã gặp và đối chứng được
+XAC_THUC_TU_KHAI = "claimed"       # khách tự khai, chưa ai kiểm
+
+# Cách đối chứng tại buổi gặp.
+CHUNG_CU_BAN_GOC = "ban_goc"                  # ứng viên cầm bằng gốc
+CHUNG_CU_TRA_CUU = "tra_cuu_truc_tuyen"       # tra kết quả trên trang chính thức
+CHUNG_CU_KHONG_CO = "khong_xuat_trinh"        # không xuất trình được gì
+CAC_CHUNG_CU = (CHUNG_CU_BAN_GOC, CHUNG_CU_TRA_CUU, CHUNG_CU_KHONG_CO)
+
+
+def muc_xac_thuc(chung_cu: str) -> str:
+    """Cách đối chứng nào cho ra mức xác thực nào.
+
+    Điểm quan trọng: **không xuất trình được gì thì trình độ vẫn là tự khai.**
+    Không có luật này thì nhân viên bấm hết biểu mẫu là mọi hồ sơ đều thành "đã
+    xác thực", kể cả hồ sơ không có một mẩu căn cứ nào — và nhãn ấy đi theo ứng
+    viên tới tận buổi phỏng vấn với công ty Nhật, nơi nó bị lật lại.
+    """
+    return XAC_THUC_TU_KHAI if chung_cu == CHUNG_CU_KHONG_CO else XAC_THUC_DOI_CHUNG
+
+
+def danh_dau_xac_thuc(
+    fields: dict[str, Any], *, chung_cu: str, nguoi_ghi: str
+) -> dict[str, Any]:
+    """Gắn nhãn xác thực lên ô `japanese_level`, trả về bản `fields` mới.
+
+    Chỉ gắn lên đúng ô ấy. Các ô khác không có khái niệm "đối chứng" — không ai
+    đòi ứng viên chứng minh năm sinh bằng bản gốc trong một buổi sơ tuyển.
+    """
+    o = (fields or {}).get("japanese_level")
+    if not o:
+        return dict(fields or {})
+    moi = dict(fields)
+    moi["japanese_level"] = {
+        **o,
+        "verification": muc_xac_thuc(chung_cu),
+        "evidence_type": chung_cu,
+        "verified_by": nguoi_ghi,
+        "verified_at": now(),
+    }
+    return moi
+
+
 def merge_section(
     existing: dict[str, Any] | None,
     incoming: dict[str, Any],

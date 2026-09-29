@@ -54,6 +54,8 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [canManage, setCanManage] = useState(false);
+  const [soTuyenCode, setSoTuyenCode] = useState<string | null>(null);
+  const [canhBao, setCanhBao] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -111,6 +113,28 @@ export default function ApplicationsPage() {
     }
   };
 
+  const ghiSoTuyen = async (code: string, form: HTMLFormElement) => {
+    const data = new FormData(form);
+    setError("");
+    setCanhBao("");
+    try {
+      const ra = await managementApi.recordScreening(code, {
+        japanese_level: String(data.get("japanese_level")),
+        chung_cu: String(data.get("chung_cu")) as "ban_goc",
+        hinh_thuc: String(data.get("hinh_thuc")) as "truc_tiep",
+        next_status: String(data.get("next_status")),
+        note: String(data.get("note") || "") || undefined,
+      });
+      // Cảnh báo không phải lỗi: hồ sơ đã lưu, nhưng trình độ vẫn là lời khai vì
+      // ứng viên không xuất trình được gì. Phải hiện ra, không được lặng lẽ bỏ.
+      if (ra.canh_bao) setCanhBao(ra.canh_bao);
+      setSoTuyenCode(null);
+      load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Không ghi được kết quả sơ tuyển.");
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -157,6 +181,14 @@ export default function ApplicationsPage() {
         </label>
       </section>
 
+      {canhBao && (
+        <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+          {canhBao}
+        </p>
+      )}
+
+      {soTuyenCode && <SoTuyenForm code={soTuyenCode} onSubmit={ghiSoTuyen} onCancel={() => setSoTuyenCode(null)} />}
+
       {!loading && applications.length === 0 ? (
         <EmptyState title="Chưa có hồ sơ tuyển dụng" description="Tạo hồ sơ từ một khách hàng đã được xác nhận đủ nhu cầu tham gia." />
       ) : (
@@ -171,7 +203,7 @@ export default function ApplicationsPage() {
                     <td className="px-5 py-4"><p className="font-medium">{application.application_code}</p><p className="mt-1 text-xs text-slate-400">{application.lead_code}</p></td>
                     <td className="px-5 py-4 text-slate-500"><p>{application.destination || "Chưa có địa điểm"}</p><p className="mt-1 text-xs">Tiếng Nhật: {application.japanese_level || "Chưa cập nhật"}</p></td>
                     <td className="px-5 py-4 text-slate-500">{application.assigned_to || "Chưa phân công"}</td>
-                    <td className="px-5 py-4"><div className="flex items-center gap-3"><StatusBadge status={application.status} /><select aria-label={`Chuyển trạng thái hồ sơ ${application.application_code}`} value={application.status} disabled={(allowedTransitions[application.status] || []).length === 0} onChange={(event) => updateStatus(application, event.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:bg-slate-100"><option value={application.status}>{statusLabels[application.status] || application.status}</option>{(allowedTransitions[application.status] || []).map((value) => <option key={value} value={value}>{statusLabels[value] || value}</option>)}</select></div></td>
+                    <td className="px-5 py-4"><div className="flex items-center gap-3"><StatusBadge status={application.status} /><select aria-label={`Chuyển trạng thái hồ sơ ${application.application_code}`} value={application.status} disabled={(allowedTransitions[application.status] || []).length === 0} onChange={(event) => updateStatus(application, event.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:bg-slate-100"><option value={application.status}>{statusLabels[application.status] || application.status}</option>{(allowedTransitions[application.status] || []).map((value) => <option key={value} value={value}>{statusLabels[value] || value}</option>)}</select>{application.status === "screening" && <button type="button" onClick={() => setSoTuyenCode(soTuyenCode === application.application_code ? null : application.application_code)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">{soTuyenCode === application.application_code ? "Đóng" : "Ghi kết quả sơ tuyển"}</button>}</div></td>
                   </tr>
                 ))}
               </tbody>
@@ -189,4 +221,102 @@ function InputField({ name, label, placeholder }: { name: string; label: string;
 
 function SelectField({ name, label, required = false, children }: { name: string; label: string; required?: boolean; children: React.ReactNode }) {
   return <label className="text-sm font-medium text-slate-600">{label}<select name={name} required={required} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none">{children}</select></label>;
+}
+
+/**
+ * Biểu mẫu ghi kết quả buổi sơ tuyển.
+ *
+ * Một lần gửi đổi hai thứ: trình độ tiếng Nhật trong hồ sơ năng lực, và trạng
+ * thái hồ sơ tuyển dụng. Máy chủ kiểm hết trước khi ghi bất cứ thứ gì, và chuyển
+ * trạng thái vẫn đi qua đúng máy trạng thái như đường sửa hồ sơ thường.
+ *
+ * Không có ô nào để tải ảnh chụp bằng, và đó là chủ ý: nhìn ảnh không phân biệt
+ * được bằng thật với bằng giả, còn ngồi đối diện thì hỏi vài câu tiếng Nhật là
+ * biết ngay. Thêm một loại giấy tờ cá nhân vào kho là thêm một thứ để mất.
+ */
+function SoTuyenForm({
+  code,
+  onSubmit,
+  onCancel,
+}: {
+  code: string;
+  onSubmit: (code: string, form: HTMLFormElement) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit(code, event.currentTarget);
+      }}
+      className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <h2 className="text-base font-bold text-slate-900">
+        Kết quả buổi sơ tuyển · {code}
+      </h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Một lần lưu chốt cả trình độ tiếng Nhật lẫn trạng thái hồ sơ, để hai chỗ
+        không nói hai điều khác nhau về cùng một người.
+      </p>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <SelectField name="japanese_level" label="Trình độ tiếng Nhật đã xác định" required>
+          {["chua_hoc", "N5", "N4", "N3", "N2", "N1"].map((muc) => (
+            <option key={muc} value={muc}>
+              {muc === "chua_hoc" ? "Chưa học" : muc}
+            </option>
+          ))}
+        </SelectField>
+
+        <SelectField name="chung_cu" label="Đối chứng bằng cách nào" required>
+          <option value="ban_goc">Ứng viên cầm bằng gốc</option>
+          <option value="tra_cuu_truc_tuyen">Tra kết quả trên trang chính thức</option>
+          <option value="khong_xuat_trinh">Không xuất trình được gì</option>
+        </SelectField>
+
+        <SelectField name="hinh_thuc" label="Hình thức gặp" required>
+          <option value="truc_tiep">Gặp trực tiếp</option>
+          <option value="truc_tuyen">Gặp trực tuyến</option>
+        </SelectField>
+
+        <SelectField name="next_status" label="Trạng thái hồ sơ sau buổi gặp" required>
+          <option value="eligible">Đạt sơ tuyển</option>
+          <option value="collecting_documents">Còn thiếu giấy tờ</option>
+          <option value="rejected">Không đạt</option>
+        </SelectField>
+      </div>
+
+      <label className="mt-4 block text-sm font-medium text-slate-600">
+        Ghi chú buổi gặp
+        <textarea
+          name="note"
+          rows={3}
+          placeholder="Nói được câu chào và giới thiệu bản thân, phát âm rõ. Có bằng N4 gốc, số báo danh khớp khi tra trên trang JLPT."
+          className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+        />
+      </label>
+
+      <p className="mt-3 text-xs text-slate-500">
+        Chọn <b>&ldquo;Không xuất trình được gì&rdquo;</b> thì trình độ vẫn được ghi là{" "}
+        <b>tự khai</b>, kể cả khi bạn cho hồ sơ đi tiếp — để người sau biết trình độ
+        này chưa có căn cứ nào chống lưng.
+      </p>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="submit"
+          className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+        >
+          Lưu kết quả
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600"
+        >
+          Hủy
+        </button>
+      </div>
+    </form>
+  );
 }

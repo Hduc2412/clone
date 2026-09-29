@@ -249,3 +249,186 @@ async def update_application(
         details=event_details,
     )
     return updated
+
+
+# --- Ghi kết quả buổi sơ tuyển ---
+#
+# Mắt xích giữa phần mềm và con người. Trình độ tiếng Nhật là tiêu chí loại người
+# nhiều nhất trong bảy điều kiện bắt buộc, và nó **không xác thực được bằng máy**:
+# nhìn ảnh chụp bằng không phân biệt được thật với giả, còn ngồi đối diện thì hỏi
+# vài câu là biết ngay. Nên việc ấy là của buổi gặp, và hệ thống chỉ ghi lại kết
+# quả cùng cách đối chứng.
+#
+# ## Vì sao gắn vào hồ sơ tuyển dụng, không gắn vào lịch hẹn
+#
+# Bản thiết kế ban đầu định đặt ở `POST /appointments/{code}/ket-qua`. Nhưng bản
+# ghi lịch hẹn chỉ có tên và số điện thoại — **không nối tới hồ sơ năng lực, cũng
+# không nối tới hồ sơ tuyển dụng**. Đặt ở đó thì phải dò ngược ứng viên theo số
+# điện thoại, mà số điện thoại không phải khóa bền: một người đổi số, hai người
+# dùng chung số, hoặc số cũ được cấp lại cho người khác.
+#
+# Hồ sơ tuyển dụng thì mang sẵn `profile_code` và chính nó là thứ có máy trạng
+# thái. Nên đặt ở đây, và không phải đoán ai là ai.
+
+
+class KetQuaSoTuyenBody(BaseModel):
+    """Một buổi gặp, một lời gọi, đổi cả hai thứ."""
+
+    japanese_level: str = Field(max_length=20)
+    chung_cu: str = Field(max_length=30)
+    hinh_thuc: str = Field(default="truc_tiep", max_length=20)
+    next_status: str = Field(max_length=30)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+HINH_THUC_GAP = ("truc_tiep", "truc_tuyen")
+
+
+@router.post("/{application_code}/so-tuyen")
+async def ghi_ket_qua_so_tuyen(
+    application_code: str,
+    payload: KetQuaSoTuyenBody,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+):
+    """Ghi kết quả buổi sơ tuyển: chốt trình độ tiếng Nhật **và** trạng thái hồ sơ.
+
+    ## Vì sao phải là một lời gọi
+
+    Hai việc này luôn đi cùng nhau trong đời thật — nhân viên vừa gặp xong, biết
+    trình độ thật của ứng viên, và quyết định cho đi tiếp hay không. Tách thành
+    hai nút thì sớm muộn sẽ có hồ sơ bấm được cái này mà quên cái kia, và khi ấy
+    **hai chỗ trong hệ thống nói hai điều khác nhau về cùng một người**: hồ sơ
+    năng lực ghi "chưa học" trong khi hồ sơ tuyển dụng ghi "đạt sơ tuyển".
+
+    ## Thứ tự ghi có chủ ý
+
+    MongoDB ở đây không dùng giao dịch, nên không thể hứa hai lần ghi cùng thành
+    công. Thứ có thể làm là **kiểm hết trước khi ghi bất cứ thứ gì**, rồi chọn thứ
+    tự sao cho nửa chừng là nửa ít hại hơn.
+
+    Ghi trình độ trước, trạng thái sau. Nếu trượt ở bước hai: hồ sơ năng lực đã có
+    trình độ đã đối chứng, còn hồ sơ tuyển dụng vẫn nằm ở bước sơ tuyển — nhân
+    viên mở ra thấy việc chưa xong và làm lại. Ngược lại thì tệ hơn nhiều: hồ sơ
+    tuyển dụng ghi "đạt" trong khi trình độ vẫn là lời khai chưa ai kiểm, tức hệ
+    thống khẳng định một người đủ điều kiện dựa trên dữ liệu nó chưa xác nhận.
+
+    ## Không có cửa sau cho máy trạng thái
+
+    Chuyển trạng thái vẫn đi qua đúng `_validate_status_transition` như đường sửa
+    hồ sơ thường. Một đường ghi mới mà nới luật chuyển trạng thái thì máy trạng
+    thái coi như không còn.
+    """
+    from app.db import candidate_profiles as profiles
+    from app.matching import catalog
+
+    existing = await get_recruitment_application(application_code)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ tuyển dụng.")
+    if not can_access(existing, current_user):
+        raise HTTPException(status_code=403, detail="Hồ sơ này do người khác phụ trách.")
+
+    # --- Kiểm hết trước khi ghi ---
+    muc = catalog.normalize_japanese_level(payload.japanese_level)
+    if muc is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Trình độ tiếng Nhật không hợp lệ: {payload.japanese_level!r}.",
+        )
+    if payload.chung_cu not in profiles.CAC_CHUNG_CU:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cách đối chứng không hợp lệ. Chọn một trong {profiles.CAC_CHUNG_CU}.",
+        )
+    if payload.hinh_thuc not in HINH_THUC_GAP:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Hình thức gặp không hợp lệ. Chọn một trong {HINH_THUC_GAP}.",
+        )
+    if payload.next_status not in APPLICATION_STATUSES:
+        raise HTTPException(
+            status_code=422, detail=f"Trạng thái không hợp lệ: {payload.next_status!r}."
+        )
+    _validate_status_transition(existing["status"], payload.next_status)
+
+    ma_ho_so = existing.get("profile_code")
+    if not ma_ho_so:
+        raise HTTPException(
+            status_code=409,
+            detail="Hồ sơ tuyển dụng này chưa gắn hồ sơ năng lực nên chưa ghi được "
+            "trình độ. Nhân viên tạo tay thì phải gắn hồ sơ trước.",
+        )
+    ho_so = await profiles.get_by_code(ma_ho_so)
+    if ho_so is None:
+        raise HTTPException(
+            status_code=409, detail=f"Không tìm thấy hồ sơ năng lực {ma_ho_so}."
+        )
+
+    # --- Bước 1: trình độ tiếng Nhật, nguồn `staff` ---
+    fields, _ = profiles.merge_section(
+        ho_so.get("fields"),
+        {"japanese_level": muc},
+        source="staff",
+        allowed=profiles.FIELD_KEYS,
+        promote_on_equal=True,
+    )
+    fields = profiles.danh_dau_xac_thuc(
+        fields, chung_cu=payload.chung_cu, nguoi_ghi=current_user["email"]
+    )
+    da_ghi = await profiles.apply_changes(
+        ho_so["session_id"],
+        expected_version=ho_so.get("version", 0),
+        fields=fields,
+        preferences=ho_so.get("preferences") or {},
+        history=ho_so,
+    )
+    if da_ghi is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Hồ sơ năng lực vừa được người khác sửa. Tải lại rồi ghi lại "
+            "kết quả — chưa có gì được lưu.",
+        )
+
+    # --- Bước 2: trạng thái hồ sơ tuyển dụng ---
+    cap_nhat = {"status": payload.next_status}
+    if payload.note:
+        cap_nhat["note"] = payload.note
+    updated = await update_recruitment_application(application_code, cap_nhat)
+    if updated is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Đã ghi trình độ {muc} vào hồ sơ {ma_ho_so}, nhưng KHÔNG đổi "
+            f"được trạng thái hồ sơ tuyển dụng. Mở lại hồ sơ và đổi trạng thái tay.",
+        )
+
+    chi_tiet = {
+        "japanese_level": muc,
+        "chung_cu": payload.chung_cu,
+        "muc_xac_thuc": profiles.muc_xac_thuc(payload.chung_cu),
+        "hinh_thuc": payload.hinh_thuc,
+        "old_status": existing["status"],
+        "new_status": payload.next_status,
+        "profile_code": ma_ho_so,
+    }
+    await _record_event(application_code, "so_tuyen", current_user, chi_tiet)
+    await audit_action(
+        http_request,
+        "application.so_tuyen",
+        actor=current_user,
+        target_type="recruitment_application",
+        target_id=application_code,
+        details=chi_tiet,
+    )
+    return {
+        **updated,
+        "so_tuyen": chi_tiet,
+        # Nói thẳng khi trình độ vẫn chỉ là lời khai, dù nhân viên đã cho đi tiếp.
+        # Đây là quyết định của con người và hệ thống không chặn — nhưng nó phải
+        # hiện ra, không được lặng lẽ mang nhãn "đã xác thực".
+        "canh_bao": (
+            "Ứng viên không xuất trình được căn cứ nào, nên trình độ tiếng Nhật "
+            "vẫn được ghi là TỰ KHAI. Buổi phỏng vấn với công ty Nhật sẽ kiểm lại."
+            if payload.chung_cu == profiles.CHUNG_CU_KHONG_CO
+            else None
+        ),
+    }

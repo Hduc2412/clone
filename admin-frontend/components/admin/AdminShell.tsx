@@ -10,6 +10,10 @@ import { AuthUser, loadCurrentUser, logout } from "@/lib/auth";
 const navigation = [
   { href: "/admin", label: "Tổng quan", icon: "▦" },
   { href: "/admin/queue", label: "Hàng đợi hồ sơ", icon: "⇥" },
+  // Hai hàng đợi tách nhau có chủ ý: trên là hồ sơ đăng ký của khách đã đủ
+  // điều kiện; dưới là yêu cầu của khách phần lớn CHƯA đủ điều kiện nhưng vẫn
+  // muốn nói chuyện. Hai nhịp việc khác nhau, trộn thì việc gấp bị lỡ.
+  { href: "/admin/support", label: "Hàng đợi hỗ trợ", icon: "☏" },
   { href: "/admin/appointments", label: "Lịch hẹn", icon: "◷" },
   { href: "/admin/leads", label: "Khách hàng", icon: "♙" },
   { href: "/admin/profiles", label: "Hồ sơ ứng viên", icon: "☺" },
