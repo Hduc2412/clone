@@ -143,6 +143,20 @@ def kiem_tra(cau_tra_loi: str, khoi_cho_phep: str) -> str | None:
         return "câu trả lời rỗng"
     if len(sach) > 1500:
         return "câu trả lời quá dài"
+    # Câu chưa nói xong.
+    #
+    # Mọi chốt khác ở đây hỏi "có bịa không". Chốt này hỏi "có nói xong không" —
+    # một câu hỏi khác hẳn, và trước 29/09 không ai hỏi.
+    #
+    # Đo trên máy thật: hỏi "em bị viêm gan B thì có đi được không", bot đáp đúng
+    # tám chữ "Về điều kiện sức khỏe của chương trình" rồi hết. `finishReason` là
+    # `STOP`, chỉ một `part`, không lỗi mạng — mô hình thật sự dừng ở đó. Chạy lại
+    # cùng câu hỏi thì nó trả lời đầy đủ và đúng, nên đây là lỗi **không tất định**.
+    #
+    # Ứng viên hỏi về bệnh của mình mà nhận một mẩu không có vị ngữ thì vừa không
+    # được trả lời, vừa nghĩ hệ thống hỏng. Thà đưa câu ghép sẵn có đường đi tiếp.
+    if sach[-1] not in ".!?…":
+        return f"câu chưa nói xong, kết thúc bằng {sach[-1]!r}"
 
     thap = sach.lower()
     for cum in phrasing.CUM_TU_CAM:

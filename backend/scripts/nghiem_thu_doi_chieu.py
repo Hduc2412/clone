@@ -12,6 +12,7 @@ import json
 from fastapi import Request
 
 import app  # noqa: F401  — đặt stdout về UTF-8 để in được tiếng Việt
+from app.auth.journey_security import create_journey_token
 from app.api import matching as matching_api
 from app.api import profiles as profiles_api
 from app.db import candidate_profiles as profile_store
@@ -21,7 +22,9 @@ from app.matching import explain
 from app.services import matching_service
 
 
-SESSION = "nghiem-thu-doi-chieu-001"
+# Phải khớp `^[A-Za-z0-9-]{32,64}$` của `ProfileCreateRequest` — mã cũ
+# `nghiem-thu-doi-chieu-001` (24 ký tự) làm script chết ngay bước 2.
+SESSION = "nghiem-thu-doi-chieu-0000000000000001"
 
 
 def http_request() -> Request:
@@ -71,6 +74,7 @@ async def main() -> None:
                 },
             ),
             http_request(),
+            journey_cookie=create_journey_token(SESSION),
         )
         print(f"Mã hồ sơ: {created['code']}  ·  trạng thái: {created['labels']['status']}")
         print(f"Vùng suy ra từ tỉnh: {created['labels']['desired_region_group']}")
@@ -128,6 +132,7 @@ async def main() -> None:
                 session_id=SESSION + "-b", fields={"full_name": "Trần Thị Bình"}
             ),
             http_request(),
+            journey_cookie=create_journey_token(SESSION + "-b"),
         )
         log_b, _ = await matching_service.run_matching(thieu, trigger="public")
         print(f"Hồ sơ chỉ có họ tên · {log_b['eligible_count']}/{log_b['total_considered']} đơn đạt")

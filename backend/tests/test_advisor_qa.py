@@ -243,3 +243,34 @@ class KhongGopHaiKhoanTienTests(unittest.TestCase):
         """"Đã bao gồm phụ cấp" là câu bình thường, không phải gộp hai khoản."""
         cau = "Học phí 35.000.000đ đã bao gồm tài liệu học."
         self.assertIsNone(qa.kiem_tra(cau, KHOI))
+
+
+class CauChuaNoiXongBiLoaiTests(unittest.TestCase):
+    """Chốt hỏi "có nói xong không", khác mọi chốt kia vốn hỏi "có bịa không".
+
+    Đo trên máy thật ngày 29/09: hỏi "em bị viêm gan B thì có đi được không", bot
+    đáp đúng tám chữ "Về điều kiện sức khỏe của chương trình" rồi hết. `finishReason`
+    là `STOP`, chỉ một `part`, không lỗi mạng — mô hình thật sự dừng ở đó. Chạy lại
+    cùng câu hỏi thì nó trả lời đầy đủ, nên lỗi này **không tất định** và chỉ chặn
+    được bằng hậu kiểm.
+    """
+
+    KHOI = "ĐIỀU KIỆN SỨC KHỎE: khám tại bệnh viện được chỉ định."
+
+    def test_cau_cut_giua_chung_bi_loai(self):
+        ly_do = qa.kiem_tra("Về điều kiện sức khỏe của chương trình", self.KHOI)
+        self.assertIsNotNone(ly_do)
+        self.assertIn("chưa nói xong", ly_do)
+
+    def test_cau_ket_thuc_dung_thi_qua(self):
+        self.assertIsNone(
+            qa.kiem_tra("Khám tại bệnh viện được chỉ định.", self.KHOI)
+        )
+
+    def test_cau_hoi_lai_khach_cung_qua(self):
+        """Bot được phép hỏi lại, và câu hỏi kết thúc bằng dấu hỏi."""
+        self.assertIsNone(qa.kiem_tra("Bạn đã đi khám chưa?", self.KHOI))
+
+    def test_cau_bo_lung_bang_ba_cham_van_qua(self):
+        """Dấu ba chấm là kết thúc có chủ ý, khác hẳn với việc dừng giữa chữ."""
+        self.assertIsNone(qa.kiem_tra("Bạn cứ yên tâm…", self.KHOI))

@@ -26,7 +26,7 @@ Bộ này khóa lại từng dòng đó.
 """
 import unittest
 
-from app.consultation import eligibility, order_context
+from app.consultation import eligibility, lien_he, order_context
 
 
 DON_MAU = {
@@ -110,6 +110,43 @@ class KhoiMucNenTests(unittest.TestCase):
     def test_co_nguon_dan_trong_as_dict(self):
         """Mọi con số nói với khách phải truy được về một trang của công ty."""
         self.assertTrue(eligibility.as_dict()["source_url"].startswith("https://"))
+
+
+class KhoiCachGapNguoiThatTests(unittest.TestCase):
+    """Lỗ hổng bộ đo tìm ra ngày 29/09.
+
+    Ca `GIO-01` hỏi giờ liên hệ nhân viên, bot đáp "chưa có thông tin" — đúng thiết
+    kế nhưng sai thực tế: công ty có giờ rõ ràng, chỉ là nó khai trong `api/support.py`
+    và không nằm trong khối dữ liệu nào đưa vào bot.
+
+    Bot chịu nói không biết là hành vi đúng và đáng giữ. Nhưng "không biết" ở đây
+    không phải vì dữ liệu không tồn tại, mà vì không ai đưa nó tới nơi cần.
+    """
+
+    def test_co_gio_lien_he(self):
+        khoi = lien_he.render()
+        self.assertIn("8h đến 17h", khoi)
+        self.assertIn("thứ Hai đến thứ Bảy", khoi)
+
+    def test_noi_ro_day_khong_phai_dieu_kien(self):
+        """Mô hình đọc danh sách gạch đầu dòng dưới một tiêu đề thì hiểu mọi dòng
+        trong đó cùng loại. Không nói rõ thì sớm muộn nó bảo ứng viên phải liên hệ
+        trong giờ hành chính mới đủ điều kiện."""
+        self.assertIn("không phải điều kiện", lien_he.render())
+
+    def test_noi_ca_hai_nua_cua_viec_truc(self):
+        """Hứa 'hỗ trợ 24/7' rồi để khách nhắn lúc nửa đêm và chờ tới sáng là một
+        lời hứa tự phá. Bot trực suốt, người thì giờ hành chính — nói cả hai."""
+        khoi = lien_he.render().casefold()
+        self.assertIn("suốt ngày đêm", khoi)
+        self.assertIn("nhân viên", khoi)
+
+    def test_mot_nguon_duy_nhat_cho_gio_lien_he(self):
+        """Hai bản sao của cùng một giờ sẽ trôi xa nhau, và bên nào sai thì khách
+        gọi vào lúc không có ai."""
+        from app.api import support
+
+        self.assertEqual(support.GIO_LIEN_HE, lien_he.GIO_LIEN_HE)
 
 
 class KhoiDonTests(unittest.TestCase):

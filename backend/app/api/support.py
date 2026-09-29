@@ -31,6 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.auth.journey_security import require_journey_session
 from app.auth.security import get_current_user
+from app.consultation import lien_he
 from app.core.codes import PREFIX_SUPPORT, new_code
 from app.core.phone import normalize_vietnamese_phone
 from app.core.rate_limit import client_ip, rate_limiter
@@ -57,7 +58,10 @@ router = APIRouter(
 # lịch hẹn, nơi hệ thống thật sự chặn khung giờ đó. Còn khi chỉ mời người ta nhắn
 # tin hay gọi điện thì bắt họ nhớ hai khoảng giờ rời nhau là đặt một rào cản
 # không cần thiết.
-GIO_LIEN_HE = "8h đến 17h"
+# Một nguồn duy nhất cho giờ liên hệ. Trước 29/09 hằng số này chỉ có ở đây, nên
+# bot tư vấn không biết giờ làm việc dù công ty có khai — xem
+# `app/consultation/lien_he.py`.
+GIO_LIEN_HE = lien_he.GIO_LIEN_HE
 
 CODE_PATTERN = r"^HT-[0-9A-F]{6}$"
 

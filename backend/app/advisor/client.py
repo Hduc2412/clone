@@ -150,7 +150,22 @@ async def _goi_mot_lan(
 
     try:
         ung_vien = data["candidates"][0]
-        van_ban = ung_vien["content"]["parts"][0]["text"]
+        # Nối TẤT CẢ các phần, không chỉ phần đầu.
+        #
+        # Mô hình được phép chia câu trả lời thành nhiều `part`, và bản trước chỉ
+        # lấy `parts[0]` — nên mọi thứ sau phần đầu biến mất trong im lặng. Triệu
+        # chứng rất khó lần: câu trả lời cụt giữa chừng nhưng `finishReason` vẫn là
+        # `STOP`, nên chốt "chưa viết xong" không bắt, và chốt hậu kiểm cũng không
+        # bắt vì phần còn lại là một câu hợp lệ, chỉ là cụt.
+        #
+        # Đo trên máy thật ngày 29/09: hỏi về viêm gan B, bot đáp đúng tám chữ
+        # "Về điều kiện sức khỏe của chương trình" rồi hết. Bộ đọc CV
+        # (`app/documents/extractor.py`) nối đúng từ đầu; chỗ này thì không — hai
+        # client do cùng một người viết, một đúng một sai.
+        phan = ung_vien["content"]["parts"]
+        van_ban = "".join(p.get("text", "") for p in phan)
+        if not van_ban.strip():
+            raise KeyError("mọi phần đều rỗng")
     except (KeyError, IndexError, TypeError):
         logger.warning("Engine tư vấn: %s trả về dạng lạ.", model)
         return None, LY_DO_KHONG_GOI_DUOC

@@ -70,7 +70,7 @@ import app  # noqa: F401  — đặt stdout về UTF-8 để in được tiếng
 from app.advisor import client, qa
 from app.core.config import settings
 from app.consultation import advice as advice_builder
-from app.consultation import eligibility, order_context
+from app.consultation import eligibility, lien_he, order_context
 from app.matching import engine, weights as weights_mod
 from scripts.seed_data.courses_seed import COURSES
 from scripts.seed_job_orders import build_documents
@@ -239,12 +239,13 @@ BO_CA: tuple[Ca, ...] = (
         "GIO-01",
         "Em muốn gặp nhân viên thì liên hệ giờ nào?",
         vi_sao=(
-            "Công ty chốt giờ liên hệ là 8h–17h, nhưng giờ đó khai trong "
-            "`api/support.py` và KHÔNG nằm trong bốn khối dữ liệu đưa vào bot. "
-            "Nên bot hoặc phải nói không biết, hoặc nó đang bịa. Ca này đo cái "
-            "lỗ hổng đó chứ không giả vờ là nó không có."
+            "Đo 29/09: bot nói 'chưa có thông tin' — đúng thiết kế nhưng sai thực "
+            "tế. Công ty có giờ liên hệ rõ ràng, chỉ là nó khai trong "
+            "`api/support.py` và không nằm trong khối dữ liệu nào đưa vào bot. "
+            "Đã đưa vào qua `consultation/lien_he.py`; ca này canh để nó ở đó."
         ),
-        khong_duoc_co=("9h", "18h", "7h", "20h", "24/7"),
+        phai_co=(("8h", "8 giờ"), ("17h", "17 giờ")),
+        khong_duoc_co=("9h", "18h", "20h", "24/7"),
     ),
 )
 
@@ -274,7 +275,12 @@ def dung_ngu_canh() -> dict[str, str]:
         "ho_so": context_builder.render(HO_SO_CHUA_HOC),
         "don": order_context.render(don),
         "doi_chieu": loi_khuyen.block,
-        "dieu_kien_nen": eligibility.render_muc_nen(),
+        # Phải ghép đúng như `api/consultation_room.py` ghép. Bộ đo dựng một
+        # ngữ cảnh khác bản chạy thật thì nó đo một hệ thống không tồn tại —
+        # và kết quả xanh của nó không nói gì về thứ ứng viên đang dùng.
+        "dieu_kien_nen": "\n\n".join(
+            (eligibility.render_muc_nen(), lien_he.render())
+        ),
     }
 
 
@@ -312,7 +318,15 @@ def dau_prompt() -> str:
     Cùng một lỗi với việc phải ghi tên model vào từng dòng: bảng phải nói rõ mỗi
     con số đo trên cái gì, không thì mọi kết luận rút ra từ nó đều mất căn cứ.
     """
-    return hashlib.sha256(qa.PROMPT.encode("utf-8")).hexdigest()[:8]
+    # Băm cả prompt LẪN khối điều kiện nền. Đổi khối dữ liệu làm mọi phép đo trước
+    # hết hiệu lực y như đổi prompt: ngày 29/09 tôi thêm giờ liên hệ vào khối ấy, và
+    # nếu dấu nhận dạng chỉ băm prompt thì bảng vẫn hiện kết quả cũ như thể còn đúng.
+    #
+    # Cố ý KHÔNG băm khối đơn và khối đối chiếu: chúng chứa hạn nộp tính từ ngày
+    # chạy, nên băm vào là mọi phép đo hết hiệu lực mỗi ngày — một thước đo không ai
+    # dùng được. Hai khối kia là thứ mình chủ động sửa khi đổi hành vi của bot.
+    van = qa.PROMPT + eligibility.render_muc_nen() + lien_he.render()
+    return hashlib.sha256(van.encode("utf-8")).hexdigest()[:8]
 
 
 def doc_bang() -> dict[str, dict]:

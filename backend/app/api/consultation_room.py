@@ -40,7 +40,7 @@ from app.auth.security import get_current_user
 from app.core.config import settings
 from app.core.timeutil import utc_now
 from app.consultation import advice as advice_builder
-from app.consultation import context_builder, eligibility, order_context
+from app.consultation import context_builder, eligibility, lien_he, order_context
 from app.memory import render as bo_nho_render
 from app.memory import topics
 from app.core.rate_limit import client_ip, rate_limiter
@@ -270,7 +270,13 @@ async def hoi_them(
         ho_so=context_builder.render(profile),
         don=order_context.render(don),
         doi_chieu=khoi_doi_chieu,
-        dieu_kien_nen=eligibility.render_muc_nen(),
+        # Khối "điều kiện nền" nay gồm cả cách gặp người thật. Chúng đi cùng
+        # nhau vì đều là sự thật ở tầng chương trình, không phụ thuộc đơn nào —
+        # và vì chốt hậu kiểm chỉ cho bot nói những con số nằm trong khối cho
+        # phép, nên giờ liên hệ phải ở trong đó mới nói ra được.
+        dieu_kien_nen="\n\n".join(
+            (eligibility.render_muc_nen(), lien_he.render())
+        ),
         bo_nho=bo_nho_render.render(
             await session_memory.lay(session_id), cho=session_memory.BEN_TU_VAN
         ),

@@ -318,3 +318,68 @@ class ModelDuPhongTests(unittest.IsolatedAsyncioTestCase):
             any(isinstance(n, (_ast.While, _ast.For)) for n in _ast.walk(ham)),
             "`tra_loi` có vòng lặp — kiểm xem có phải đang thử lại mô hình không.",
         )
+
+
+class NoiDuMoiPhanCuaCauTraLoiTests(unittest.IsolatedAsyncioTestCase):
+    """Mô hình được phép chia câu trả lời thành nhiều `part`.
+
+    Bản trước chỉ lấy `parts[0]`, nên mọi thứ sau phần đầu biến mất trong im lặng.
+    Triệu chứng rất khó lần: câu cụt giữa chừng nhưng `finishReason` vẫn `STOP`, nên
+    chốt "chưa viết xong" không bắt; và chốt hậu kiểm cũng không bắt, vì phần còn
+    lại là một câu hợp lệ — chỉ là cụt.
+
+    Đo trên máy thật ngày 29/09: hỏi về viêm gan B, bot đáp đúng tám chữ "Về điều
+    kiện sức khỏe của chương trình" rồi hết.
+    """
+
+    async def _goi(self, parts):
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        from app.advisor import client
+        from app.core.config import settings
+
+        class _Resp:
+            @staticmethod
+            def json():
+                return {
+                    "candidates": [
+                        {"content": {"parts": parts}, "finishReason": "STOP"}
+                    ]
+                }
+
+        class _Client:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **k):
+                return _Resp()
+
+        with patch.object(settings, "advisor_enabled", True), \
+             patch.object(settings, "advisor_api_key", "khoa"), \
+             patch.object(settings, "advisor_model_du_phong", ""), \
+             patch.object(httpx, "AsyncClient", lambda **k: _Client()):
+            return await client.sinh_van_ban("prompt")
+
+    async def test_noi_het_cac_phan(self):
+        van_ban, ly_do, _ = await self._goi(
+            [{"text": "Về điều kiện sức khỏe "}, {"text": "thì buổi khám mới kết luận."}]
+        )
+        self.assertEqual(van_ban, "Về điều kiện sức khỏe thì buổi khám mới kết luận.")
+
+    async def test_mot_phan_van_chay_binh_thuong(self):
+        van_ban, _, _ = await self._goi([{"text": "Một phần thôi."}])
+        self.assertEqual(van_ban, "Một phần thôi.")
+
+    async def test_moi_phan_deu_rong_thi_coi_la_khong_goi_duoc(self):
+        """Trả về chuỗi rỗng thì chốt hậu kiểm loại nó và ghi là bot không đoán —
+        sai, vì bot chưa hề đoán gì. Bắt ở đây cho đúng ô thống kê."""
+        from app.advisor import client
+
+        van_ban, ly_do, _ = await self._goi([{"text": ""}, {"text": "   "}])
+        self.assertIsNone(van_ban)
+        self.assertEqual(ly_do, client.LY_DO_KHONG_GOI_DUOC)
