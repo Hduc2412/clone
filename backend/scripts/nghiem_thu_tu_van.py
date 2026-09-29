@@ -387,7 +387,7 @@ async def main() -> int:
             # Nghỉ giữa hai lượt. Hàng rào số lượt mỗi phút chặn sớm hơn hàng rào
             # mỗi ngày, và khi bị chặn thì thông báo lỗi không phân biệt hai loại.
             await asyncio.sleep(nghi)
-        cau, nguon = await qa.tra_loi(cau_hoi=ca.cau_hoi, **ngu_canh)
+        cau, nguon, model_da_tra = await qa.tra_loi(cau_hoi=ca.cau_hoi, **ngu_canh)
         da_goi += 1
 
         # Không gọi được mô hình thì **không ghi gì cả**. Đây là chốt chặn quan
@@ -402,9 +402,18 @@ async def main() -> int:
             continue
 
         dat, vi_sao = cham(ca, cau, nguon)
+        # Khóa theo model ĐÃ TRẢ LỜI, không theo model được yêu cầu. Có dự phòng
+        # thì hai thứ khác nhau, và khóa theo model yêu cầu thì bảng nhóm theo một
+        # tên mà tra không ra dòng nào — đo được 3 ca vẫn hiện "CHƯA ĐO 11".
+        # Gặp đúng lỗi này ngày 29/09, ngay lượt chạy đầu sau khi thêm dự phòng.
+        khoa = f"{model_da_tra or model}::{ca.ma}"
         bang[khoa] = {
             "ma": ca.ma,
-            "model": model,
+            # Model THẬT SỰ trả lời, không phải model được yêu cầu. Có dự phòng
+            # thì hai thứ này khác nhau, và ghi sai thì cả bảng so sánh giữa hai
+            # model mất nghĩa — đúng cái bẫy đã gặp ba lần trong hai ngày.
+            "model": model_da_tra or model,
+            "model_yeu_cau": model,
             "cau_hoi": ca.cau_hoi,
             "cau_tra_loi": cau,
             "nguon": nguon,

@@ -234,8 +234,13 @@ async def tra_loi(
     dieu_kien_nen: str,
     bo_nho: str = "",
     lich_su: Sequence[dict[str, str]] = (),
-) -> tuple[str, str]:
-    """Trả `(câu trả lời, nguồn)`. Nguồn là một trong ba giá trị `NGUON_*`.
+) -> tuple[str, str, str]:
+    """Trả `(câu trả lời, nguồn, model đã trả lời)`.
+
+    Nguồn là một trong ba giá trị `NGUON_*`. Tên model trả kèm để ghi vào bản ghi
+    lượt hỏi đáp: có model dự phòng nghĩa là hai câu cạnh nhau trong cùng một
+    cuộc trò chuyện có thể do hai model khác nhau viết, và không ghi lại thì sau
+    này không ai truy được câu nào của bên nào.
 
     Không bao giờ ném lỗi: mọi đường thất bại đều dẫn tới câu "chưa có thông tin"
     kèm đường đi tiếp. Im lặng hoặc báo lỗi kỹ thuật ở đây là để ứng viên đứng
@@ -256,22 +261,24 @@ async def tra_loi(
         cau_hoi=cau_hoi.strip(),
     )
 
-    cau, ly_do_goi = await client.sinh_van_ban(prompt, temperature=0.3, max_tokens=900)
+    cau, ly_do_goi, model = await client.sinh_van_ban(
+        prompt, temperature=0.3, max_tokens=900
+    )
     if cau is None:
         # Không gọi được mô hình. Đây KHÔNG phải là bot chịu không đoán — nó chưa
         # hề được hỏi. Ghi đúng như vậy, xem `NGUON_KHONG_GOI_DUOC`.
         logger.warning("Bot tư vấn: không có câu trả lời (%s).", ly_do_goi)
-        return CAU_KHONG_GOI_DUOC, NGUON_KHONG_GOI_DUOC
+        return CAU_KHONG_GOI_DUOC, NGUON_KHONG_GOI_DUOC, model
 
     ly_do = kiem_tra(cau, khoi_cho_phep)
     if ly_do is not None:
         logger.warning("Bot tư vấn: loại câu trả lời (%s).", ly_do)
-        return CAU_KHONG_BIET, NGUON_KHONG_BIET
+        return CAU_KHONG_BIET, NGUON_KHONG_BIET, model
 
     sach = cau.strip()
     # Mô hình tự nhận không biết thì thay bằng câu chuẩn: lời từ chối phải kèm
     # đúng đường đi tiếp, không để ứng viên cụt ở đó.
     if _TU_CHOI.search(sach) and len(sach) < 200:
-        return CAU_KHONG_BIET, NGUON_KHONG_BIET
+        return CAU_KHONG_BIET, NGUON_KHONG_BIET, model
 
-    return sach, NGUON_MO_HINH
+    return sach, NGUON_MO_HINH, model

@@ -195,7 +195,7 @@ async def rephrase(block: str) -> str | None:
     # Ở đây không cần phân biệt lý do thất bại: màn hình này luôn có bản ghép
     # sẵn đầy đủ, và không có số liệu nào đếm lượt viết lại. Chỗ cần phân biệt là
     # `qa.tra_loi` — xem `app/advisor/client.sinh_van_ban`.
-    cau, _ = await client.sinh_van_ban(PROMPT.format(block=block))
+    cau, _, _ = await client.sinh_van_ban(PROMPT.format(block=block))
     if cau is None:
         return None
 

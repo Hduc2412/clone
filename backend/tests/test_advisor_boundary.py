@@ -178,3 +178,143 @@ class CanhBaoDungChungKhoaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModelDuPhongTests(unittest.IsolatedAsyncioTestCase):
+    """Dự phòng chỉ được dùng khi CHƯA nhận được câu trả lời trọn vẹn.
+
+    Hạn mức gói miễn phí là 20 lượt mỗi ngày cho mỗi (dự án, model). Một buổi bảo
+    vệ mà hội đồng hỏi vài chục câu là cạn, và lúc ấy toàn bộ phần tư vấn lặng lẽ
+    rơi về bản ghép sẵn. Một model thứ hai trên cùng khóa là thêm 20 lượt nữa mà
+    không phải mượn hạn mức của khung chat.
+
+    Nhưng cái đáng canh không phải việc có dự phòng, mà là **giới hạn của nó**.
+    """
+
+    async def _goi(self, *ket_qua, du_phong="model-du-phong", chinh="model-chinh"):
+        from unittest.mock import AsyncMock, patch
+
+        from app.advisor import client
+        from app.core.config import settings
+
+        goi = AsyncMock(side_effect=list(ket_qua))
+        with patch.object(settings, "advisor_enabled", True), \
+             patch.object(settings, "advisor_api_key", "khoa"), \
+             patch.object(settings, "advisor_model", chinh), \
+             patch.object(settings, "advisor_model_du_phong", du_phong), \
+             patch.object(client, "_goi_mot_lan", goi):
+            ket = await client.sinh_van_ban("prompt")
+        return ket, goi
+
+    async def test_het_han_muc_thi_chuyyen_sang_du_phong(self):
+        from app.advisor import client
+
+        (van_ban, ly_do, model), goi = await self._goi(
+            (None, client.LY_DO_KHONG_GOI_DUOC),
+            ("câu của dự phòng", client.LY_DO_OK),
+        )
+        self.assertEqual(van_ban, "câu của dự phòng")
+        self.assertEqual(model, "model-du-phong")
+        self.assertEqual(goi.await_count, 2)
+
+    async def test_cau_bi_cat_giua_chung_cung_duoc_chuyen(self):
+        """Câu đứt giữa chữ nghĩa là chưa hề có câu trả lời để mà xét."""
+        from app.advisor import client
+
+        (van_ban, _, model), goi = await self._goi(
+            (None, client.LY_DO_BI_CAT),
+            ("câu của dự phòng", client.LY_DO_OK),
+        )
+        self.assertEqual(van_ban, "câu của dự phòng")
+        self.assertEqual(model, "model-du-phong")
+
+    async def test_model_chinh_tra_loi_duoc_thi_KHONG_goi_du_phong(self):
+        """Dự phòng là phương án cuối, không phải lượt gọi thứ hai cho mọi câu.
+
+        Gọi cả hai mỗi lần là tiêu hai hạn mức cho một câu hỏi — đúng thứ mà việc
+        có dự phòng lẽ ra phải tránh.
+        """
+        from app.advisor import client
+
+        (van_ban, _, model), goi = await self._goi(
+            ("câu của model chính", client.LY_DO_OK),
+        )
+        self.assertEqual(van_ban, "câu của model chính")
+        self.assertEqual(model, "model-chinh")
+        self.assertEqual(goi.await_count, 1)
+
+    async def test_engine_tat_thi_khong_goi_ca_hai(self):
+        from unittest.mock import AsyncMock, patch
+
+        from app.advisor import client
+        from app.core.config import settings
+
+        goi = AsyncMock()
+        with patch.object(settings, "advisor_enabled", False), \
+             patch.object(settings, "advisor_model_du_phong", "model-du-phong"), \
+             patch.object(client, "_goi_mot_lan", goi):
+            van_ban, ly_do, model = await client.sinh_van_ban("prompt")
+        self.assertIsNone(van_ban)
+        self.assertEqual(ly_do, client.LY_DO_TAT)
+        goi.assert_not_awaited()
+
+    async def test_chua_khai_du_phong_thi_khong_goi_lan_hai(self):
+        from app.advisor import client
+
+        (van_ban, ly_do, _), goi = await self._goi(
+            (None, client.LY_DO_KHONG_GOI_DUOC), du_phong=""
+        )
+        self.assertIsNone(van_ban)
+        self.assertEqual(goi.await_count, 1)
+
+    async def test_du_phong_trung_model_chinh_thi_khong_goi_lai(self):
+        """Khai trùng thì lượt thứ hai chỉ tiêu thêm hạn mức của cùng một model."""
+        from app.advisor import client
+
+        (_, _, _), goi = await self._goi(
+            (None, client.LY_DO_KHONG_GOI_DUOC),
+            du_phong="model-chinh",
+        )
+        self.assertEqual(goi.await_count, 1)
+
+    def test_chot_hau_kiem_KHONG_BAO_GIO_lam_doi_model(self):
+        """Ca quan trọng nhất của lớp này — cưỡng chế bằng thứ tự các tầng.
+
+        Nếu chốt hậu kiểm loại câu của model A rồi hệ thống đi hỏi model B, nó
+        không đáng tin hơn: nó đang **lọc theo mẫu cho tới khi có câu lọt qua
+        chốt**. Việc ấy chọn lọc đúng những lời bịa mà chốt tình cờ không bắt
+        được, và tỉ lệ "bot không đoán" sẽ đẹp lên trong khi chất lượng thật đi
+        xuống. Một câu bị loại là một kết quả ĐÚNG, không phải một lần thử hỏng.
+
+        Canh bằng cách đọc mã: `qa.tra_loi` chỉ được gọi `sinh_van_ban` **một
+        lần**, và lý do loại của `kiem_tra` không được dẫn tới lượt gọi nào nữa.
+        """
+        import ast as _ast
+
+        nguon = (
+            pathlib.Path(__file__).resolve().parent.parent
+            / "app" / "advisor" / "qa.py"
+        ).read_text(encoding="utf-8")
+        cay = _ast.parse(nguon)
+        ham = next(
+            n for n in _ast.walk(cay)
+            if isinstance(n, _ast.AsyncFunctionDef) and n.name == "tra_loi"
+        )
+        so_lan_goi = sum(
+            1 for n in _ast.walk(ham)
+            if isinstance(n, _ast.Call)
+            and isinstance(n.func, _ast.Attribute)
+            and n.func.attr == "sinh_van_ban"
+        )
+        self.assertEqual(
+            so_lan_goi,
+            1,
+            "`tra_loi` gọi mô hình nhiều hơn một lần. Nếu lượt thêm là để thử lại "
+            "sau khi chốt hậu kiểm loại câu, đó là lọc theo mẫu cho tới khi lọt — "
+            "phải bỏ. Dự phòng thuộc `client.sinh_van_ban`, nằm DƯỚI chốt.",
+        )
+        # Vòng lặp trong `tra_loi` cũng là dấu hiệu của việc thử lại.
+        self.assertFalse(
+            any(isinstance(n, (_ast.While, _ast.For)) for n in _ast.walk(ham)),
+            "`tra_loi` có vòng lặp — kiểm xem có phải đang thử lại mô hình không.",
+        )

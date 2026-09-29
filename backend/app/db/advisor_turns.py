@@ -71,6 +71,7 @@ async def add_turn(
     question: str,
     answer: str,
     source: str,
+    model: str = "",
 ) -> dict[str, Any]:
     document = {
         "session_id": session_id,
@@ -78,6 +79,11 @@ async def add_turn(
         "question": question,
         "answer": answer,
         "source": source,
+        # Model nào viết câu này. Có model dự phòng nghĩa là hai câu cạnh nhau
+        # trong cùng một cuộc trò chuyện có thể do hai model khác nhau viết —
+        # không ghi lại thì sau này không ai truy được câu nào của bên nào, và
+        # "bot trả lời sai" thành một câu không kiểm được.
+        "model": model,
         "created_at": now(),
     }
     await get_db()[COLLECTION].insert_one(dict(document))

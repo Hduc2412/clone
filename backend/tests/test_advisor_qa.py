@@ -79,7 +79,7 @@ class KhongBietThiNoiKhongBietTests(unittest.IsolatedAsyncioTestCase):
     async def _hoi(self, *, mo_hinh_tra, ly_do=None):
         if ly_do is None:
             ly_do = qa.client.LY_DO_OK if mo_hinh_tra else qa.client.LY_DO_KHONG_GOI_DUOC
-        goi = AsyncMock(return_value=(mo_hinh_tra, ly_do))
+        goi = AsyncMock(return_value=(mo_hinh_tra, ly_do, "model-kiem-thu"))
         with patch.object(qa.client, "sinh_van_ban", goi):
             return await qa.tra_loi(
                 cau_hoi="Ký túc xá có điều hòa không ạ?",
@@ -88,7 +88,7 @@ class KhongBietThiNoiKhongBietTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_mo_hinh_khong_goi_duoc_thi_van_co_cau_tra_loi(self):
         """Im lặng ở giữa một cuộc trò chuyện là để ứng viên đứng lại không biết làm gì."""
-        cau, nguon = await self._hoi(mo_hinh_tra=None)
+        cau, nguon, _ = await self._hoi(mo_hinh_tra=None)
         self.assertEqual(nguon, qa.NGUON_KHONG_GOI_DUOC)
         self.assertIn("nhân viên tư vấn", cau)
 
@@ -99,7 +99,7 @@ class KhongBietThiNoiKhongBietTests(unittest.IsolatedAsyncioTestCase):
         là đếm nó vào tỉ lệ "bot chịu không đoán" — tỉ lệ càng đẹp khi dịch vụ
         càng chết. Đo thật ngày 28/09, mười câu dính đúng lỗi này.
         """
-        _, nguon = await self._hoi(mo_hinh_tra=None)
+        _, nguon, _ = await self._hoi(mo_hinh_tra=None)
         self.assertNotEqual(nguon, qa.NGUON_KHONG_BIET)
 
     async def test_khong_goi_duoc_noi_that_la_dang_ban_chu_khong_noi_thieu_du_lieu(self):
@@ -108,31 +108,31 @@ class KhongBietThiNoiKhongBietTests(unittest.IsolatedAsyncioTestCase):
         Họ sẽ tưởng công ty không có dữ liệu và thôi không hỏi nữa, trong khi
         thứ họ cần chỉ là hỏi lại sau ít phút.
         """
-        cau, _ = await self._hoi(mo_hinh_tra=None)
+        cau, _, _ = await self._hoi(mo_hinh_tra=None)
         self.assertEqual(cau, qa.CAU_KHONG_GOI_DUOC)
         self.assertNotEqual(cau, qa.CAU_KHONG_BIET)
 
     async def test_cau_co_so_bia_thi_thay_bang_cau_khong_biet(self):
-        cau, nguon = await self._hoi(mo_hinh_tra="Ký túc xá có 4 phòng điều hòa.")
+        cau, nguon, _ = await self._hoi(mo_hinh_tra="Ký túc xá có 4 phòng điều hòa.")
         self.assertEqual(nguon, qa.NGUON_KHONG_BIET)
         self.assertEqual(cau, qa.CAU_KHONG_BIET)
 
     async def test_mo_hinh_tu_nhan_khong_biet_thi_thay_bang_cau_chuan(self):
         """Lời từ chối phải kèm đúng đường đi tiếp, không để ứng viên cụt ở đó."""
-        cau, nguon = await self._hoi(mo_hinh_tra="Mình không biết.")
+        cau, nguon, _ = await self._hoi(mo_hinh_tra="Mình không biết.")
         self.assertEqual(nguon, qa.NGUON_KHONG_BIET)
         self.assertIn("khung chat", cau)
 
     async def test_cau_hop_le_thi_duoc_dung(self):
         tra = "Đơn này yêu cầu N4, bạn chưa học nên cần khoảng 6–7 tháng học thêm."
-        cau, nguon = await self._hoi(mo_hinh_tra=tra)
+        cau, nguon, _ = await self._hoi(mo_hinh_tra=tra)
         self.assertEqual(nguon, qa.NGUON_MO_HINH)
         self.assertEqual(cau, tra)
 
 
 class NguCanhDuaVaoTests(unittest.IsolatedAsyncioTestCase):
     async def test_cau_lenh_chua_du_bon_khoi(self):
-        goi = AsyncMock(return_value=("Đơn yêu cầu N4.", qa.client.LY_DO_OK))
+        goi = AsyncMock(return_value=("Đơn yêu cầu N4.", qa.client.LY_DO_OK, "model-kiem-thu"))
         with patch.object(qa.client, "sinh_van_ban", goi):
             await qa.tra_loi(
                 cau_hoi="Tôi thiếu gì?", ho_so=HO_SO, don=DON,
@@ -150,7 +150,7 @@ class NguCanhDuaVaoTests(unittest.IsolatedAsyncioTestCase):
         lich_su = [
             {"question": f"câu {i}", "answer": f"đáp {i}"} for i in range(10)
         ]
-        goi = AsyncMock(return_value=("Đơn yêu cầu N4.", qa.client.LY_DO_OK))
+        goi = AsyncMock(return_value=("Đơn yêu cầu N4.", qa.client.LY_DO_OK, "model-kiem-thu"))
         with patch.object(qa.client, "sinh_van_ban", goi):
             await qa.tra_loi(
                 cau_hoi="Tôi thiếu gì?", ho_so=HO_SO, don=DON,
@@ -161,9 +161,9 @@ class NguCanhDuaVaoTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("câu 0", prompt)
 
     async def test_chua_co_don_thi_van_tra_loi_duoc(self):
-        goi = AsyncMock(return_value=("Bạn cần khai thêm thông tin.", qa.client.LY_DO_OK))
+        goi = AsyncMock(return_value=("Bạn cần khai thêm thông tin.", qa.client.LY_DO_OK, "model-kiem-thu"))
         with patch.object(qa.client, "sinh_van_ban", goi):
-            cau, _ = await qa.tra_loi(
+            cau, _, _ = await qa.tra_loi(
                 cau_hoi="Tôi hợp đơn nào?", ho_so=HO_SO, don="",
                 doi_chieu="", dieu_kien_nen=DIEU_KIEN,
             )

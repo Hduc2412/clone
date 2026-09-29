@@ -51,6 +51,20 @@ class Settings(BaseSettings):
     # cảnh báo lúc khởi động để không ai quên mất mình đang dùng chung.
     advisor_api_key: str = ""
     advisor_model: str = "gemini-2.5-flash"
+    # Model dự phòng, dùng khi model chính **không trả lời được**: hết hạn mức,
+    # dịch vụ quá tải, hoặc câu trả lời bị cắt giữa chừng.
+    #
+    # Hạn mức gói miễn phí tính theo (dự án, model), nên một model thứ hai trên
+    # CÙNG khóa là thêm 20 lượt mỗi ngày mà không phải mượn hạn mức của khung chat
+    # hay của bộ đọc CV — giữ nguyên chỗ tách biệt đã dựng ở trên.
+    #
+    # Điều kiện chuyển rất hẹp, và chỗ này quan trọng hơn cả việc có dự phòng:
+    # **không bao giờ chuyển vì chốt hậu kiểm loại câu trả lời.** Xem
+    # `advisor/client.py`.
+    #
+    # Để trống thì không có dự phòng: model chính hết hạn mức là rơi về bản ghép
+    # sẵn. Đó vẫn là hành vi an toàn, chỉ là kém hơn.
+    advisor_model_du_phong: str = ""
     # Ngắn hơn hẳn hạn chờ của chat. Đây là phần diễn đạt lại một khối chữ đã có
     # sẵn — chờ lâu thì thà hiện bản ghép sẵn còn hơn để ứng viên nhìn màn hình
     # quay vòng.

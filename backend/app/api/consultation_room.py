@@ -265,7 +265,7 @@ async def hoi_them(
         )
 
     profiles.decorate(profile)
-    cau, nguon = await qa.tra_loi(
+    cau, nguon, model = await qa.tra_loi(
         cau_hoi=payload.question,
         ho_so=context_builder.render(profile),
         don=order_context.render(don),
@@ -291,6 +291,7 @@ async def hoi_them(
         question=payload.question.strip(),
         answer=cau,
         source=nguon,
+        model=model,
     )
     return {"question": luot["question"], "answer": cau, "source": nguon}
 

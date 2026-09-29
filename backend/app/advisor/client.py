@@ -75,18 +75,34 @@ def bao_cau_hinh() -> None:
     else:
         logger.info("Engine tư vấn: dùng khóa riêng, model %s.", settings.advisor_model)
 
+    du_phong = settings.advisor_model_du_phong.strip()
+    if du_phong and du_phong != settings.advisor_model:
+        logger.info(
+            "Engine tư vấn: có model dự phòng %s (thêm một hạn mức 20 lượt/ngày). "
+            "Chỉ dùng khi model chính không trả lời được, không bao giờ dùng vì "
+            "chốt hậu kiểm loại câu.",
+            du_phong,
+        )
+    else:
+        logger.info(
+            "Engine tư vấn: KHÔNG có model dự phòng. Model chính hết hạn mức là "
+            "mọi màn hình rơi về bản ghép sẵn. Khai ADVISOR_MODEL_DU_PHONG trong "
+            "backend/.env để thêm một hạn mức nữa trên cùng khóa."
+        )
+
 
 def san_sang() -> bool:
     return settings.advisor_enabled and bool(api_key())
 
 
-async def sinh_van_ban(
+async def _goi_mot_lan(
+    model: str,
     prompt: str,
     *,
-    temperature: float = 0.2,
-    max_tokens: int = 1200,
+    temperature: float,
+    max_tokens: int,
 ) -> tuple[str | None, str]:
-    """Gọi mô hình, trả `(đoạn chữ, lý do)`. Chữ là `None` nghĩa là không dùng được.
+    """Đúng một lượt gọi tới đúng một model. Trả `(đoạn chữ, lý do)`.
 
     Không bao giờ ném lỗi ra ngoài: một sự cố mạng không được làm gãy cả màn hình
     tư vấn. Mọi đường thất bại đều dẫn tới `None`, và nơi gọi dùng bản ghép sẵn.
@@ -99,12 +115,9 @@ async def sinh_van_ban(
     28/09: hạn mức cạn giữa lượt nghiệm thu, mười câu không tới được mô hình, và
     bảng kết quả ghi nhận chúng như thể bot đã cân nhắc rồi chịu không đoán.
     """
-    if not san_sang():
-        return None, LY_DO_TAT
-
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{settings.advisor_model}:generateContent"
+        f"{model}:generateContent"
     )
     payload: dict[str, Any] = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -128,18 +141,18 @@ async def sinh_van_ban(
             )
             data = response.json()
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("Engine tư vấn không gọi được mô hình: %s", exc)
+        logger.warning("Engine tư vấn: không gọi được %s: %s", model, exc)
         return None, LY_DO_KHONG_GOI_DUOC
 
     if "error" in data:
-        logger.warning("Engine tư vấn: mô hình báo lỗi: %s", data["error"])
+        logger.warning("Engine tư vấn: %s báo lỗi: %s", model, data["error"])
         return None, LY_DO_KHONG_GOI_DUOC
 
     try:
         ung_vien = data["candidates"][0]
         van_ban = ung_vien["content"]["parts"][0]["text"]
     except (KeyError, IndexError, TypeError):
-        logger.warning("Engine tư vấn: mô hình trả về dạng lạ.")
+        logger.warning("Engine tư vấn: %s trả về dạng lạ.", model)
         return None, LY_DO_KHONG_GOI_DUOC
 
     # Câu bị cắt giữa chữ vẫn là chuỗi hợp lệ, nên phải bắt riêng. Không bắt ở
@@ -147,7 +160,102 @@ async def sinh_van_ban(
     # ("số lạ: ['0']" từ mã đơn bị đứt) và lần sau mất cả buổi đi tìm.
     ly_do_dung = ung_vien.get("finishReason")
     if ly_do_dung not in (None, "STOP"):
-        logger.warning("Engine tư vấn: câu trả lời chưa viết xong (%s).", ly_do_dung)
+        logger.warning("Engine tư vấn: %s chưa viết xong câu trả lời (%s).", model, ly_do_dung)
         return None, LY_DO_BI_CAT
 
     return van_ban, LY_DO_OK
+
+
+# Chỉ hai lý do này được phép chuyển sang model dự phòng. Cả hai đều có nghĩa là
+# **chưa hề nhận được một câu trả lời trọn vẹn**.
+LY_DO_DUOC_CHUYEN = (LY_DO_KHONG_GOI_DUOC, LY_DO_BI_CAT)
+
+
+async def sinh_van_ban(
+    prompt: str,
+    *,
+    temperature: float = 0.2,
+    max_tokens: int = 1200,
+) -> tuple[str | None, str, str]:
+    """Gọi mô hình, trả `(đoạn chữ, lý do, model đã trả lời)`.
+
+    Không bao giờ ném lỗi ra ngoài: một sự cố mạng không được làm gãy cả màn hình
+    tư vấn. Mọi đường thất bại đều dẫn tới `None`, và nơi gọi dùng bản ghép sẵn.
+
+    Nhưng phải nói rõ **vì sao** thất bại. Trước đây hàm này chỉ trả `None`, nên
+    nơi gọi không phân biệt được "mô hình đã trả lời và bị chốt hậu kiểm loại"
+    với "không gọi được mô hình". Hai thứ đó dồn chung vào một ô thống kê, và ô
+    ấy lại chính là con số dùng để chứng minh bot không bịa — nghĩa là **hệ thống
+    càng hỏng thì chỉ số trung thực trông càng đẹp**. Đo trên máy thật ngày
+    28/09: hạn mức cạn giữa lượt nghiệm thu, mười câu không tới được mô hình, và
+    bảng kết quả ghi nhận chúng như thể bot đã cân nhắc rồi chịu không đoán.
+
+    ## Model dự phòng, và giới hạn rất hẹp của nó
+
+    Hạn mức gói miễn phí là 20 lượt mỗi ngày cho mỗi (dự án, model). Một buổi bảo
+    vệ mà hội đồng hỏi vài chục câu là cạn, và lúc ấy toàn bộ phần tư vấn lặng lẽ
+    rơi về bản ghép sẵn. Nên có `ADVISOR_MODEL_DU_PHONG`: một model khác trên cùng
+    khóa, tức thêm một hạn mức 20 lượt nữa mà không phải mượn của khung chat hay
+    của bộ đọc CV.
+
+    **Chỉ chuyển khi chưa nhận được câu trả lời trọn vẹn** — hết hạn mức, dịch vụ
+    quá tải, mạng hỏng, hoặc câu bị cắt giữa chừng. Xem `LY_DO_DUOC_CHUYEN`.
+
+    ## Vì sao KHÔNG BAO GIỜ chuyển khi chốt hậu kiểm loại câu trả lời
+
+    Đây là chỗ dễ làm sai nhất, và làm sai thì hỏng đúng thứ hệ thống này tồn tại
+    để bảo vệ.
+
+    Nếu chốt hậu kiểm loại câu của model A rồi ta đi hỏi model B, ta không làm hệ
+    thống đáng tin hơn — ta đang **lọc theo mẫu cho tới khi có câu lọt qua chốt**.
+    Việc ấy chọn lọc đúng những lời bịa mà chốt chặn tình cờ không bắt được, và số
+    liệu "tỉ lệ bot không đoán" sẽ đẹp lên trong khi chất lượng thật đi xuống.
+    Một câu bị loại là một kết quả ĐÚNG, không phải một lần thử thất bại.
+
+    Điều đó không cưỡng chế bằng lời dặn mà bằng **thứ tự các tầng**: dự phòng
+    nằm ở đây, trong tầng truyền; chốt hậu kiểm nằm ở `qa.tra_loi`, trên tầng nội
+    dung. Chốt chạy sau khi hàm này đã trả về, nên phán quyết của nó không có
+    đường nào gọi lại được xuống đây. Sai lầm ấy thành không thể xảy ra, chứ không
+    phải chỉ bị cấm.
+
+    ## Model dự phòng phải được đo trước khi tin
+
+    Nó trả lời ứng viên bằng chính giọng của hệ thống, nên không thể khai một model
+    chưa đo rồi coi như xong. `scripts/nghiem_thu_tu_van.py --model=<tên>` đo được
+    từng model riêng, và bảng kết quả ghi tên model vào từng dòng. Mỗi lần dự phòng
+    được dùng thật, hàm này ghi một dòng log mức WARNING — để trong nhật ký máy chủ
+    thấy rõ câu trả lời ấy không đến từ model chính.
+    """
+    if not san_sang():
+        return None, LY_DO_TAT, ""
+
+    chinh = settings.advisor_model
+    van_ban, ly_do = await _goi_mot_lan(
+        chinh, prompt, temperature=temperature, max_tokens=max_tokens
+    )
+    if van_ban is not None:
+        return van_ban, ly_do, chinh
+
+    du_phong = settings.advisor_model_du_phong.strip()
+    if not du_phong or du_phong == chinh or ly_do not in LY_DO_DUOC_CHUYEN:
+        return None, ly_do, chinh
+
+    logger.warning(
+        "Engine tư vấn: %s không trả lời được (%s) — chuyển sang model dự phòng %s.",
+        chinh,
+        ly_do,
+        du_phong,
+    )
+    van_ban, ly_do_2 = await _goi_mot_lan(
+        du_phong, prompt, temperature=temperature, max_tokens=max_tokens
+    )
+    if van_ban is None:
+        # Cả hai đều không trả lời được. Báo lý do của lượt sau, vì đó là trạng
+        # thái cuối cùng ta thật sự quan sát được.
+        return None, ly_do_2, du_phong
+    logger.warning(
+        "Engine tư vấn: câu trả lời này do model DỰ PHÒNG %s viết, không phải %s.",
+        du_phong,
+        chinh,
+    )
+    return van_ban, ly_do_2, du_phong
