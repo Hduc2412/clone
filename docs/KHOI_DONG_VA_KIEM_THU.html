@@ -356,7 +356,7 @@
 <h2 id="kiem-thu"><span class="num">05</span>Kiểm thử</h2>
 
 <div class="stats">
-  <div class="stat"><div class="n ok">845</div><div class="l">ca backend</div></div>
+  <div class="stat"><div class="n ok">924</div><div class="l">ca backend</div></div>
   <div class="stat"><div class="n ok">10</div><div class="l">ca frontend</div></div>
   <div class="stat"><div class="n">~24s</div><div class="l">chạy hết backend</div></div>
   <div class="stat"><div class="n">0</div><div class="l">lời gọi mạng</div></div>
@@ -380,7 +380,7 @@
 <span class="p">PS&gt;</span> .\venv\Scripts\python.exe -m unittest discover -s tests -t .
 
 <span class="r">----------------------------------------------------------------------</span>
-<span class="r">Ran 845 tests in 22.578s</span>
+<span class="r">Ran 924 tests in 23.963s</span>
 
 <span class="o">OK</span></pre>
 </div>
@@ -432,7 +432,13 @@
         <td>Bot tư vấn: sáu chốt hậu kiểm loại câu mô hình viết sai. Gồm ca canh cho <b>không gọi được mô hình</b> không bị ghi nhầm thành "bot chịu không đoán" — nếu lẫn thì chỉ số trung thực sẽ tự đẹp lên mỗi lần hệ thống hỏng.</td></tr>
     <tr><td class="mono">test_memory_chung</td><td class="port">17</td>
         <td>Bộ nhớ dùng chung giữa khung chat và phòng tư vấn: nó chở <b>câu hỏi, không chở câu trả lời</b>. Có ca đọc thẳng mã nguồn để chặn việc ai đó nối bộ nhớ vào khối dữ liệu cho phép "cho tiện".</td></tr>
-    <tr><td class="mono">test_advisor_boundary</td><td class="port">10</td>
+    <tr><td class="mono">test_so_tuyen</td><td class="port">20</td>
+        <td>Ghi kết quả buổi sơ tuyển: <b>một lời gọi đổi cả trình độ tiếng Nhật lẫn trạng thái hồ sơ</b>. Ghi được cái này mà trượt cái kia là hai chỗ nói hai điều khác nhau về cùng một người. Có ca canh không có cửa sau cho máy trạng thái.</td></tr>
+    <tr><td class="mono">test_courses_api</td><td class="port">19</td>
+        <td>Danh mục khóa học: luật hợp lệ dùng chung với bộ nạp, khóa nháp không lọt ra phần tư vấn, khóa đang áp dụng không xóa được.</td></tr>
+    <tr><td class="mono">test_khong_lo_lien_lac</td><td class="port">6</td>
+        <td>Quét nguồn tìm số điện thoại và địa chỉ thật. Số nào chưa khai là số giả thì đỏ — thêm số vẫn làm được, nhưng người viết buộc phải tự trả lời "số này là của ai".</td></tr>
+    <tr><td class="mono">test_advisor_boundary</td><td class="port">20</td>
         <td>Ranh giới engine tư vấn và khung chat: quét mã nguồn, bắt mọi đường import nối hai bên. Khóa và hạn mức phải tách.</td></tr>
   </tbody>
 </table>
