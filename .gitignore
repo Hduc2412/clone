@@ -14,6 +14,16 @@ backend/tests/fixtures/chatbot/ket_qua_gan_nhat.json
 backend/tests/fixtures/cv/ket_qua_doc_cv.json
 backend/tests/fixtures/tu_van/ket_qua_tu_van.json
 
+# Bộ đệm phần chữ đọc từ ảnh trên website công ty. Là dữ liệu dẫn xuất — chạy
+# lại bộ nạp là có lại — nhưng nó chép nguyên văn watermark trong ảnh, nên bên
+# trong có số hotline ba mươi lần, ba địa chỉ văn phòng và mã số thuế công ty.
+#
+# Kho mã này công khai. Lịch sử git thì xóa rất khó, mà crawler thu số điện
+# thoại đọc GitHub trước cả website. Cái giá phải trả: ai nạp lại kho tri thức
+# sẽ tốn lượt gọi mô hình đọc ảnh một lần nữa. Đổi lấy việc không phát tán số
+# của một người thật thì rẻ.
+backend/data/image_vision_cache.json
+
 # Debug files
 debug.html
 *.log

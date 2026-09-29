@@ -13,11 +13,26 @@ những gì viết ở đây giải thích luôn vài hiện tượng bên phầ
 | Mục | Nội dung |
 |---|---|
 | Tên công ty | Công ty Đầu tư Phát triển Nhân lực Quốc tế DC |
-| Hotline | 0971.716.939 |
-| Văn phòng Hà Nội | Tầng 6, Tòa nhà Hữu Nghị, 188 Lê Quang Đạo, Từ Liêm |
-| Văn phòng TP. Hồ Chí Minh | Khu đô thị Vạn Phúc, Thủ Đức |
-| Văn phòng Bến Tre | 201C2 Phan Đình Phùng |
+| Hotline | khai trong cấu hình, xem ghi chú dưới bảng |
+| Văn phòng Hà Nội | khai trong cấu hình |
+| Văn phòng TP. Hồ Chí Minh | khai trong cấu hình |
+| Văn phòng Bến Tre | khai trong cấu hình |
 | Kênh liên hệ | Điện thoại và Zalo |
+
+**Số hotline và địa chỉ đường phố không nằm trong kho mã.** Kho này công khai,
+và hai thứ đó là thông tin liên lạc của người thật — commit vào lịch sử git thì
+xóa đi rất khó, mà crawler thu số điện thoại đọc GitHub trước cả website.
+
+Khai ở hai nơi, cả hai đều không vào kho:
+
+| Nơi khai | Biến |
+|---|---|
+| `backend/.env` | `SUPPORT_PHONE` |
+| `frontend/.env.local` | `NEXT_PUBLIC_HOTLINE`, `NEXT_PUBLIC_OFFICE_*_ADDRESS` |
+
+Máy nào chưa khai thì website hiện số giả `0000.000.000` và địa chỉ ghi "liên hệ
+để biết địa chỉ". Đó là lựa chọn có chủ ý: thà hiện rõ là chưa cấu hình, hơn là
+lặng lẽ để trống rồi không ai nhận ra.
 
 Số hotline khớp đúng giá trị mặc định `support_phone` đang có trong
 `app/core/config.py`, nên cấu hình hiện tại không sai.

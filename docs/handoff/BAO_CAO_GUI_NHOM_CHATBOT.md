@@ -336,7 +336,7 @@ Ba dạng dưới đây **không bắt được**, dù ứng viên gõ rất th�
 |---|---|---|
 | `Liên hệ +84912345678` | `None` | `0912345678` |
 | `Số 84 987 654 321` | `None` | `0987654321` |
-| `0971-716-939 là số công ty đúng không ạ?` | `None` | `0971716939` |
+| `0912-345-678 là số công ty đúng không ạ?` | `None` | `0912345678` |
 
 Điều đáng nói: **dự án đã có sẵn hàm xử lý đúng cả ba dạng này** —
 `app/core/phone.py: normalize_vietnamese_phone`. Tôi đã kiểm:
@@ -344,7 +344,7 @@ Ba dạng dưới đây **không bắt được**, dù ứng viên gõ rất th�
 ```
 '+84912345678'  -> '0912345678'
 '84987654321'   -> '0987654321'
-'0971-716-939'  -> '0971716939'
+'0912-345-678'  -> '0912345678'
 ```
 
 Nên bản vá gọn: bỏ thêm dấu gạch nối khi làm sạch chuỗi, nới mẫu dò để bắt cả

@@ -314,7 +314,7 @@ Hai lỗi của phần chatbot phát hiện qua bộ này, đã báo lại chứ
 `app/conversation/` thuộc phần người khác — chi tiết ở mục 9 của
 `docs/handoff/BAO_CAO_GUI_NHOM_CHATBOT.md`:
 
-- `extract_phone` bỏ sót `+84…`, `84 987 654 321`, `0971-716-939`, dù dự án **đã
+- `extract_phone` bỏ sót `+84…`, `84 987 654 321`, `0912-345-678`, dù dự án **đã
   có sẵn** `app/core/phone.py: normalize_vietnamese_phone` xử lý đúng cả ba.
 - Khớp từ khóa theo chuỗi con khiến `khoảng` trúng `khoản`, đẩy câu hỏi về lương
   sang nhóm chi phí.

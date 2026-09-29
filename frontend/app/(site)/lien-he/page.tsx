@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import PageHero from "@/components/site/PageHero";
 import { Button, Card, Section } from "@/components/ui/primitives";
-import { COMPANY, OFFICES } from "@/content/site";
+import { COMPANY, OFFICES, coDiaChiThat } from "@/content/site";
 
 export const metadata: Metadata = {
   title: "Liên hệ",
-  description:
-    "Ba văn phòng tại Hà Nội, TP. Hồ Chí Minh và Bến Tre. Hotline 0971.716.939, tiếp nhận hồ sơ và tư vấn chương trình điều dưỡng Nhật Bản.",
+  // Số hotline dựng từ `COMPANY` chứ không viết thẳng: viết thẳng ở đây là đưa
+  // đúng cái số vừa rút ra khỏi kho mã quay lại vào kho mã, ở một chỗ không ai
+  // nghĩ tới khi đi tìm.
+  description: `Ba văn phòng tại Hà Nội, TP. Hồ Chí Minh và Bến Tre. Hotline ${COMPANY.hotline}, tiếp nhận hồ sơ và tư vấn chương trình điều dưỡng Nhật Bản.`,
 };
 
 export default function ContactPage() {
@@ -45,16 +47,21 @@ export default function ContactPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {office.address}
                 </p>
-                <a
-                  href={`https://www.google.com/maps/search/${encodeURIComponent(
-                    `${office.address}, ${office.city}`,
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:text-brand-700"
-                >
-                  Xem trên bản đồ →
-                </a>
+                {/* Chưa cấu hình địa chỉ thì không hiện liên kết bản đồ: một
+                    liên kết dẫn tới trang tìm kiếm rỗng tệ hơn là không có liên
+                    kết nào — khách bấm rồi tưởng bản đồ hỏng. */}
+                {coDiaChiThat(office.address) && (
+                  <a
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(
+                      `${office.address}, ${office.city}`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:text-brand-700"
+                  >
+                    Xem trên bản đồ →
+                  </a>
+                )}
               </Card>
             ))}
           </div>

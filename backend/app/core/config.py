@@ -70,7 +70,15 @@ class Settings(BaseSettings):
 
     # Số hotline công ty. Trước đây hard-code ở 4 nơi (validator, prompt, chat
     # service); đổi số mà sót một chỗ là chatbot đọc sai số cho khách.
-    support_phone: str = "0971.716.939"
+    #
+    # Giá trị mặc định ở đây là số GIẢ, có chủ ý. Kho mã này công khai, và số
+    # hotline thật là số của một người thật — commit nó vào lịch sử git thì xóa
+    # đi rất khó, mà crawler thu số điện thoại thì đọc GitHub trước cả website.
+    # Số thật khai trong `backend/.env`, tệp ấy không vào kho.
+    #
+    # Hệ quả cần biết: máy nào chưa khai `SUPPORT_PHONE` thì chatbot sẽ đọc số
+    # giả này cho khách. Thà vậy hơn là lặng lẽ đọc số thật của người khác.
+    support_phone: str = "0000.000.000"
 
     # --- Xác thực ---
     jwt_expire_minutes: int = 480

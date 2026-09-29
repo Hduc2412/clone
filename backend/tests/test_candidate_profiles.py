@@ -283,7 +283,7 @@ class PayloadValidationTests(unittest.TestCase):
             FieldsPayload(birth_year=local_today().year - 3)
 
     def test_phone_is_normalized(self):
-        self.assertEqual(FieldsPayload(phone="+84 971 716 939").phone, "0971716939")
+        self.assertEqual(FieldsPayload(phone="+84 912 345 678").phone, "0912345678")
 
     def test_region_is_derived_from_the_desired_prefecture(self):
         self.assertEqual(PreferencesPayload(desired_prefecture="Tokyo").desired_region_group, "kanto")

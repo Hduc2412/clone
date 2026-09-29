@@ -61,7 +61,7 @@ async def main() -> None:
                     "japanese_level": "N4",
                     "experience_years": 1,
                     "care_experience": True,
-                    "phone": "0971716939",
+                    "phone": "0912345678",
                 },
                 preferences={
                     "desired_prefecture": "Tokyo",

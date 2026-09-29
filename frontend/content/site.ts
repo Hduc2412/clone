@@ -4,15 +4,46 @@
  * Lấy từ khảo sát trang thật `xklddieuduong.vn` ngày 14/09/2026, ghi lại trong
  * `docs/design/16_NOI_DUNG_WEBSITE.md`. Để ở một chỗ để đổi số điện thoại hay
  * địa chỉ là đổi toàn trang, không phải đi tìm từng nơi.
+ *
+ * ## Số hotline và địa chỉ đường phố không nằm trong tệp này
+ *
+ * Kho mã công khai, và hai thứ đó là thông tin liên lạc của người thật. Commit
+ * vào lịch sử git thì xóa đi rất khó, mà crawler thu số điện thoại đọc GitHub
+ * trước cả website.
+ *
+ * Khai trong `frontend/.env.local` — tệp ấy không vào kho:
+ *
+ *     NEXT_PUBLIC_HOTLINE=...
+ *     NEXT_PUBLIC_OFFICE_HANOI_ADDRESS=...
+ *     NEXT_PUBLIC_OFFICE_HCM_ADDRESS=...
+ *     NEXT_PUBLIC_OFFICE_BENTRE_ADDRESS=...
+ *
+ * Chưa khai thì trang hiện số giả và câu "Liên hệ hotline để biết địa chỉ". Có
+ * chủ ý: thà hiện rõ là chưa cấu hình, hơn là để trống rồi không ai nhận ra.
+ *
+ * Next thay `NEXT_PUBLIC_*` vào lúc dựng, nên các giá trị này dùng được cả ở
+ * component chạy trên trình duyệt.
  */
+
+/** Số giả, dùng khi chưa khai cấu hình. Nhìn là biết ngay chưa cấu hình. */
+const HOTLINE_CHUA_KHAI = "0000.000.000";
+const DIA_CHI_CHUA_KHAI = "Liên hệ hotline để biết địa chỉ";
+
+const HOTLINE = process.env.NEXT_PUBLIC_HOTLINE || HOTLINE_CHUA_KHAI;
+
+/** Bỏ mọi ký tự không phải chữ số, để dựng `tel:` và mã Zalo. */
+const chiSo = (so: string) => so.replace(/\D/g, "");
+
+/** Địa chỉ có thật hay đang là chỗ trống — chỗ nào cần thì tự quyết cách hiện. */
+export const coDiaChiThat = (diaChi: string) => diaChi !== DIA_CHI_CHUA_KHAI;
 
 export const COMPANY = {
   shortName: "Nhân lực Quốc tế DC",
   legalName: "Công ty Đầu tư Phát triển Nhân lực Quốc tế DC",
   tagline: "Điều dưỡng và hộ lý Nhật Bản",
-  hotline: "0971.716.939",
-  hotlineHref: "tel:0971716939",
-  zalo: "0971716939",
+  hotline: HOTLINE,
+  hotlineHref: `tel:${chiSo(HOTLINE)}`,
+  zalo: chiSo(HOTLINE),
   email: "tuyensinh@xklddieuduong.vn",
   workingHours: "Thứ Hai đến Thứ Bảy, 08:00–11:30 và 13:30–17:00",
   /**
@@ -26,21 +57,24 @@ export const COMPANY = {
   contactHours: "8h đến 17h",
 } as const;
 
+// Tên thành phố vẫn để trong kho: nó có trên mọi giấy tờ giới thiệu của công ty
+// và không chỉ tới một địa điểm cụ thể nào. Chỉ số nhà và tên đường là phần rút
+// ra ngoài.
 export const OFFICES = [
   {
     city: "Hà Nội",
     label: "Trụ sở chính",
-    address: "Tầng 6, Tòa nhà Hữu Nghị, 188 Lê Quang Đạo, Nam Từ Liêm",
+    address: process.env.NEXT_PUBLIC_OFFICE_HANOI_ADDRESS || DIA_CHI_CHUA_KHAI,
   },
   {
     city: "TP. Hồ Chí Minh",
     label: "Văn phòng phía Nam",
-    address: "Khu đô thị Vạn Phúc, TP. Thủ Đức",
+    address: process.env.NEXT_PUBLIC_OFFICE_HCM_ADDRESS || DIA_CHI_CHUA_KHAI,
   },
   {
     city: "Bến Tre",
     label: "Văn phòng miền Tây",
-    address: "201C2 Phan Đình Phùng, TP. Bến Tre",
+    address: process.env.NEXT_PUBLIC_OFFICE_BENTRE_ADDRESS || DIA_CHI_CHUA_KHAI,
   },
 ] as const;
 

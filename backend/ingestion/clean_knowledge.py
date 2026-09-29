@@ -5,7 +5,8 @@ Toàn bộ tri thức của hệ thống nằm trong ảnh trên website, nên c
 chữ đọc ra chính là chất lượng câu trả lời. Ba loại rác đang lẫn vào:
 
 1. **Số điện thoại sai.** Mô hình đọc watermark mờ và nuốt mất cụm giữa, thành
-   `0971. 939`. Dạng sai này xuất hiện nhiều hơn dạng đúng, và bộ kiểm chứng
+   cụm đầu dính liền cụm cuối. Dạng sai này xuất hiện nhiều hơn dạng đúng,
+   và bộ kiểm chứng
    không chặn được vì nó chỉ bắt chuỗi 10–11 chữ số.
 2. **Câu dẫn nhập của mô hình.** "Dưới đây là toàn bộ nội dung text trong ảnh:"
    và các biến thể — lời của máy, không phải nội dung tài liệu.
@@ -29,7 +30,21 @@ STAGING = "xkld_knowledge_staging"
 IMAGE_MARKER = "[NỘI DUNG TỪ ẢNH]"
 
 # Dạng số bị đọc sót cụm giữa. Chỉ sửa đúng dạng này, không đụng chuỗi số khác.
-BROKEN_PHONE = re.compile(r"0971\.\s*939")
+#
+# Suy ra từ `SUPPORT_PHONE` chứ không ghi thẳng số vào đây: kho mã này công khai,
+# và một số điện thoại thật nằm trong nguồn thì chẳng mấy mà bị chép sang chỗ
+# khác. Mô hình nuốt cụm giữa của watermark, nên dạng sai là cụm đầu cộng cụm
+# cuối — tính được từ chính số thật mà không cần biết trước nó là gì.
+def _mau_so_bi_nuot() -> "re.Pattern[str]":
+    cum = re.findall(r"\d+", SUPPORT_PHONE)
+    if len(cum) < 3:
+        # Số khai không có ba cụm thì không suy được dạng sai. Trả mẫu không bao
+        # giờ khớp, thay vì đoán một mẫu có thể sửa nhầm số của người khác.
+        return re.compile(r"(?!x)x")
+    return re.compile(rf"{re.escape(cum[0])}\.\s*{re.escape(cum[-1])}")
+
+
+BROKEN_PHONE = _mau_so_bi_nuot()
 
 # Vụn điều hướng ở đầu mỗi đoạn: "Trang chủ / <chuyên mục> <tiêu đề> Giá: liên hệ".
 BREADCRUMB = re.compile(r"^\s*Trang chủ\s*/.*?Giá:\s*liên hệ\s*", re.S)

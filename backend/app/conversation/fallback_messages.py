@@ -34,7 +34,16 @@ LEAD_NO_KNOWLEDGE = (
 # Câu trả lời của mô hình không qua được bước kiểm chứng.
 INVALID_ANSWER = (
     "Xin lỗi, mình chưa có đủ thông tin để trả lời câu này. "
-    f"Vui lòng liên hệ anh Quang qua số {SUPPORT_PHONE} để được tư vấn trực tiếp nhé!"
+    # Trước đây câu này nêu tên riêng một nhân viên. Đổi sang chức danh vì hai lẽ.
+    #
+    # Thứ nhất, kho mã công khai, và tên một người thật đứng cạnh số điện thoại
+    # của họ thì thành một danh thiếp không ai xin phép để đăng.
+    #
+    # Thứ hai, và quan trọng hơn cho người đọc câu này: số hotline giờ lấy từ cấu
+    # hình, nên máy nào chưa khai sẽ hiện số giả. Ghép tên riêng với số giả là một
+    # câu vừa nêu đúng tên một người vừa cho sai số của họ — khách gọi vào số rỗng
+    # rồi nghĩ chính người ấy cho số sai.
+    f"Vui lòng liên hệ nhân viên tư vấn qua số {SUPPORT_PHONE} để được hỗ trợ trực tiếp nhé!"
 )
 
 # Dịch vụ ngôn ngữ đang quá tải.

@@ -546,7 +546,7 @@ function khong_nhan_phien(reason: unknown): boolean {
             value={form.phone}
             onChange={(value) => set("phone", value)}
             inputMode="tel"
-            placeholder="0971 716 939"
+            placeholder="09xx xxx xxx"
             maxLength={15}
           />
         </div>
