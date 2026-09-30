@@ -431,7 +431,21 @@ async def main() -> int:
         if chi_ma and ca.ma != chi_ma:
             continue
         khoa = f"{model}::{ca.ma}"
-        if khoa in bang and "--lam-lai" not in sys.argv and not chi_ma:
+        # Bỏ qua chỉ khi ca ĐÃ đo **trên đúng prompt và chốt chặn đang chạy**.
+        #
+        # Bản trước chỉ xem khóa có trong bảng chưa, nên dòng lỗi thời bị bỏ qua
+        # vĩnh viễn: phần hiển thị dán nhãn CŨ và tính là chưa đo, còn phần quyết
+        # định đo lại thì không biết gì về dấu nhận dạng. Chạy lại bao nhiêu lần
+        # cũng không có gì đổi, mà bảng vẫn báo "còn 6 ca chưa đo" — một vòng lặp
+        # không ai thoát ra được trừ khi dùng `--lam-lai` và mất hết phép đo cũ.
+        #
+        # Phát hiện 30/09, lượt chạy đầu tiên có đủ hạn mức từ đầu đến cuối. Đúng
+        # họ lỗi đã gặp năm lần trong ba ngày: một phần của bộ đo biết dữ liệu đã
+        # lỗi thời, phần còn lại thì không.
+        da_do_dung_ban = (
+            khoa in bang and bang[khoa].get("dau_prompt") == dau_prompt()
+        )
+        if da_do_dung_ban and "--lam-lai" not in sys.argv and not chi_ma:
             continue
         if da_goi >= gioi_han:
             break
