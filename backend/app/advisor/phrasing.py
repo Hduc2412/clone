@@ -57,6 +57,33 @@ CUM_TU_CAM_KET: tuple[str, ...] = (
     "chúng tôi sẽ sắp xếp",
 )
 
+# Chốt PHẠM VI: không được biến "đơn này không hợp" thành "cả chương trình loại bạn".
+#
+# Đo trên trình duyệt thật ngày 30/09, đúng luồng khách đi. Khối máy ghép nói:
+#
+#     "Đơn này chưa phù hợp vì độ tuổi: đơn tuổi 20–35, 38 tuổi."
+#
+# Mô hình viết lại thành:
+#
+#     "bạn hiện chưa đạt điều kiện bắt buộc CỦA CHƯƠNG TRÌNH"
+#
+# Chữ "chương trình" **không có trong khối nguồn**. Mô hình tự nới phạm vi của kết
+# luận từ một đơn ra cả chương trình — và đó là hướng nới nguy hiểm nhất: chương
+# trình nhận 18–40 tuổi, ngay trên website còn hai đơn nhận tới 38 và 40, nên người
+# 38 tuổi đọc câu ấy sẽ bỏ đi trong khi họ vẫn đi được.
+#
+# Sáu chốt cũ không bắt được: không có số nào bịa (20, 35, 38 đều có trong khối),
+# không hứa hẹn, không cam kết, câu kết thúc đủ. Chúng kiểm **con số và lời hứa**,
+# không kiểm **phạm vi của lời khẳng định**. Đây là chốt cho chỗ đó.
+#
+# Cố ý gắn với chủ ngữ "bạn": nói "trường hợp nhiễm viêm gan B thì không đủ điều
+# kiện tham gia chương trình" là nêu luật của công ty, hợp lệ. Nói "BẠN không đủ
+# điều kiện của chương trình" mới là phán vượt quá thứ khối dữ liệu nói.
+_MO_RONG_PHAM_VI = re.compile(
+    r"bạn[^.]{0,30}(?:chưa|không)\s+(?:đạt|đủ|phù hợp)[^.]{0,45}chương trình",
+    re.IGNORECASE,
+)
+
 # Bắt số **đứng một mình**, kể cả số có dấu phân cách nghìn và số thập phân.
 #
 # Phần nhìn lui `(?<![A-Za-zÀ-ỹ-])` mới là chỗ quan trọng, và nó đến từ một lỗ
@@ -92,6 +119,9 @@ là viết lại nó thành 3–5 câu tiếng Việt tự nhiên, dễ đọc, 
 
 QUY TẮC BẮT BUỘC:
 - Chỉ dùng thông tin có trong khối dưới. Không thêm bất kỳ con số nào không có ở đó.
+- Kết luận chỉ nói về ĐƠN NÀY. Không bao giờ viết rằng ứng viên không đạt "chương
+  trình" — chương trình nhận rộng hơn từng đơn, và nói vậy là đuổi một người vẫn
+  còn đơn khác đi được.
 - Không tự kết luận ứng viên đạt hay không đạt. Kết quả đã ghi sẵn, bạn chỉ nói lại.
 - Không hứa hẹn. Không viết "chắc chắn đi được", "đảm bảo trúng tuyển" hay tương tự.
 - KHÔNG nói thay công ty về việc sẽ làm gì tiếp theo. Không viết "chúng tôi sẽ nộp
@@ -175,6 +205,9 @@ def kiem_tra(cau_tra_loi: str, block: str) -> str | None:
     for cum in CUM_TU_CAM_KET:
         if cum in thap:
             return f"cam kết thay công ty về bước tiếp theo: {cum!r}"
+
+    if _MO_RONG_PHAM_VI.search(sach):
+        return "nới kết luận từ một đơn ra cả chương trình"
 
     la = so_trong(sach) - so_trong(block)
     if la:

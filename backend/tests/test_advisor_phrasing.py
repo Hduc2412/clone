@@ -287,3 +287,83 @@ class KhongHua_ThayCongTyTests(unittest.TestCase):
         """Câu này đúng và hữu ích — nhân viên gọi lại là bước thật có trong luồng."""
         cau = "Bạn đã đạt điều kiện. Nhân viên tư vấn sẽ liên hệ để trao đổi thêm."
         self.assertIsNone(explain_llm.kiem_tra(cau, BLOCK))
+
+
+class KhongNoiKetLuanRaCaChuongTrinhTests(unittest.TestCase):
+    """Lỗi tìm ra bằng E2E trên trình duyệt thật, ngày 30/09.
+
+    Đi đúng luồng khách: gửi CV của một người 38 tuổi vào đơn DH-0001 (20–35 tuổi).
+    Khối máy ghép nói đúng:
+
+        "Đơn này chưa phù hợp vì độ tuổi: đơn tuổi 20–35, 38 tuổi."
+
+    Mô hình viết lại thành:
+
+        "bạn hiện chưa đạt điều kiện bắt buộc CỦA CHƯƠNG TRÌNH"
+
+    Chữ "chương trình" **không có trong khối nguồn**. Mô hình tự nới phạm vi của kết
+    luận từ một đơn ra cả chương trình — hướng nới nguy hiểm nhất: chương trình nhận
+    18–40 tuổi, ngay trên website còn hai đơn nhận tới 38 và 40 (DH-0004, DH-0008),
+    nên người 38 tuổi đọc câu ấy sẽ bỏ đi trong khi họ vẫn đi được.
+
+    Sáu chốt cũ không bắt: không số nào bịa (20, 35, 38 đều có trong khối), không
+    hứa hẹn, không cam kết, câu kết thúc đủ. Chúng kiểm **con số và lời hứa**, không
+    kiểm **phạm vi của lời khẳng định**.
+
+    Và không bộ kiểm thử nào bắt được, vì tất cả đều mock mô hình. Chỉ chạy thật
+    trên trình duyệt mới lộ ra.
+    """
+
+    KHOI = "Đơn DH-0001 chưa phù hợp vì độ tuổi: đơn tuổi 20–35, 38 tuổi."
+
+    def test_cau_that_do_mo_hinh_viet_bi_loai(self):
+        cau = (
+            "Theo kết quả đối chiếu hồ sơ của bạn với đơn tuyển DH-0001, bạn hiện "
+            "chưa đạt điều kiện bắt buộc của chương trình. Cụ thể, yêu cầu về độ "
+            "tuổi của đơn hàng là từ 20 đến 35 tuổi, trong khi bạn 38 tuổi."
+        )
+        ly_do = explain_llm.kiem_tra(cau, self.KHOI)
+        self.assertIsNotNone(ly_do, "câu nới phạm vi vẫn lọt qua chốt")
+        self.assertIn("chương trình", ly_do)
+
+    def test_noi_dung_pham_vi_mot_don_thi_qua(self):
+        cau = (
+            "Đơn DH-0001 yêu cầu ứng viên từ 20 đến 35 tuổi, trong khi bạn 38 tuổi "
+            "nên hồ sơ chưa đạt điều kiện của đơn này."
+        )
+        self.assertIsNone(explain_llm.kiem_tra(cau, self.KHOI))
+
+    def test_noi_ve_muc_nen_cua_chuong_trinh_van_qua(self):
+        """Nêu mức nền của chương trình là việc ĐÚNG và cần làm.
+
+        Chốt này chỉ chặn việc **phán ứng viên trượt cả chương trình**, không chặn
+        việc nói chương trình nhận những ai — đó chính là thông tin cứu người 38
+        tuổi khỏi bỏ cuộc.
+        """
+        # Khối phải có sẵn mức nền, không thì chốt SỐ loại 18/40 — và loại vì một
+        # lý do khác hẳn thứ ca này đang kiểm.
+        khoi = self.KHOI + "\nĐIỀU KIỆN MỨC NỀN: Độ tuổi 18 đến 40 tuổi."
+        cau = (
+            "Chương trình nhận ứng viên từ 18 đến 40 tuổi. Riêng đơn DH-0001 yêu "
+            "cầu từ 20 đến 35 tuổi nên hồ sơ của bạn chưa hợp đơn này."
+        )
+        self.assertIsNone(explain_llm.kiem_tra(cau, khoi))
+
+    def test_neu_luat_chung_khong_gan_voi_nguoi_hoi_thi_qua(self):
+        """"Trường hợp nhiễm viêm gan B thì không đủ điều kiện" là nêu luật công ty.
+
+        Khác hẳn "BẠN không đủ điều kiện của chương trình" — cái sau mới là phán
+        vượt quá thứ khối dữ liệu nói.
+        """
+        cau = (
+            "Trường hợp nhiễm bệnh truyền nhiễm sẽ không đủ điều kiện tham gia "
+            "chương trình. Kết luận là của buổi khám tại bệnh viện được chỉ định."
+        )
+        self.assertIsNone(explain_llm.kiem_tra(cau, self.KHOI))
+
+    def test_bot_hoi_dap_dung_chung_dung_mot_chot(self):
+        """Hai chỗ lệch nhau nghĩa là một trong hai đang để lọt."""
+        from app.advisor import qa
+
+        cau = "Hồ sơ của bạn chưa đủ điều kiện của chương trình."
+        self.assertIsNotNone(qa.kiem_tra(cau, self.KHOI))

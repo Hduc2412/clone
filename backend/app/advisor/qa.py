@@ -166,6 +166,11 @@ def kiem_tra(cau_tra_loi: str, khoi_cho_phep: str) -> str | None:
         if cum in thap:
             return f"cam kết thay công ty về bước tiếp theo: {cum!r}"
 
+    # Cùng chốt phạm vi với phần diễn đạt: không nới kết luận từ một đơn ra cả
+    # chương trình. Xem `phrasing._MO_RONG_PHAM_VI`.
+    if phrasing._MO_RONG_PHAM_VI.search(sach):
+        return "nới kết luận từ một đơn ra cả chương trình"
+
     la = phrasing.so_trong(sach) - phrasing.so_trong(khoi_cho_phep)
     if la:
         return f"có số không nằm trong dữ liệu được đọc: {sorted(la)}"
