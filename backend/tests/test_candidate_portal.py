@@ -358,9 +358,35 @@ class DataBoundaryTests(unittest.IsolatedAsyncioTestCase):
 class DefaultPasswordTests(unittest.TestCase):
     """Mật khẩu mặc định là dãy ai cũng biết, nên nó phải luôn đi kèm bắt buộc đổi."""
 
-    def test_the_default_password_comes_from_configuration(self):
-        """Đổi dãy mặc định là sửa cấu hình, không phải sửa mã nguồn."""
-        self.assertEqual(accounts.default_password(), settings.default_password)
+    def test_mat_khau_cap_la_ngau_nhien_moi_lan(self):
+        """Không còn dãy dùng chung — đây là lỗ hổng bản rà soát 30/09 xếp P1.
+
+        Một dãy ai cũng biết thì ai biết số điện thoại của một tài khoản vừa cấp
+        cũng đăng nhập được, và nếu vào trước chủ tài khoản thì họ là người đặt mật
+        khẩu mới. `must_change_password` không bịt được điều đó: nó bắt đổi mật
+        khẩu, nhưng không xác minh người đang đổi là ai.
+        """
+        cac = {accounts.default_password() for _ in range(50)}
+        self.assertEqual(len(cac), 50, "mật khẩu cấp bị lặp — không phải ngẫu nhiên")
+
+    def test_mat_khau_cap_doc_duoc_qua_dien_thoai(self):
+        """Dãy này được đọc qua điện thoại, và máy chủ không đọc lại được lần hai.
+
+        Nên nó phải tránh ký tự nghe giống nhau: `0/O`, `1/l/I`, `5/S`, `2/Z`. Một
+        ký tự nghe nhầm là ứng viên gõ sai ba lần rồi gọi lại, mà nhân viên không
+        tra lại được vì bản rõ không được lưu.
+        """
+        mk = accounts.default_password()
+        self.assertEqual(len(mk), accounts.DAI_MAT_KHAU_CAP)
+        for ky_tu in "0O1lI5S2Z":
+            self.assertNotIn(ky_tu, mk, f"ký tự {ky_tu!r} dễ nghe nhầm khi đọc")
+
+    def test_khong_con_day_dung_chung_trong_cau_hinh(self):
+        """Canh để không ai đưa nó về: một dòng trong `.env` là mở lại cả lỗ hổng."""
+        self.assertFalse(
+            hasattr(settings, "default_password"),
+            "`default_password` đã bị bỏ — đừng khai lại một dãy dùng chung",
+        )
 
     def test_a_new_account_always_owes_a_password_change(self):
         """Đây là thứ duy nhất bù lại việc mật khẩu ban đầu không phải bí mật."""

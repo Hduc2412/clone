@@ -17,6 +17,8 @@ Số điện thoại lưu ở dạng đã chuẩn hóa để `0912 345 678`, `+8
 import time
 from typing import Any
 
+import secrets
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ASCENDING, ReturnDocument
 
@@ -30,16 +32,47 @@ COLLECTION = "candidate_accounts"
 STATUS_ACTIVE = "active"
 STATUS_DISABLED = "disabled"
 
-def default_password() -> str:
-    """Mật khẩu mặc định khi cấp tài khoản hoặc đặt lại.
+# Bộ chữ để sinh mật khẩu cấp tài khoản.
+#
+# Cố ý bỏ những ký tự nghe giống nhau hoặc nhìn giống nhau: `0/O`, `1/l/I`, `5/S`,
+# `2/Z`. Dãy này được **đọc qua điện thoại**, nên một ký tự nghe nhầm là ứng viên
+# gõ sai ba lần rồi gọi lại — và nhân viên thì không đọc lại được, vì máy chủ không
+# lưu bản rõ.
+_CHU_DE_DOC = "34679ACDEFGHJKLMNPQRTUVWXY"
+DAI_MAT_KHAU_CAP = 10
 
-    Một dãy cố định, đọc qua điện thoại trong một hơi, ai cũng nhớ được. Đổi lại,
-    nó **không phải bí mật**: bất kỳ ai biết số điện thoại của một tài khoản vừa
-    được cấp đều đăng nhập được. Thứ duy nhất bù lại điều đó là `must_change_password`
-    — đăng nhập xong là bị chặn cho tới khi tự đặt mật khẩu mới. Sửa ở đây thì
-    phải giữ nguyên cơ chế kia.
+
+def default_password() -> str:
+    """Mật khẩu **một lần, sinh ngẫu nhiên** khi cấp tài khoản hoặc đặt lại.
+
+    ## Vì sao không còn là một dãy cố định
+
+    Trước 30/09 hàm này trả `settings.default_password`, một dãy tám số ai cũng
+    biết. Nó được bù bằng hai thứ: `must_change_password` chặn tài khoản cho tới khi
+    tự đặt mật khẩu mới, và hạn 72 giờ.
+
+    Cả hai đều không bịt được lỗ thật, và chú thích trong `config.py` đã tự nhận
+    điều đó: chúng bắt người đăng nhập phải đổi mật khẩu, nhưng **không xác minh
+    được người đăng nhập là ai**. Ai biết số điện thoại của một tài khoản vừa cấp
+    cũng gõ đúng dãy ấy, và nếu họ vào trước chủ tài khoản thì họ là người đặt mật
+    khẩu mới — tức là chiếm được tài khoản, kèm CV và số điện thoại của người khác.
+    Bản rà soát 30/09 xếp đây là việc phải xong **trước khi dùng dữ liệu thật**.
+
+    Một dãy ngẫu nhiên thì người không có nó không đăng nhập được, dù biết số điện
+    thoại. Đó là khác biệt duy nhất đáng kể, và nó đủ.
+
+    ## Vẫn đọc được qua điện thoại
+
+    `secrets.choice` trên bộ chữ đã bỏ ký tự dễ nghe nhầm. Mười ký tự là đủ để
+    không đoán được mà vẫn đọc xong trong một hơi.
+
+    ## Máy chủ không lưu bản rõ
+
+    Giá trị này chỉ tồn tại trong đúng một phản hồi API cho nhân viên đang gọi điện.
+    Không đọc lại được, và đó là chủ ý — một mật khẩu tra lại được thì không còn là
+    mật khẩu. `must_change_password` vẫn giữ nguyên: sửa ở đây không được bỏ nó.
     """
-    return settings.default_password
+    return "".join(secrets.choice(_CHU_DE_DOC) for _ in range(DAI_MAT_KHAU_CAP))
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:

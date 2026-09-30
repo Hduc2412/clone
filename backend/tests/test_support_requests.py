@@ -62,8 +62,8 @@ def ban_ghi(**ghi_de) -> dict:
 
 class GuiYeuCauTests(unittest.IsolatedAsyncioTestCase):
     async def _gui(self, payload, *, khoi="ĐƠN ĐANG XÉT: DH-0001", dang_cho=None):
-        viet = AsyncMock(side_effect=lambda doc: {**doc, "status": store.STATUS_CHO})
-        with patch.object(store, "create_request", viet), \
+        viet = AsyncMock(side_effect=lambda doc: ({**doc, "status": store.STATUS_CHO, "notified_at": None}, True))
+        with patch.object(store, "create_request", viet), patch.object(store, "danh_dau_da_thong_bao", AsyncMock()), \
              patch.object(
                  store, "tim_yeu_cau_dang_cho", AsyncMock(return_value=dang_cho)
              ), \

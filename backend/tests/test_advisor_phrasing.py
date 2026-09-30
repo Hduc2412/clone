@@ -86,9 +86,38 @@ class TatDuocTests(unittest.IsolatedAsyncioTestCase):
                 client.assert_not_called()
 
     async def test_thieu_khoa_api_thi_tra_none(self):
+        """Không khai khóa nào thì không gọi mạng, và **phải chứng minh là không gọi**.
+
+        Bản trước chỉ xóa `advisor_api_key`. Nhưng `client.api_key()` có đường rơi
+        về `gemini_api_key`, và trên máy có `.env` thật thì khóa ấy tồn tại — nên ca
+        này **gửi một request thật** rồi đi tới `None` vì Google từ chối. Nó xanh,
+        nhưng xanh vì một lý do khác hẳn thứ nó nói mình đang kiểm, và bộ kiểm thử
+        không còn chạy được khi mất mạng. Bản rà soát 30/09 bắt đúng chỗ này qua
+        nhật ký lần chạy.
+
+        Xóa **cả hai** khóa, và chốt bằng `assert_not_called` — thiếu nó thì lần sau
+        ai thêm một đường rơi thứ ba là ca lại xanh vì lý do sai.
+        """
         with patch.object(settings, "advisor_enabled", True), \
-             patch.object(settings, "advisor_api_key", ""):
-            self.assertIsNone(await explain_llm.rephrase(BLOCK))
+             patch.object(settings, "advisor_api_key", ""), \
+             patch.object(settings, "gemini_api_key", ""):
+            with patch.object(advisor_client.httpx, "AsyncClient") as client:
+                self.assertIsNone(await explain_llm.rephrase(BLOCK))
+                client.assert_not_called()
+
+    async def test_chi_xoa_khoa_rieng_thi_van_dung_khoa_chung(self):
+        """Đường rơi về khóa chung là có chủ ý, nên phải có ca nói rõ nó tồn tại.
+
+        Không có ca này thì người đọc ca trên dễ tưởng chỉ cần bỏ `ADVISOR_API_KEY`
+        là engine tư vấn ngừng gọi mạng — trong khi thật ra nó chuyển sang dùng
+        chung hạn mức với khung chat, đúng thứ cả thiết kế cố tránh.
+        """
+        advisor_client._da_canh_bao_dung_chung = False
+        with patch.object(settings, "advisor_enabled", True), \
+             patch.object(settings, "advisor_api_key", ""), \
+             patch.object(settings, "gemini_api_key", "khoa-chung"):
+            self.assertTrue(advisor_client.san_sang())
+            self.assertEqual(advisor_client.api_key(), "khoa-chung")
 
     async def test_khoi_rong_thi_khong_goi_mang(self):
         with patch.object(settings, "advisor_enabled", True), \

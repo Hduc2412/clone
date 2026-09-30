@@ -24,6 +24,7 @@ Khách thấy mình có thể không đủ điều kiện sức khỏe thì gử
 và yêu cầu đó **không ghi bệnh gì**. Hệ thống chỉ biết "người này muốn được tư
 vấn", không biết vì sao.
 """
+import logging
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
@@ -40,6 +41,9 @@ from app.db import support_requests as store
 from app.db.database import create_notification
 from app.services.assignment import is_privileged
 from app.services.audit_service import audit_action
+
+
+logger = logging.getLogger(__name__)
 
 
 public_router = APIRouter(
@@ -115,21 +119,14 @@ async def gui_yeu_cau(
     # Bấm hai lần không tạo hai việc.
     #
     # Nút gửi nằm ở cuối một màn hình dài, mạng di động thì chậm, và không có gì
-    # nhúc nhích trong một giây — người ta bấm lại. Trước đây mỗi lần bấm là một
-    # dòng trong hàng đợi, nên hai nhân viên nhận hai yêu cầu của cùng một người
-    # rồi gọi cho họ hai lần.
+    # nhúc nhích trong một giây — người ta bấm lại. Mỗi lần bấm một dòng thì hai
+    # nhân viên nhận hai yêu cầu của cùng một người rồi gọi cho họ hai lần.
     #
-    # Trả lại đúng yêu cầu đang chờ thay vì báo lỗi: nhìn từ phía khách thì lần
-    # bấm nào cũng thành công, mà hàng đợi chỉ có một việc.
-    dang_cho = await store.tim_yeu_cau_dang_cho(
-        session_id=session_id,
-        kind=payload.kind,
-        job_order_code=payload.job_order_code,
-    )
-    if dang_cho is not None:
-        return _da_nhan(dang_cho)
-
-    document = await store.create_request(
+    # Chốt chặn thật nằm ở **index duy nhất** trong `store.create_request`, không
+    # nằm ở đây. Lần tra trước đó chỉ để tránh sinh mã và tránh dựng lại khối đối
+    # chiếu một cách vô ích; hai lần bấm sát nhau thì cả hai đều thấy "chưa có", và
+    # chỉ index mới chặn được. Bản rà soát 30/09 đã tái hiện đúng khoảng hở ấy.
+    document, _moi = await store.create_request(
         {
             "code": new_code(PREFIX_SUPPORT),
             "kind": payload.kind,
@@ -145,14 +142,43 @@ async def gui_yeu_cau(
         }
     )
 
-    await create_notification(
-        notification_type="new_support_request",
-        title=_TIEU_DE_THONG_BAO[payload.kind],
-        reference_type="support_request",
-        reference_code=document["code"],
-        detail={"customer_name": document["full_name"], "kind": payload.kind},
-    )
+    await _bao_nhan_vien(document, payload.kind)
     return _da_nhan(document)
+
+
+async def _bao_nhan_vien(document: dict[str, Any], kind: str) -> None:
+    """Ghi thông báo cho nhân viên. **Không bao giờ làm gãy lời gọi của khách.**
+
+    Yêu cầu đã nằm trong bảng rồi. Ném lỗi ra ngoài lúc này là trả 500 cho một
+    thao tác đã thành công — khách tưởng mình chưa gửi được và bấm lại, rồi nhận
+    201, rồi vẫn không ai liên hệ vì thông báo chưa từng được ghi.
+    Bản rà soát 30/09 dựng đúng cảnh đó.
+
+    Đã báo rồi thì không báo lại: `notified_at` là mốc phân biệt "đã báo" với "báo
+    hỏng", và nhờ nó lần gửi lại **báo bù** thay vì im lặng bỏ qua.
+    """
+    if document.get("notified_at"):
+        return
+    try:
+        await create_notification(
+            notification_type="new_support_request",
+            title=_TIEU_DE_THONG_BAO[kind],
+            reference_type="support_request",
+            reference_code=document["code"],
+            detail={"customer_name": document["full_name"], "kind": kind},
+        )
+    except Exception:
+        # Ghi log, không ném. Mốc `notified_at` vẫn `None`, nên lần khách gửi lại
+        # sẽ thử lại — và hàng đợi quản trị đọc được cờ ấy để biết việc nào chưa
+        # có thông báo.
+        logger.warning(
+            "Không ghi được thông báo cho yêu cầu hỗ trợ %s. Yêu cầu vẫn đã lưu; "
+            "lần gửi lại sẽ thử báo lại.",
+            document["code"],
+            exc_info=True,
+        )
+        return
+    await store.danh_dau_da_thong_bao(document["code"])
 
 
 def _da_nhan(document: dict[str, Any]) -> dict[str, Any]:

@@ -35,6 +35,8 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ASCENDING, DESCENDING, ReturnDocument
 
+from pymongo.errors import DuplicateKeyError
+
 from app.db.common import get_db, now, strip_id
 
 
@@ -63,19 +65,84 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[COLLECTION].create_index([("assigned_to", ASCENDING), ("created_at", DESCENDING)])
     await db[COLLECTION].create_index([("session_id", ASCENDING), ("created_at", DESCENDING)])
 
+    # Chống trùng bằng INDEX, không bằng đọc-rồi-ghi.
+    #
+    # Bản trước tra `tim_yeu_cau_dang_cho` rồi mới `insert_one`. Hai lần bấm gần
+    # nhau thì cả hai truy vấn đều thấy "chưa có", cả hai đều ghi, và hàng đợi có
+    # hai việc cho cùng một người. Khoảng hở ấy đo được: bản rà soát 30/09 tái
+    # hiện bằng cách cho hai lần kiểm tra chạy đồng thời, ra hai bản ghi 201.
+    #
+    # Dùng `dang_mo` thay vì lọc theo `status` vì `partialFilterExpression` của
+    # MongoDB **không nhận `$in`** — chỉ `$eq`, `$exists` và vài toán tử so sánh.
+    # Nên trạng thái mở được đánh dấu bằng đúng một cờ, và cờ ấy được **xóa** khi
+    # yêu cầu đóng lại. Xóa chứ không đặt `False`: giá trị `False` vẫn nằm trong
+    # index, và khách quay lại hỏi tiếp sẽ bị chặn oan.
+    await db[COLLECTION].create_index(
+        [
+            ("session_id", ASCENDING),
+            ("kind", ASCENDING),
+            ("job_order_code", ASCENDING),
+        ],
+        unique=True,
+        partialFilterExpression={"dang_mo": {"$eq": True}},
+        name="mot_yeu_cau_dang_mo_moi_loai_moi_don",
+    )
 
-async def create_request(document: dict[str, Any]) -> dict[str, Any]:
+
+async def create_request(document: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Tạo yêu cầu. Trả `(bản ghi, có phải bản mới)`.
+
+    `False` nghĩa là phiên này đã có một yêu cầu **đang mở** cùng loại cùng đơn, và
+    hàm trả lại chính nó. Đây là đường chống trùng thật: index duy nhất chặn ở tầng
+    dữ liệu, nên hai lần bấm cùng lúc chỉ ra một bản ghi — khác với đọc-rồi-ghi,
+    nơi cả hai lần kiểm tra đều thấy "chưa có".
+
+    Trả thêm cờ chứ không chỉ trả bản ghi, vì nơi gọi cần biết để không ghi thông
+    báo lần thứ hai cho cùng một việc.
+    """
     full = {
         **document,
         "status": STATUS_CHO,
+        # Cờ đánh dấu yêu cầu đang mở — xem index ở `ensure_indexes`.
+        "dang_mo": True,
         "assigned_to": None,
         "handled_at": None,
         "reply": None,
+        # Thông báo cho nhân viên đã ghi được chưa. `None` là chưa.
+        #
+        # Tách khỏi việc tạo yêu cầu vì hai việc này hỏng độc lập: bản rà soát
+        # 30/09 dựng cảnh `create_notification` ném ngoại lệ, và kết quả là yêu cầu
+        # đã lưu nhưng khách nhận 500 — rồi gửi lại thì nhánh chống trùng trả 201
+        # mà **vẫn không có thông báo nào**, nên nhân viên không bao giờ biết.
+        "notified_at": None,
         "created_at": now(),
         "updated_at": now(),
     }
-    await get_db()[COLLECTION].insert_one(dict(full))
-    return strip_id(full)
+    try:
+        await get_db()[COLLECTION].insert_one(dict(full))
+    except DuplicateKeyError:
+        dang_mo = await tim_yeu_cau_dang_cho(
+            session_id=document["session_id"],
+            kind=document["kind"],
+            job_order_code=document.get("job_order_code"),
+        )
+        # Bản ghi vừa bị đóng giữa lúc chèn và lúc tra lại thì không còn "đang mở".
+        # Rất hiếm, nhưng trả `None` ra ngoài sẽ thành `AttributeError` ở nơi gọi.
+        if dang_mo is None:
+            raise
+        return dang_mo, False
+    return strip_id(full), True
+
+
+async def danh_dau_da_thong_bao(code: str) -> None:
+    """Ghi lại rằng thông báo cho nhân viên đã tới nơi.
+
+    Không có mốc này thì không phân biệt được "đã báo" với "báo hỏng" — và lần gửi
+    lại sẽ im lặng bỏ qua, để yêu cầu nằm trong bảng mà không ai biết.
+    """
+    await get_db()[COLLECTION].update_one(
+        {"code": code}, {"$set": {"notified_at": now(), "updated_at": now()}}
+    )
 
 
 async def tim_yeu_cau_dang_cho(
@@ -179,7 +246,10 @@ async def close_request(
                 "handled_by": email,
                 "handled_at": now(),
                 "updated_at": now(),
-            }
+            },
+            # Xóa cờ, không đặt `False`: giá trị `False` vẫn nằm trong index duy
+            # nhất, và khách quay lại hỏi tiếp sẽ bị chặn oan.
+            "$unset": {"dang_mo": ""},
         },
         projection=PROJECTION,
         return_document=ReturnDocument.AFTER,

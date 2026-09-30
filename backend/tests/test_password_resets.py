@@ -121,7 +121,11 @@ class HandlingTests(unittest.IsolatedAsyncioTestCase):
                 "YC-A1B2C3", http_request(), current_user=CONSULTANT
             )
         self.assertEqual(result["subject_type"], store.SUBJECT_CANDIDATE)
-        self.assertEqual(result["default_password"], "12345678")
+        # Không so với một dãy cố định nữa: mật khẩu cấp nay ngẫu nhiên mỗi lần.
+        # Kiểm hình dạng và kiểm nó thật sự được trả về đúng một lần cho nhân viên.
+        mk = result["default_password"]
+        self.assertEqual(len(mk), accounts.DAI_MAT_KHAU_CAP)
+        self.assertTrue(mk.isalnum())
 
     async def test_resetting_a_staff_account_forces_a_change(self):
         staff_request = pending(subject_type=store.SUBJECT_STAFF, subject_id=CONSULTANT["email"])
@@ -189,7 +193,10 @@ class HandlingTests(unittest.IsolatedAsyncioTestCase):
             store, "mark_done", new=AsyncMock(return_value=pending())
         ), patch.object(api, "audit_action", new=AsyncMock()):
             await api.handle_reset("YC-A1B2C3", http_request(), current_user=CONSULTANT)
-        self.assertEqual(writer.await_args.args[1], "12345678")
+        # Mật khẩu ngẫu nhiên mỗi lần, nên kiểm hình dạng thay vì so một dãy cố định.
+        mk = writer.await_args.args[1]
+        self.assertEqual(len(mk), accounts.DAI_MAT_KHAU_CAP)
+        self.assertNotEqual(mk, "12345678")
 
     async def test_an_already_handled_request_is_refused(self):
         with patch.object(

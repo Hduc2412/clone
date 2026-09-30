@@ -127,16 +127,28 @@ export default function SupportRequestForm({
         ))}
       </div>
 
+      {/* Không `required`.
+          Khách vừa đọc một khối kết quả nói rõ họ vướng ở đâu rồi bấm "xin gặp
+          nhân viên". Bắt gõ lại bằng lời của mình là bắt diễn đạt lại thứ hệ
+          thống đã biết — và với người vừa bị báo chưa đủ điều kiện thì đó là một
+          bậc thềm đủ cao để họ bỏ đi.
+
+          Máy chủ đã cho để trống từ 30/09 và tự điền một câu theo loại yêu cầu,
+          nhưng thuộc tính `required` ở đây vẫn chặn — nên trên thực tế khách vẫn
+          bị bắt viết. Bản rà soát 30/09 bắt đúng chỗ lệch này. */}
       <label className="mt-4 block text-sm font-medium text-slate-700">
         Nội dung
+        <span className="ml-1 font-normal text-slate-400">(không bắt buộc)</span>
         <textarea
-          required
           name="message"
           rows={4}
           maxLength={2000}
           placeholder={chon.goi_y}
           className={`${O_NHAP} resize-y`}
         />
+        <span className="mt-1 block text-xs font-normal text-slate-500">
+          Để trống cũng được — nhân viên đã thấy kết quả đối chiếu của bạn.
+        </span>
       </label>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">

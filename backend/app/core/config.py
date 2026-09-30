@@ -98,20 +98,20 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 480
     auth_cookie_name: str = "xkld_admin_session"
     auth_cookie_secure: bool = False
-    # Mật khẩu mặc định khi cấp tài khoản hoặc đặt lại mật khẩu, cho cả ứng viên
-    # lẫn nhân viên. Đây là một dãy **ai cũng biết**, nên nó chỉ an toàn nhờ hai
-    # điều đi kèm, và cả hai đều bắt buộc: tài khoản bị chặn ngay sau khi đăng
-    # nhập cho tới khi tự đặt mật khẩu mới, và mọi trang khác không mở được
-    # trước đó. Bỏ một trong hai là để ngỏ mọi tài khoản vừa được cấp.
-    default_password: str = "12345678"
-    # Dãy mặc định chỉ sống trong ngần này giờ. Hết hạn thì tài khoản vẫn còn
-    # nguyên, chỉ là dãy cũ không đăng nhập được nữa và phải xin cấp lại.
+    # KHÔNG còn mật khẩu mặc định dùng chung.
     #
-    # Thứ này bịt lỗ mà `must_change_password` không bịt được: cờ đó bắt người
-    # đăng nhập phải đổi mật khẩu, nhưng **không xác minh được người đăng nhập
-    # là ai**. Ai biết số điện thoại cũng gõ đúng dãy mặc định, và nếu họ vào
-    # trước chủ tài khoản thì họ là người đặt mật khẩu mới. Không có hạn dùng
-    # thì cửa đó mở vô thời hạn kể từ lúc nhân viên cấp tài khoản.
+    # Trước 30/09 ở đây có `default_password = "12345678"` — một dãy ai cũng biết,
+    # bù bằng `must_change_password` và hạn 72 giờ. Chú thích cũ đã tự nhận cả hai
+    # thứ ấy không bịt được lỗ thật: chúng bắt người đăng nhập phải đổi mật khẩu,
+    # nhưng **không xác minh được người đăng nhập là ai**. Ai biết số điện thoại
+    # của một tài khoản vừa cấp cũng gõ đúng dãy ấy, và nếu vào trước chủ tài khoản
+    # thì họ là người đặt mật khẩu mới — chiếm được tài khoản kèm CV của người khác.
+    #
+    # Nay mỗi lần cấp sinh một dãy ngẫu nhiên, trả về đúng một lần cho nhân viên
+    # đang gọi điện. Xem `app/db/candidate_accounts.default_password()`.
+    #
+    # Hạn dùng vẫn giữ: một dãy ngẫu nhiên đọc qua điện thoại thì cũng có thể bị
+    # nghe lỏm hoặc nằm lại trong một tờ giấy nháp, nên nó không nên sống mãi.
     #
     # Bảy hai giờ là ba ngày làm việc — đủ rộng cho một cuộc gọi lỡ và một ngày
     # nghỉ, đủ hẹp để không còn là cửa mở thường trực.

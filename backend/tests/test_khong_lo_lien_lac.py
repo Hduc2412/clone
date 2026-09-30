@@ -248,3 +248,53 @@ class KhongNeuTenNguoiThatTrongCauNoiVoiKhachTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BoKiemThuKhongGoiMangTests(unittest.TestCase):
+    """Bộ kiểm thử phải chạy được khi mất mạng, và phải đúng như nó tự nhận.
+
+    Bản rà soát 30/09 phát hiện nó **không** như vậy: `tests/__init__.py` dùng
+    `setdefault` cho khóa API, nên trên máy có `.env` thật thì test chạy bằng khóa
+    thật và gọi được API thật. Một ca tự nhận "không gọi mô hình" lại gửi request
+    thật rồi đi tới `None` vì Google từ chối — xanh, nhưng xanh vì lý do khác hẳn.
+
+    Ba hậu quả: bộ test không chạy được khi mất mạng; mỗi lượt ngốn hạn mức của gói
+    miễn phí, dùng chung với phần đo chất lượng thật; và một ca **đỏ vì hết hạn
+    mức** trông y như một ca đỏ vì mã sai.
+    """
+
+    def test_khoa_api_trong_khi_chay_test_la_khoa_gia(self):
+        from app.core.config import settings
+        from tests import KHOA_GIA_CHO_KIEM_THU
+
+        self.assertEqual(settings.gemini_api_key, KHOA_GIA_CHO_KIEM_THU)
+        self.assertEqual(settings.advisor_api_key, KHOA_GIA_CHO_KIEM_THU)
+
+    def test_khoa_api_bi_ghi_de_chu_khong_setdefault(self):
+        """`setdefault` để lọt khóa thật của máy vào lượt chạy test.
+
+        Không phải lỗ hổng nặng nhất — khóa giả vẫn **không chặn được** việc gửi
+        request, vì nó không rỗng nên `client.san_sang()` là `True`. Chỗ chặn thật là
+        vá `httpx.AsyncClient` trong từng ca, và `test_advisor_phrasing` đã làm.
+
+        Nhưng ghi đè vẫn đáng: nó làm lượt chạy **tất định** bất kể `.env` của máy,
+        nên không máy nào lỡ tiêu hạn mức thật vào một lượt chạy test — hạn mức ấy
+        dùng chung với phần đo chất lượng, và tiêu hết thì phép đo phải chờ sang ngày.
+
+        Bản nháp đầu của ca này bỏ qua đúng dòng cần kiểm: điều kiện lọc dùng
+        `dong.split("=")[0]`, mà `os.environ.setdefault(...)` không có dấu `=` nào
+        nên cả dòng bị coi là dòng định nghĩa hằng số. Phá thử mới lộ ra.
+        """
+        nguon = (GOC / "backend" / "tests" / "__init__.py").read_text(encoding="utf-8")
+        for dong in nguon.splitlines():
+            sach = dong.strip()
+            if sach.startswith("#") or sach.startswith("KHOA_GIA"):
+                continue
+            if "GEMINI_API_KEY" not in sach and "ADVISOR_API_KEY" not in sach:
+                continue
+            self.assertNotIn(
+                "setdefault",
+                sach,
+                f"khóa API không được dùng `setdefault`: {sach!r}. Máy có `.env` "
+                f"thật sẽ chạy test bằng khóa thật và tiêu hạn mức thật.",
+            )

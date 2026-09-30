@@ -187,7 +187,12 @@ async def handle_reset(
             raise HTTPException(status_code=404, detail="Tài khoản nhân viên không còn tồn tại.")
         _ensure_can_reset_staff(current_user, target)
 
-    password = settings.default_password
+    # Mật khẩu ngẫu nhiên một lần, không phải dãy dùng chung.
+    #
+    # Đường này đặt lại mật khẩu cho **cả tài khoản nhân viên**, nên một dãy ai cũng
+    # biết ở đây còn nặng hơn ở phía ứng viên: người vào trước chủ tài khoản sẽ là
+    # người đặt mật khẩu mới cho một tài khoản có quyền thật.
+    password = accounts.default_password()
     if subject_type == store.SUBJECT_CANDIDATE:
         updated = await accounts.reset_password(
             subject_id, password, by=current_user["email"]

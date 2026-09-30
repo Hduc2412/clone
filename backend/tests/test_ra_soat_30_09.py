@@ -160,10 +160,21 @@ class GuiHaiLanKhongTaoHaiViecTests(unittest.IsolatedAsyncioTestCase):
         gia_tri.update(ghi_de)
         return support.SupportRequestBody(**gia_tri)
 
-    async def _gui(self, *, dang_cho=None):
-        viet = AsyncMock(side_effect=lambda doc: {**doc, "status": store.STATUS_CHO})
+    async def _gui(self, *, ket_qua_tao=None):
+        """`ket_qua_tao` là thứ `store.create_request` trả về: `(bản ghi, có phải mới)`.
+
+        Từ 30/09 việc chống trùng nằm **trong** `create_request` (index duy nhất),
+        không còn ở lần tra trước đó — nên cảnh "đã có yêu cầu" dựng bằng cách cho
+        hàm ấy trả `(bản cũ, False)`.
+        """
+        if ket_qua_tao is None:
+            ket_qua_tao = (
+                {"code": "HT-MOI", "kind": "gap_mat", "full_name": "L", "notified_at": None},
+                True,
+            )
+        viet = AsyncMock(return_value=ket_qua_tao)
         with patch.object(store, "create_request", viet), patch.object(
-            store, "tim_yeu_cau_dang_cho", AsyncMock(return_value=dang_cho)
+            store, "danh_dau_da_thong_bao", AsyncMock()
         ), patch.object(
             support.khoi_doi_chieu, "dung_tu_nhat_ky", AsyncMock(return_value=None)
         ), patch.object(
@@ -172,29 +183,35 @@ class GuiHaiLanKhongTaoHaiViecTests(unittest.IsolatedAsyncioTestCase):
             ra = await support.gui_yeu_cau(SESSION, self._body(), http_request())
         return ra, viet
 
-    async def test_dang_co_yeu_cau_cho_thi_khong_tao_them(self):
-        dang_cho = {"code": "HT-CU0001", "kind": "gap_mat"}
-        ra, viet = await self._gui(dang_cho=dang_cho)
-        viet.assert_not_awaited()
+    async def test_dang_co_yeu_cau_cho_thi_tra_lai_chinh_no(self):
+        cu = {"code": "HT-CU0001", "kind": "gap_mat", "full_name": "L", "notified_at": None}
+        ra, _ = await self._gui(ket_qua_tao=(cu, False))
         self.assertEqual(ra["code"], "HT-CU0001")
 
     async def test_khach_van_thay_bao_gui_thanh_cong(self):
         """Nói "bạn đã gửi rồi" chỉ làm người ta lo là lần này không tính."""
-        ra, _ = await self._gui(dang_cho={"code": "HT-CU0001", "kind": "gap_mat"})
+        cu = {"code": "HT-CU0001", "kind": "gap_mat", "full_name": "L", "notified_at": None}
+        ra, _ = await self._gui(ket_qua_tao=(cu, False))
         self.assertIn("Đã gửi", ra["message"])
         self.assertIn(support.GIO_LIEN_HE, ra["message"])
 
     async def test_chua_co_yeu_cau_nao_thi_van_tao(self):
-        ra, viet = await self._gui(dang_cho=None)
+        ra, viet = await self._gui()
         viet.assert_awaited_once()
+        self.assertEqual(ra["code"], "HT-MOI")
 
     def test_chi_gop_khi_cung_loai_va_cung_don(self):
-        """Xin gặp mặt về DH-0001 và hỏi chuyện học là hai việc khác nhau."""
+        """Xin gặp mặt về DH-0001 và hỏi chuyện học là hai việc khác nhau.
+
+        Nay luật ấy nằm trong **index duy nhất**, nên kiểm trên các khóa của index.
+        """
         import inspect
 
-        nguon = inspect.getsource(store.tim_yeu_cau_dang_cho)
-        for khoa in ("session_id", "kind", "job_order_code", "status"):
-            self.assertIn(khoa, nguon, f"truy vấn thiếu {khoa}")
+        nguon = inspect.getsource(store.ensure_indexes)
+        i = nguon.index("mot_yeu_cau_dang_mo_moi_loai_moi_don")
+        khoi = nguon[max(0, i - 700) : i]
+        for khoa in ("session_id", "kind", "job_order_code"):
+            self.assertIn(khoa, khoi, f"index thiếu khóa {khoa}")
 
     def test_yeu_cau_da_xong_khong_chan_yeu_cau_moi(self):
         """Khách quay lại hỏi tiếp là một việc mới thật, không phải bấm nhầm."""
@@ -228,11 +245,11 @@ class KhongBatKhachVietLaiLoiNhanTests(unittest.IsolatedAsyncioTestCase):
     async def test_de_trong_thi_may_chu_tu_dien_cau_theo_loai(self):
         """Hàng đợi không được có dòng trống — nhân viên đọc nó để biết việc gì."""
         for loai in store.KINDS:
-            viet = AsyncMock(side_effect=lambda doc: {**doc, "status": store.STATUS_CHO})
+            viet = AsyncMock(side_effect=lambda doc: ({**doc, "status": store.STATUS_CHO, "notified_at": None}, True))
             body = support.SupportRequestBody(
                 kind=loai, message="   ", full_name="Nguyễn Thị Lan", phone="0912345678"
             )
-            with patch.object(store, "create_request", viet), patch.object(
+            with patch.object(store, "create_request", viet), patch.object(store, "danh_dau_da_thong_bao", AsyncMock()), patch.object(
                 store, "tim_yeu_cau_dang_cho", AsyncMock(return_value=None)
             ), patch.object(
                 support.khoi_doi_chieu, "dung_tu_nhat_ky", AsyncMock(return_value=None)
@@ -244,14 +261,14 @@ class KhongBatKhachVietLaiLoiNhanTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(noi_dung.strip(), f"{loai}: lời nhắn rỗng vào hàng đợi")
 
     async def test_khach_co_viet_thi_giu_nguyen_loi_khach(self):
-        viet = AsyncMock(side_effect=lambda doc: {**doc, "status": store.STATUS_CHO})
+        viet = AsyncMock(side_effect=lambda doc: ({**doc, "status": store.STATUS_CHO, "notified_at": None}, True))
         body = support.SupportRequestBody(
             kind="gap_mat",
             message="Em muốn hỏi về việc vay vốn ạ.",
             full_name="Nguyễn Thị Lan",
             phone="0912345678",
         )
-        with patch.object(store, "create_request", viet), patch.object(
+        with patch.object(store, "create_request", viet), patch.object(store, "danh_dau_da_thong_bao", AsyncMock()), patch.object(
             store, "tim_yeu_cau_dang_cho", AsyncMock(return_value=None)
         ), patch.object(
             support.khoi_doi_chieu, "dung_tu_nhat_ky", AsyncMock(return_value=None)
@@ -284,7 +301,7 @@ class KhoiDoiChieuDoMayChuDungTests(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_may_chu_dung_lai_tu_nhat_ky(self):
-        viet = AsyncMock(side_effect=lambda doc: {**doc, "status": store.STATUS_CHO})
+        viet = AsyncMock(side_effect=lambda doc: ({**doc, "status": store.STATUS_CHO, "notified_at": None}, True))
         dung = AsyncMock(return_value="ĐƠN ĐANG XÉT: DH-0001\nKẾT LUẬN: chưa đạt")
         body = support.SupportRequestBody(
             kind="gap_mat",
@@ -292,7 +309,7 @@ class KhoiDoiChieuDoMayChuDungTests(unittest.IsolatedAsyncioTestCase):
             phone="0912345678",
             job_order_code="DH-0001",
         )
-        with patch.object(store, "create_request", viet), patch.object(
+        with patch.object(store, "create_request", viet), patch.object(store, "danh_dau_da_thong_bao", AsyncMock()), patch.object(
             store, "tim_yeu_cau_dang_cho", AsyncMock(return_value=None)
         ), patch.object(
             support.khoi_doi_chieu, "dung_tu_nhat_ky", dung
