@@ -211,10 +211,19 @@ class LoiNhanKhongBatBuocOCaHaiTangTests(unittest.TestCase):
         import pathlib
         import re
 
-        nguon = (
+        tep = (
             pathlib.Path(__file__).resolve().parents[2]
             / "frontend" / "components" / "candidate" / "SupportRequestForm.tsx"
-        ).read_text(encoding="utf-8")
+        )
+        # Container chỉ có `backend/`. Thiếu nguồn frontend thì bỏ qua kèm lý do,
+        # không nổ `FileNotFoundError` — một ca đỏ vì không tìm thấy file trông
+        # y như một ca đỏ vì biểu mẫu đã bị sửa sai, mà hai thứ ấy đòi hai phản
+        # ứng khác hẳn nhau.
+        if not tep.is_file():
+            self.skipTest(
+                "Cần nguồn frontend. Trong container chỉ có backend/ — chạy trên máy thật."
+            )
+        nguon = tep.read_text(encoding="utf-8")
         khoi = re.search(r"<textarea[^>]*name=\"message\"[^>]*>", nguon, re.S)
         if khoi is None:
             khoi = re.search(r"<textarea(?:(?!</).)*?name=\"message\".*?/>", nguon, re.S)

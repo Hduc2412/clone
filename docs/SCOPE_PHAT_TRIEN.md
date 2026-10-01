@@ -54,6 +54,43 @@ vào trong khung chat thì làm được, nhưng đó là việc tùy chọn ngo
 
 ## 3. Trong phạm vi
 
+### 3.0 Đã chạy được tới đâu — cập nhật 01/10/2026
+
+Phần còn lại của mục 3 là **bản thiết kế**, viết ngày 11/09 bằng giọng "sẽ làm".
+Bảng dưới đây nói thứ khác: **cái gì đã chạy thật trên máy**, đo bằng một lượt
+chạy toàn hành trình trên trình duyệt ngày 01/10. Chi tiết từng bước và bằng
+chứng ở `docs/BAO_CAO_E2E_01_10.md`.
+
+Hai cột này phải đọc rời nhau. Một dòng "đã chạy" nghĩa là có người bấm qua nó
+trên giao diện thật và có bản ghi trong database — không phải có ca kiểm thử xanh.
+
+| Mục | Trạng thái 01/10 |
+|---|---|
+| 3.1 Danh mục đơn tuyển dụng | **Đã chạy** — 19 đơn mẫu, 16 đơn công khai, bộ nhập Excel |
+| 3.2 Đọc hồ sơ CV | **Đã chạy** — 8 CV mẫu: đúng 52 trường, sai 0, thiếu 6 |
+| 3.3 Đối chiếu và giới thiệu | **Đã chạy** — 7 dòng điều kiện cứng + 4 dòng mềm, có nhật ký giới thiệu |
+| 3.4 Đăng ký sơ bộ và phiếu tóm tắt | **Đã chạy** — trừ phần tạo lịch hẹn, xem dưới |
+| 3.4 Tạo lịch hẹn gọi lại | **Chưa chạy** |
+| 3.5 Hàng đợi, nhận hồ sơ, vòng đời trạng thái | **Đã chạy** |
+| 3.5 Màn hình hồ sơ tập trung một chỗ | **Chưa chạy** — `/admin/applications/{mã}` trả 404; hiện chỉ có danh sách |
+| 3.6 Điểm nhân viên | **Đã chạy** |
+| 3.7 Website khách hàng | **Đã chạy** |
+| 3.8 Đóng gói Docker | **Đã chạy** — xem `docs/DOCKER.md` |
+
+**Hai chỗ chưa chạy, nói rõ vì sao chúng là một việc:**
+
+Toàn hệ thống **không có đường nào tạo ra một lịch hẹn** từ hành trình trên
+website. Lần ngược từ `create_appointment` thì chỉ có đúng một nơi gọi, và nơi ấy
+là khung chat — phần phụ trợ. Bước đăng ký không nhận khung giờ
+(`RegisterRequest` chỉ có mã đơn và cờ xác nhận), còn yêu cầu "Xin gặp mặt" thì
+vào hàng đợi hỗ trợ rồi đóng lại bằng ghi chú. Hệ quả: với người chỉ đi theo
+hành trình mới, màn hình lịch hẹn luôn trống.
+
+Phần **ghi kết quả buổi gặp thì có**, chỉ gắn chỗ khác: nó nằm trên hồ sơ tuyển
+dụng (`POST /applications/{mã}/so-tuyen`), chốt trình độ tiếng Nhật, cách đối
+chứng và trạng thái kế tiếp trong một lời gọi. Nói gọn: **ghi kết quả buổi gặp
+thì làm được, còn hẹn buổi gặp thì chưa.**
+
 ### 3.1 Danh mục đơn tuyển dụng
 
 Quản lý đơn hàng đang tuyển, tách bạch **điều kiện bắt buộc** (tiếng Nhật, bằng cấp, kinh nghiệm,
@@ -99,7 +136,8 @@ Hệ thống gợi ý nhiều đơn, nhưng **chỉ ứng viên mới chọn đ�
 bằng một câu rõ ràng trước khi hệ thống tạo hồ sơ. Không tạo đăng ký từ suy đoán.
 
 Sau khi xác nhận: tạo hoặc cập nhật khách hàng theo số điện thoại đã chuẩn hóa, tạo hồ sơ đăng ký
-sơ bộ, tạo lịch hẹn gọi lại, và sinh **Phiếu tóm tắt tư vấn** gồm thông tin ứng viên, điểm mạnh,
+sơ bộ, tạo lịch hẹn gọi lại *(phần này **chưa chạy** — xem §3.0)*, và sinh
+**Phiếu tóm tắt tư vấn** gồm thông tin ứng viên, điểm mạnh,
 điểm còn thiếu, các đơn đã giới thiệu kèm lý do, đơn đã chọn, các câu đã hỏi, khung giờ hẹn,
 liên kết tới CV và hội thoại gốc.
 
@@ -116,6 +154,8 @@ thời điểm và ghi chú.
 
 Màn hình hồ sơ ứng viên tập trung: phiếu tóm tắt, CV gốc, thông tin đã rút ra kèm nhãn nguồn,
 hội thoại, đơn đã chọn, lịch hẹn và lịch sử trạng thái — tất cả trên một màn hình.
+*(**Chưa chạy.** Hiện có danh sách `/admin/applications` và phiếu tóm tắt mở ngay trong hàng đợi;
+trang chi tiết từng hồ sơ thì chưa có. Xem §3.0.)*
 
 ### 3.6 Điểm nhân viên
 

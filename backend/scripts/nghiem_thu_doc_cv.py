@@ -43,6 +43,7 @@ Nên bảng kết quả lưu từng CV kèm **tên model đã đo nó**, bồi d
 và phần so sánh giữa các model **chỉ tính trên những CV mọi model đều đo được**.
 Thà so ít CV mà so đúng, hơn là so đủ tám CV mà so nhầm.
 """
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -54,6 +55,27 @@ from app.documents import extractor, reader
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "cv"
 KET_QUA = FIXTURES / "ket_qua_doc_cv.json"
+
+
+def dau_van_tay() -> str:
+    """Sáu ký tự nhận diện **cách đo**, không chỉ model đem đi đo.
+
+    Bản trước đặt khóa là `model::file`. Prompt hay lược đồ trả về đổi thì bảng
+    cũ vẫn khớp khóa, nên script bỏ qua hết và in ra một bảng số liệu **đo bằng
+    một cách không còn tồn tại** — mà không có dấu hiệu nào để nhận ra.
+
+    Đây đúng lỗi mà bộ đo lời tư vấn đã phải sửa hồi 29/09, và nó nguy hiểm hơn
+    việc thiếu số liệu: thiếu thì biết là thiếu, còn số cũ trông y như số mới.
+
+    Băm cả `PROMPT` lẫn `RESPONSE_SCHEMA` vì hai thứ này cùng quyết định bộ đọc
+    nhận ra cái gì và được phép trả về cái gì. Đổi một trong hai là kết quả cũ
+    hết hiệu lực.
+    """
+    noi_dung = extractor.PROMPT + "|" + json.dumps(
+        extractor.RESPONSE_SCHEMA, ensure_ascii=False, sort_keys=True
+    )
+    return hashlib.sha256(noi_dung.encode("utf-8")).hexdigest()[:6]
+
 
 # Nguyện vọng — xem docstring đầu file.
 PREFERENCE_FIELDS = frozenset(
@@ -211,8 +233,26 @@ def main() -> int:
     chua_do: list[str] = []
     bo_qua = 0
 
+    van_tay = dau_van_tay()
+    print(f"Dấu vân tay cách đo: {van_tay} (prompt + lược đồ trả về)")
+
+    van_tay_cu = sorted(
+        {k.split("::")[1] for k in bang if k.count("::") == 2 and k.split("::")[1] != van_tay}
+    )
+    doi_khoa_cu = sum(1 for k in bang if k.count("::") < 2)
+    if van_tay_cu or doi_khoa_cu:
+        phan = []
+        if van_tay_cu:
+            phan.append(f"cách đo khác: {', '.join(van_tay_cu)}")
+        if doi_khoa_cu:
+            phan.append(f"{doi_khoa_cu} dòng đo khi chưa ghi dấu vân tay")
+        print(
+            "Bảng còn kết quả cũ (" + "; ".join(phan) + ") — "
+            "những dòng ấy KHÔNG tính vào bảng dưới."
+        )
+
     for entry in answers:
-        khoa = f"{model}::{entry['file']}"
+        khoa = f"{model}::{van_tay}::{entry['file']}"
         if khoa in bang:
             bo_qua += 1
             continue
@@ -228,11 +268,14 @@ def main() -> int:
     if bo_qua:
         print(f"Bỏ qua {bo_qua} CV đã đo trên {model} (dùng --lam-lai để đo lại).")
 
-    for m in sorted({row["model"] for row in bang.values()}):
+    # Chỉ tổng hợp những dòng đo bằng đúng cách đo hiện tại. Dòng cũ vẫn giữ
+    # trong tệp để đối chiếu khi cần, nhưng không được trộn vào bảng.
+    dung_cach = {k: v for k, v in bang.items() if k.split("::")[1:2] == [van_tay]}
+    for m in sorted({row["model"] for row in dung_cach.values()}):
         tong = {DUNG: 0, SAI: 0, THIEU: 0}
-        print(f"\n{'-' * 72}\nMODEL {m}")
+        print(f"\n{'-' * 72}\nMODEL {m}   ·   cách đo {van_tay}")
         for entry in answers:
-            row = bang.get(f"{m}::{entry['file']}")
+            row = bang.get(f"{m}::{van_tay}::{entry['file']}")
             if row is None:
                 continue
             print(f"\n=== {row['file']} — {entry.get('note', '')}")

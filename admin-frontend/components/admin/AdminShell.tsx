@@ -34,6 +34,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  // Số lịch hẹn đang chờ xử lý — KHÁC với số thông báo chưa đọc.
+  //
+  // Bản trước gắn `unread` lên chính mục "Lịch hẹn". Hai con số không liên quan
+  // gì nhau: toàn bộ thông báo hiện có là hồ sơ mới đăng ký và tin nhắn khách
+  // để lại, không có cái nào là lịch hẹn. Nhân viên thấy "10" cạnh chữ Lịch hẹn,
+  // bấm vào thì màn hình trống — một con số nói sai nhãn của chính nó.
+  const [lichCho, setLichCho] = useState(0);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
@@ -49,8 +56,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     const load = () =>
       managementApi
         .overview()
-        .then((data) => setUnread(data.notifications_unread))
-        .catch(() => setUnread(0));
+        .then((data) => {
+          setUnread(data.notifications_unread);
+          setLichCho(data.appointments_pending);
+        })
+        .catch(() => {
+          setUnread(0);
+          setLichCho(0);
+        });
     load();
     const interval = window.setInterval(load, 30000);
     return () => window.clearInterval(interval);
@@ -112,9 +125,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               >
                 <span className="w-5 text-center text-lg">{item.icon}</span>
                 {item.label}
-                {item.href === "/admin/appointments" && unread > 0 && (
+                {item.href === "/admin/appointments" && lichCho > 0 && (
                   <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[#cb1d1e]">
-                    {unread}
+                    {lichCho}
                   </span>
                 )}
               </Link>
@@ -152,8 +165,19 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               Dữ liệu cập nhật từ backend local
             </p>
           </div>
+          {/* Trỏ về hàng đợi hồ sơ, không phải lịch hẹn.
+            *
+            * Mọi thông báo hiện sinh ra đều thuộc một trong hai loại: hồ sơ mới
+            * đăng ký (`application`) và tin nhắn khách để lại (`support_request`).
+            * Không loại nào là lịch hẹn. Hàng đợi hồ sơ là chỗ xử lý loại đông
+            * nhất, nên đưa người bấm về đó.
+            *
+            * Còn thiếu: API `/notifications` đã có đủ danh sách và nút đánh dấu
+            * đã đọc, nhưng chưa màn hình nào đọc nó — nên con số này giảm được
+            * chỉ khi nhân viên mở hồ sơ qua đường khác. Xem BAO_CAO_E2E_01_10.md.
+            */}
           <Link
-            href="/admin/appointments"
+            href="/admin/queue"
             className="relative rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm hover:border-red-200"
           >
             Thông báo

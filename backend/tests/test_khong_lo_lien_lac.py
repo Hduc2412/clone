@@ -39,6 +39,23 @@ import unittest
 
 GOC = pathlib.Path(__file__).resolve().parents[2]
 
+# Trong container chỉ có `backend/`, không có cây mã nguồn đầy đủ.
+#
+# Những ca dưới đây soi **file ngoài `backend/`** — nguồn frontend, `.gitignore`,
+# bộ đệm đọc ảnh — để canh một quy tắc của cả kho mã. Chạy
+# `docker compose exec backend python -m unittest discover` thì các file ấy không
+# tồn tại, và ca kiểm thử nổ `FileNotFoundError`.
+#
+# Đó là kiểu đỏ tệ nhất: nó **không phân biệt được "quy tắc bị vi phạm" với
+# "đang chạy ở nơi không kiểm được quy tắc"**. Hai thứ ấy đòi hai phản ứng khác
+# hẳn nhau — một cái phải sửa mã, một cái không phải lỗi gì cả. Nên thiếu cây mã
+# thì bỏ qua kèm lý do, chứ không báo đỏ.
+CO_CAY_MA_DAY_DU = (GOC / "frontend").is_dir() and (GOC / ".gitignore").is_file()
+LY_DO_BO_QUA = (
+    "Cần cây mã nguồn đầy đủ (có thư mục frontend). Trong container chỉ có "
+    "backend/ nên không kiểm được quy tắc này — chạy trên máy thật."
+)
+
 # Số điện thoại di động Việt Nam: mở đầu 03/05/07/08/09, tổng mười chữ số, cho
 # phép dấu cách, dấu chấm hoặc gạch ngang xen giữa. Cũng bắt dạng +84/84.
 _SO_DIEN_THOAI = re.compile(
@@ -119,6 +136,7 @@ def _cac_tep():
                 yield tep
 
 
+@unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
 class KhongCoSoDienThoaiThatTrongKhoMaTests(unittest.TestCase):
     def test_moi_so_trong_nguon_deu_da_khai_la_so_gia(self):
         lot: list[str] = []
@@ -166,6 +184,7 @@ class KhongCoSoDienThoaiThatTrongKhoMaTests(unittest.TestCase):
         self.assertIn("backend/data/image_vision_cache.json", bo_qua)
 
 
+@unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
 class KhongCoDiaChiVanPhongTrongKhoMaTests(unittest.TestCase):
     """Tên thành phố thì được, số nhà và tên đường thì không.
 
@@ -202,6 +221,7 @@ class KhongCoDiaChiVanPhongTrongKhoMaTests(unittest.TestCase):
         )
 
 
+@unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
 class KhongNeuTenNguoiThatTrongCauNoiVoiKhachTests(unittest.TestCase):
     """Câu bot nói với khách phải nêu chức danh, không nêu tên riêng.
 
@@ -285,7 +305,12 @@ class BoKiemThuKhongGoiMangTests(unittest.TestCase):
         `dong.split("=")[0]`, mà `os.environ.setdefault(...)` không có dấu `=` nào
         nên cả dòng bị coi là dòng định nghĩa hằng số. Phá thử mới lộ ra.
         """
-        nguon = (GOC / "backend" / "tests" / "__init__.py").read_text(encoding="utf-8")
+        # Đọc chính gói này, không đi qua `GOC`: trong container `GOC` là `/`,
+        # và `/backend/tests/__init__.py` không tồn tại. Ca này kiểm một bất biến
+        # **của riêng gói kiểm thử**, nên nó có đủ thứ cần kiểm ở mọi nơi.
+        nguon = (pathlib.Path(__file__).resolve().parent / "__init__.py").read_text(
+            encoding="utf-8"
+        )
         for dong in nguon.splitlines():
             sach = dong.strip()
             if sach.startswith("#") or sach.startswith("KHOA_GIA"):

@@ -52,13 +52,28 @@ nhìn hệt như lỗi mô hình.
 
 ### 1.3. Dừng dịch vụ đang chiếm cổng
 
-Nếu trên máy đang có Qdrant chạy rời hoặc MongoDB cài như dịch vụ Windows, chúng
-giữ cổng 6333 và 27017. Compose sẽ báo lỗi bind. Dừng chúng trước:
+Compose mở ra ngoài ba cổng: **8020** (backend), **6333/6334** (Qdrant), **80 và
+8080** (nginx). Cái nào đang bị chiếm thì compose báo lỗi bind.
 
 ```bash
-docker stop qdrant          # nếu đang chạy Qdrant rời
-net stop MongoDB            # PowerShell với quyền quản trị
+docker stop qdrant          # nếu đang chạy Qdrant rời, nó giữ 6333
 ```
+
+Backend chạy tay lúc phát triển cũng giữ 8020 — `pkill` không diệt được uvicorn
+trên Windows, dùng PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8020 -State Listen | ForEach-Object {
+  Stop-Process -Id $_.OwningProcess -Force
+}
+```
+
+**Không cần dừng MongoDB trên máy.** `mongodb` trong compose không khai `ports:`
+— nó chỉ nói chuyện trong mạng nội bộ của compose, nên không tranh 27017 với
+MongoDB cài sẵn. Hai database chạy song song và **không thấy nhau**: dữ liệu bạn
+tạo lúc chạy dev nằm ở MongoDB của máy, dữ liệu trong Docker nằm ở volume
+`xkld-chatbot_mongo_data`. Vì vậy stack Docker lên là một hệ **trống**, phải nạp
+dữ liệu mẫu ở §2.
 
 ---
 
@@ -89,6 +104,16 @@ Chạy bộ kiểm thử ngay trong container:
 ```bash
 docker compose exec backend python -m unittest discover -s tests -t .
 ```
+
+Kết quả đúng là `OK (skipped=7)` — **bảy ca bỏ qua là bình thường, không phải lỗi.**
+Ảnh backend chỉ chép `backend/`, còn bảy ca ấy soi file ngoài thư mục đó (nguồn
+frontend, `.gitignore`) để canh một quy tắc của cả kho mã: không để lọt số điện
+thoại hay địa chỉ thật. Trong container không có gì để soi, nên chúng tự bỏ qua
+kèm lý do thay vì báo đỏ — một ca đỏ vì thiếu file trông y như một ca đỏ vì quy
+tắc bị vi phạm, mà hai thứ ấy đòi hai phản ứng khác hẳn nhau.
+
+Chạy trên máy thật thì không ca nào bỏ qua: `Ran 987 tests ... OK`. Đó mới là
+lượt chạy kiểm được cả bảy quy tắc kia.
 
 Dừng và xóa container, **giữ nguyên dữ liệu**:
 

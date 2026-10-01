@@ -1,17 +1,33 @@
 # Hệ thống AI tư vấn và quản lý tuyển dụng điều dưỡng Nhật Bản
 
 Hệ thống hỗ trợ tư vấn chương trình xuất khẩu lao động điều dưỡng Nhật Bản,
-đặt lịch tư vấn và quản lý nghiệp vụ nội bộ. Phần AI sử dụng RAG để tìm nội
-dung đã thu thập từ `xklddieuduong.vn`, Gemini để tạo câu trả lời, MongoDB để
-lưu dữ liệu nghiệp vụ và Qdrant để lưu vector.
+đọc CV thành hồ sơ có cấu trúc, đối chiếu hồ sơ với từng đơn tuyển dụng kèm lý
+do từng tiêu chí, rồi bàn giao cho nhân viên qua hàng đợi có vòng đời trạng thái.
+
+**Hai hệ AI tách biệt**, không dùng chung khóa, model hay tiền tố API:
+
+| | Engine tư vấn theo đơn | Khung chat phụ trợ |
+|---|---|---|
+| Vai trò | Hệ chính: trả lời về **đơn cụ thể** và **hồ sơ cụ thể** | Hỏi đáp chung về chương trình |
+| Mã nguồn | `app/advisor/` | `app/llm/` + `app/rag/` |
+| Tiền tố API | `/tu-van/v1` | `/chat` |
+| Khóa | `ADVISOR_API_KEY` | `GEMINI_API_KEY` |
+
+Điểm phù hợp và kết luận đạt/không đạt do **Python tính**, mô hình chỉ diễn đạt
+lại. Nhờ vậy cùng một hồ sơ luôn cho cùng kết quả, và tắt phần mô hình đi thì hệ
+thống vẫn chạy đủ bằng mẫu câu.
 
 ## Tài liệu dự án
 
-- [Phạm vi phát triển](docs/SCOPE_PHAT_TRIEN.md)
+- [Phạm vi phát triển](docs/SCOPE_PHAT_TRIEN.md) — §3.0 nói rõ mục nào **đã chạy**, mục nào **mới thiết kế**
+- [Chạy thử toàn hành trình 01/10](docs/BAO_CAO_E2E_01_10.md) — từng chặng, bằng chứng, và khoảng trống còn lại
 - [Bộ tài liệu thiết kế hệ thống](docs/design/00_INDEX.md) — requirements, use case,
   workflow, database, API, frontend, AI pipeline, kiến trúc, task breakdown
 - [Chạy bằng Docker](docs/DOCKER.md)
 - [Kiểm thử](docs/KIEM_THU.md)
+
+> **Tài liệu thiết kế mô tả bản vẽ, không phải bản đã dựng.** Chỗ duy nhất nói
+> trạng thái thật là §3.0 của `SCOPE_PHAT_TRIEN.md` và báo cáo E2E 01/10.
 
 ## Thành phần
 
