@@ -15,6 +15,7 @@ from typing import Any
 
 from app.core.codes import PREFIX_SCORE_EVENT, new_code
 from app.db import employee_scores as store
+from app.services import score_outbox
 from app.services import scoring
 
 
@@ -34,22 +35,30 @@ async def award(
     if points is None:
         return None
 
+    ban_ghi = {
+        "code": new_code(PREFIX_SCORE_EVENT),
+        "staff_email": staff_email.strip().lower(),
+        "action": action,
+        "points": points,
+        "reference_type": reference_type,
+        "reference_code": reference_code,
+        "occurred_at": occurred_at or store.now(),
+        "note": note,
+        "source": store.SOURCE_AUTO,
+    }
     try:
-        return await store.record(
-            {
-                "code": new_code(PREFIX_SCORE_EVENT),
-                "staff_email": staff_email.strip().lower(),
-                "action": action,
-                "points": points,
-                "reference_type": reference_type,
-                "reference_code": reference_code,
-                "occurred_at": occurred_at or store.now(),
-                "note": note,
-                "source": store.SOURCE_AUTO,
-            }
-        )
+        return await store.record(ban_ghi)
     except Exception as exc:  # noqa: BLE001 — xem docstring đầu file
-        print(f"[Score] Không ghi được điểm '{action}' cho {staff_email}: {exc}")
+        # Database hỏng thì **xếp vào sổ chờ**, không bỏ đi.
+        #
+        # Bản trước `print` một dòng rồi trả `None`. Trên máy chạy thật dòng ấy
+        # trôi mất trong vài phút, và điểm mất hẳn — tổng vẫn ra một con số, chỉ là
+        # con số đó không còn khớp với việc đã làm, và không ai có cách nào biết.
+        # Người bị thiếu điểm cũng không biết để hỏi; họ đâu có đếm.
+        #
+        # Việc nghiệp vụ vẫn đi tiếp: một sự cố ghi điểm không được làm hỏng thao
+        # tác mà nhân viên vừa làm xong. Xem `app/services/score_outbox.py`.
+        score_outbox.ghi_cho(ban_ghi, ly_do=f"{type(exc).__name__}: {exc}")
         return None
 
 

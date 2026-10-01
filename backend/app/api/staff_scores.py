@@ -12,12 +12,13 @@ Quản lý cần bức tranh toàn đội thì có quyền xem hết.
 Một dòng điểm không có lý do, ba tháng sau đọc lại thì không ai biết vì sao. Mà
 lúc đó thường là lúc cần biết nhất — khi có người thắc mắc.
 """
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.timeutil import LOCAL_TIMEZONE
 from app.auth.security import get_current_user, require_roles
 from app.db import employee_scores as store
 from app.db.database import get_staff_user_by_email
@@ -39,12 +40,50 @@ class AdjustRequest(BaseModel):
     points: int = Field(ge=scoring.MANUAL_MIN, le=scoring.MANUAL_MAX)
     note: str = Field(min_length=5, max_length=500)
 
+    @field_validator("note")
+    @classmethod
+    def _ly_do_phai_co_chu(cls, value: str) -> str:
+        """Lý do phải có chữ, không phải chỉ có dấu cách.
+
+        `min_length=5` đếm ký tự, nên năm dấu cách lọt qua. Điểm trừ tay là thứ
+        duy nhất trong sổ điểm làm giảm điểm của một người, và quy tắc đặt ra là
+        **trừ điểm luôn phải có lý do trong nhật ký** — một dòng toàn khoảng trắng
+        thì nhật ký vẫn đủ dòng mà người bị trừ không biết vì sao.
+
+        Trả về bản đã cắt khoảng trắng hai đầu: lưu `"  đi muộn  "` rồi hiển thị
+        thụt lề là một thứ không ai cố ý tạo ra.
+        """
+        sach = value.strip()
+        if len(sach) < 5:
+            raise ValueError(
+                "lý do phải có ít nhất 5 ký tự thật, không tính khoảng trắng"
+            )
+        return sach
+
 
 def _window(
     date_from: str | None,
     date_to: str | None,
 ) -> tuple[datetime | None, datetime | None]:
-    """Đổi ngày dạng chuỗi thành mốc thời gian, báo lỗi rõ nếu viết sai."""
+    """Đổi ngày dạng chuỗi thành mốc UTC, hiểu ngày theo **giờ Việt Nam**.
+
+    ## Vì sao phải quy đổi múi giờ
+
+    Người lọc gõ "01/10" nghĩa là ngày mùng một **theo giờ của họ**. Mốc ghi trong
+    database thì luôn là UTC (`db/common.now()`).
+
+    Bản trước dựng `datetime` **không mang múi giờ** rồi đem so thẳng — pymongo coi
+    chuỗi ấy là UTC, nên cửa sổ lệch đúng bảy tiếng. Hậu quả rất cụ thể: mọi việc
+    nhân viên làm **sau 17h giờ Việt Nam** rơi sang ô điểm của ngày hôm sau, còn
+    xem đúng ngày hôm đó thì thiếu. Người gọi điện cho ứng viên lúc 8 giờ tối thấy
+    bảng điểm hôm nay trống, và hôm sau tự dưng có thêm điểm không rõ từ đâu.
+
+    Nay dựng mốc theo `LOCAL_TIMEZONE` rồi đổi sang UTC: đầu ngày là 00:00:00 giờ
+    Việt Nam, cuối ngày là 23:59:59.999999 giờ Việt Nam.
+
+    Chấp nhận cả `2026-10-01` lẫn `2026-10-01T09:30`. Chuỗi đã mang sẵn múi giờ thì
+    giữ nguyên múi giờ ấy — người gửi đã nói rõ ý mình.
+    """
     def parse(value: str | None, end_of_day: bool) -> datetime | None:
         if not value:
             return None
@@ -54,7 +93,13 @@ def _window(
             raise HTTPException(
                 status_code=400, detail=f"Ngày không hợp lệ: {value}"
             ) from exc
-        return day.replace(hour=23, minute=59, second=59) if end_of_day else day
+        if end_of_day:
+            # `microsecond` cũng phải lấp đầy: một sự kiện lúc 23:59:59.4 vẫn
+            # thuộc ngày hôm đó, mà `<=` với 23:59:59.0 thì loại nó ra.
+            day = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+        if day.tzinfo is None:
+            day = day.replace(tzinfo=LOCAL_TIMEZONE)
+        return day.astimezone(UTC)
 
     return parse(date_from, False), parse(date_to, True)
 

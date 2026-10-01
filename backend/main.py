@@ -34,6 +34,7 @@ from app.api.portal import router as portal_router
 from app.api.password_resets import public_router as public_reset_router
 from app.api.password_resets import router as reset_router
 from app.db.database import close_db, init_db
+from app.services import score_outbox
 from app.core.config import settings
 
 
@@ -53,6 +54,19 @@ async def lifespan(app: FastAPI):
         format="%(levelname)s:     %(message)s",
     )
     advisor_client.bao_cau_hinh()
+
+    # Ghi bù những điểm chưa vào được database lần trước.
+    #
+    # Khởi động là thời điểm đúng: database vừa được kiểm tra kết nối, và cũng là
+    # lúc chắc chắn có người đang nhìn log. Không bao giờ để sự cố ở đây làm app
+    # không lên — sổ chờ vẫn còn nguyên, lần khởi động sau thử tiếp.
+    try:
+        await score_outbox.ghi_bu()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).exception(
+            "Không ghi bù được sổ điểm lúc khởi động. Sổ chờ vẫn giữ nguyên."
+        )
+
     yield
     await close_db()
 
