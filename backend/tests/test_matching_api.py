@@ -188,6 +188,17 @@ class PublicMatchTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RecommendationLogApiTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        # Tiền đề ngầm của mọi ca trong lớp này: nhân viên thử KHÔNG phụ trách hồ
+        # sơ đăng ký nào. Trước 06/10 quyền chỉ đi theo `assigned_to` nên tiền đề
+        # ấy không cần nói ra; nay quyền còn đi theo đơn đang phụ trách
+        # (`services/quyen_ho_so`), nên phải nói rõ — và để ca không chạm
+        # database thật. Ca cho quyền đi theo đơn nằm ở `test_quyen_ho_so.py`.
+        for ten in ("ma_ho_so_qua_don", "ma_ho_so_truc_tiep"):
+            vá = patch(f"app.services.quyen_ho_so.{ten}", AsyncMock(return_value=set()))
+            vá.start()
+            self.addCleanup(vá.stop)
+
     async def test_a_consultant_only_lists_their_own_logs(self):
         captured = {}
 
@@ -205,7 +216,10 @@ class RecommendationLogApiTests(unittest.IsolatedAsyncioTestCase):
                 limit=50,
                 current_user=CONSULTANT,
             )
-        self.assertEqual(captured["query"]["assigned_to"], CONSULTANT["email"])
+        # Không phụ trách hồ sơ nào → không thấy nhật ký nào. Và KHÔNG lọc theo
+        # `assigned_to` của nhật ký: đó là ảnh chụp, không phải quyền hiện tại.
+        self.assertNotIn("assigned_to", captured["query"])
+        self.assertEqual(captured["query"]["profile_code"], {"$in": []})
 
     async def test_a_manager_lists_everything(self):
         captured = {}
@@ -247,8 +261,13 @@ class RecommendationLogApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(caught.exception.status_code, 404)
 
     async def test_a_consultant_cannot_open_someone_elses_log(self):
+        # "Của người khác" nay nghĩa là HỒ SƠ hiện tại của người khác — nhật ký
+        # lấy quyền từ hồ sơ, không từ ảnh chụp `assigned_to` của chính nó.
         other = log(assigned_to="nguoi.khac@example.com")
-        with patch.object(log_store, "get_log", new=AsyncMock(return_value=other)):
+        with patch.object(log_store, "get_log", new=AsyncMock(return_value=other)), patch(
+            "app.services.quyen_ho_so.profile_store.get_by_code",
+            new=AsyncMock(return_value=profile(assigned_to="nguoi.khac@example.com")),
+        ):
             with self.assertRaises(HTTPException) as caught:
                 await recommendation_log_detail("RL-ABC123", current_user=CONSULTANT)
         self.assertEqual(caught.exception.status_code, 403)

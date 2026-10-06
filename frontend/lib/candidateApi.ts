@@ -74,6 +74,19 @@ export interface SoftRow {
 }
 
 export interface MatchItem {
+  /**
+   * Điểm phù hợp đã có nghĩa để hiển thị chưa.
+   *
+   * Điểm mềm chấm theo nguyện vọng ứng viên nêu. Chưa nêu nguyện vọng nào thì
+   * cả bốn dòng đều chưa rõ và tổng điểm xuống gần 0 — màn hình hiện "5/100"
+   * cạnh "đạt các điều kiện bắt buộc", và người đọc hiểu là "chỉ hợp 5%" rồi
+   * bỏ đơn mà họ thật sự nộp được.
+   *
+   * Máy chủ quyết, không để giao diện tự suy từ `score`: hai màn hình cùng hỏi
+   * câu này, và mỗi nơi tự suy thì sớm muộn hai nơi nói hai điều khác nhau về
+   * cùng một đơn. Xem `engine.xep_hang_duoc`.
+   */
+  score_ranked?: boolean;
   code: string;
   title: string;
   employer_name: string;
@@ -423,6 +436,7 @@ export interface HealthConditions {
 }
 
 export interface OrderAdvice {
+  score_ranked?: boolean;
   branch: AdviceBranch;
   branch_label: string;
   order_code: string;
@@ -483,6 +497,19 @@ export interface SupportRequestInput {
   phone: string;
   job_order_code?: string;
 
+  /**
+   * Khung giờ khách muốn gặp. Chỉ có nghĩa với `kind: "gap_mat"`.
+   *
+   * Phải gửi **cả hai hoặc không gửi gì**: có ngày mà không giờ là một cái hẹn
+   * không ai biết đến lúc nào, và máy chủ từ chối.
+   *
+   * Để trống là hợp lệ và hay gặp — khách chưa biết lịch mình thì nhân viên hẹn
+   * lại. Bắt chọn giờ mới được xin gặp là dựng một cửa ở chỗ không cần cửa.
+   */
+  appointment_date?: string;
+  appointment_time?: string;
+  meeting_kind?: "truc_tiep" | "truc_tuyen";
+
   // KHÔNG có `advice_block`, và đó là chủ ý.
   //
   // Bản trước gửi kèm khối kết quả đối chiếu, máy chủ lưu nguyên văn. Trình duyệt
@@ -495,6 +522,8 @@ export interface SupportRequestInput {
 }
 
 export interface SupportRequestResult {
+  /** Mã lịch hẹn, nếu khách chọn khung giờ và lịch được tạo. */
+  appointment_code?: string;
   code: string;
   kind: SupportKind;
   message: string;
@@ -569,4 +598,119 @@ export function fetchAdvisorTurns(
   return request<{ items: AdvisorTurn[] }>(
     `/tu-van/v1/${sessionId}/don/${orderCode}/hoi`,
   );
+}
+
+// --- Agent điều phối tư vấn ---
+//
+// Khác `askAdvisor` ở trên đúng một điều, và điều đó quyết định mọi thứ khác:
+// **không gắn với đơn nào**. Phòng tư vấn theo đơn trả lời "tôi có hợp đơn này
+// không"; Agent trả lời "hồ sơ của tôi thế nào, tôi nên làm gì tiếp".
+//
+// Hai phòng dùng chung chỗ lưu lượt với hai phạm vi tách nhau, nên hội thoại
+// cấp hồ sơ không lẫn vào hội thoại về một đơn cụ thể.
+
+/** Việc Agent cho là nên làm tiếp. Giao diện dựng nút từ đây, không tự nghĩ nút. */
+export interface NextAction {
+  type:
+    | "ask_question"
+    | "confirm_profile"
+    | "run_matching"
+    | "view_order"
+    | "register"
+    | "handoff"
+    | "none";
+  label: string;
+  target: string | null;
+}
+
+export interface AgentState {
+  current_stage:
+    | "intake"
+    | "profile_review"
+    | "matching"
+    | "order_consultation"
+    | "registration"
+    | "human_support";
+  stage_label: string;
+  known_fields: string[];
+  missing_information: string[];
+  profile_confirmed: boolean;
+  /** `null` nghĩa là **chưa đối chiếu lần nào** — khác hẳn với `0` đơn đạt. */
+  eligible_count: number | null;
+  interested_order_codes: string[];
+  registered_order_codes: string[];
+  open_support_requests: string[];
+  next_best_action: NextAction;
+  suggested_questions: string[];
+  turns: AdvisorTurn[];
+}
+
+/** Một điều Agent nghe được và đề nghị lưu. **Chưa** phải dữ liệu trong hồ sơ. */
+export interface ProposedFact {
+  field: string;
+  value: unknown;
+  /** Nhãn tiếng Việt khi `value` là mã danh mục (`vien_duong_lao` → "Viện dưỡng lão"). */
+  value_label?: string | null;
+  source: "chat";
+  requires_confirmation: true;
+  evidence: string;
+}
+
+export interface AgentReply extends Omit<AgentState, "turns" | "suggested_questions"> {
+  question: string;
+  answer: string;
+  source: AdvisorTurn["source"];
+  reply: string;
+  intent: string;
+  facts_to_save: ProposedFact[];
+  suggested_action: NextAction | null;
+  handoff: { required: boolean; reason: string };
+  /** Những gì chốt chặn ở máy chủ đã loại, kèm lý do. Hiện ra khi cần đối chứng. */
+  rejected: string[];
+}
+
+export function fetchAgentState(sessionId: string): Promise<AgentState> {
+  return request<AgentState>(`/tu-van/v1/${sessionId}/tro-ly`);
+}
+
+/** Lượt Agent chủ động nói. Dựng bằng template ở máy chủ, không gọi mô hình. */
+export function openAgentTurn(
+  sessionId: string,
+  moc: "sau_cv" | "sau_matching",
+): Promise<{ reply: string; text_source: string } & AgentState> {
+  return request(`/tu-van/v1/${sessionId}/tro-ly/mo-dau`, {
+    method: "POST",
+    body: JSON.stringify({ moc }),
+  });
+}
+
+export function askAgent(sessionId: string, question: string): Promise<AgentReply> {
+  return request<AgentReply>(`/tu-van/v1/${sessionId}/tro-ly/hoi`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
+
+/**
+ * Ứng viên xác nhận một điều Agent nghe được.
+ *
+ * KHÔNG gửi `source`: nguồn do máy chủ quyết. Gửi lên thì máy chủ cũng từ chối
+ * (`extra="forbid"`), và đó là chủ ý — nhận nguồn từ trình duyệt là mở sẵn một
+ * đường để đè lên dữ liệu nhân viên vừa chốt.
+ */
+export function confirmAgentFact(
+  sessionId: string,
+  field: string,
+  value: unknown,
+): Promise<CandidateProfile> {
+  return request<CandidateProfile>(`/tu-van/v1/${sessionId}/tro-ly/xac-nhan`, {
+    method: "POST",
+    body: JSON.stringify({ field, value }),
+  });
+}
+
+export function fetchHandoffSummary(
+  sessionId: string,
+): Promise<{ summary: string } & AgentState> {
+  return request(`/tu-van/v1/${sessionId}/tro-ly/ban-giao`);
 }

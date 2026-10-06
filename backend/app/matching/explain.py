@@ -14,7 +14,13 @@ sẽ ra một chuỗi khác.
 from typing import Sequence
 
 from app.matching import catalog
-from app.matching.engine import CriterionRow, MatchItem, MatchResult, SoftRow
+from app.matching.engine import (
+    CriterionRow,
+    MatchItem,
+    MatchResult,
+    SoftRow,
+    xep_hang_duoc,
+)
 
 
 # Hai tiêu chí này nói về **đơn hàng**, không phải về ứng viên: đơn còn tuyển
@@ -69,11 +75,21 @@ def render_block(item: MatchItem) -> str:
     """
     header = f"đơn {item.code} · {item.employer_name} · {item.prefecture}"
     rows = [*item.hard_rows, *item.soft_rows]
-    footer = (
-        f"  → tổng {item.score}/100 · hạng {item.rank}"
-        if item.eligible
-        else "  → không đủ điều kiện"
-    )
+    if not item.eligible:
+        footer = "  → không đủ điều kiện"
+    elif xep_hang_duoc(item.soft_rows):
+        footer = f"  → tổng {item.score}/100 · hạng {item.rank}"
+    else:
+        # Chưa nêu nguyện vọng nào thì KHÔNG đưa điểm và hạng vào khối này.
+        #
+        # Khối này là **ngữ cảnh mô hình đọc**, và cũng là tập số mà chốt số so
+        # vào. Để "tổng 5/100 · hạng 1" ở đây là hai cái sai cùng lúc: mô hình
+        # được mời nhắc lại một thứ hạng chưa có nghĩa, và con số 5 trở thành số
+        # hợp lệ để nó dùng ở bất cứ đâu trong câu trả lời.
+        #
+        # Điểm mềm đo mức khớp với nguyện vọng. Chưa có nguyện vọng thì nó đo
+        # một thứ chưa tồn tại — xem `engine.xep_hang_duoc`.
+        footer = "  → đạt điều kiện bắt buộc; chưa xếp hạng được vì chưa có nguyện vọng"
     return "\n".join([header, *render_rows(rows), footer])
 
 
@@ -116,7 +132,17 @@ def render_template_text(item: MatchItem) -> str:
                 f"Xếp hạng {item.rank} với {item.score}/100 điểm nhờ {reasons}."
             )
         else:
-            sentences.append(f"Xếp hạng {item.rank} với {item.score}/100 điểm.")
+            # Nhánh này kích hoạt **chính xác khi** không có dòng mềm nào được
+            # cộng điểm, tức khi `xep_hang_duoc` là False.
+            #
+            # Bản trước nói "Xếp hạng 1 với 5/100 điểm." ngay tại đây. Ô điểm
+            # trên màn hình đã được ẩn từ 05/10, nhưng câu này nằm **ngay bên
+            # dưới ô đó** và vẫn nói ra đúng con số vừa ẩn — một bản sửa nửa
+            # vời, và người đọc vẫn hiểu là "chỉ hợp 5 phần trăm".
+            sentences.append(
+                "Chưa xếp hạng được giữa các đơn vì bạn chưa nêu nguyện vọng "
+                "(khu vực, loại cơ sở, lương, chi phí)."
+            )
     elif item.gaps:
         sentences.append(f"Đơn này chưa phù hợp vì {item.gaps[0][0].lower()}{item.gaps[0][1:]}")
     else:

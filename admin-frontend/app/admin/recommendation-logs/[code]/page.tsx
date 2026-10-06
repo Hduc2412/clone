@@ -161,6 +161,13 @@ export default function RecommendationLogDetailPage() {
 }
 
 function MatchCard({ item }: { item: MatchItem }) {
+  // Đơn bị loại không có `soft_rows`, và `hard_rows` chỉ còn các dòng KHÔNG đạt —
+  // nhật ký rút gọn như vậy để khỏi phình (`matching_service._gon_lai`). Bản đầu
+  // của trang gọi thẳng `item.soft_rows.map` và sập với mọi nhật ký có đơn bị loại:
+  // đo ngày 06/10 là 154 trên 218 nhật ký. Không điền điểm 0 cho đơn bị loại — bộ
+  // đối chiếu không chấm điểm đơn đã trượt, điền 0 là bịa ra một con số.
+  const softRows = item.soft_rows ?? [];
+  const passedOmitted = item.eligible ? 0 : item.hard_rows_passed ?? 0;
   return (
     <article
       className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${
@@ -204,12 +211,21 @@ function MatchCard({ item }: { item: MatchItem }) {
             {item.hard_rows.map((row) => (
               <HardRow key={row.key} row={row} />
             ))}
-            {item.soft_rows.map((row) => (
+            {softRows.map((row) => (
               <SoftRowCells key={row.key} row={row} />
             ))}
           </tbody>
         </table>
       </div>
+
+      {!item.eligible && (
+        <p className="border-t border-slate-100 px-5 py-2.5 text-xs text-slate-500">
+          {passedOmitted > 0
+            ? `${passedOmitted} tiêu chí bắt buộc khác đã đạt — nhật ký chỉ lưu dòng không đạt. `
+            : ""}
+          Đơn bị loại không được chấm điểm nguyện vọng.
+        </p>
+      )}
 
       {item.gaps.length > 0 && (
         <footer className="border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs text-slate-600">

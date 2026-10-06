@@ -67,12 +67,26 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
 async def add_turn(
     *,
     session_id: str,
-    job_order_code: str,
+    job_order_code: str | None,
     question: str,
     answer: str,
     source: str,
     model: str = "",
+    moc: str | None = None,
 ) -> dict[str, Any]:
+    """Ghi một lượt hỏi đáp.
+
+    `moc` chỉ có ở lượt Agent tự mở đầu: khóa chống trùng của lượt ấy (xem
+    `api/agent.py::_khoa_mo_dau`). Lượt khách hỏi không có khóa này.
+
+    `job_order_code=None` là **hội thoại cấp hồ sơ** — khách hỏi về toàn bộ hồ sơ
+    và kết quả đối chiếu, không về một đơn nào. Dùng `None` chứ không dùng chuỗi
+    rỗng hay một mã giả kiểu `"__ho_so__"`: chuỗi rỗng trông như một mã đơn bị
+    mất, còn mã giả thì sớm muộn sẽ có người đem nó đi tra trong danh mục đơn.
+
+    Hai phạm vi đếm riêng nhau theo `MAX_MOI_PHIEN`, và đó là đúng: trao đổi về
+    toàn bộ hồ sơ dài hơn trao đổi về một đơn là chuyện bình thường.
+    """
     document = {
         "session_id": session_id,
         "job_order_code": job_order_code,
@@ -86,13 +100,16 @@ async def add_turn(
         "model": model,
         "created_at": now(),
     }
+    if moc:
+        document["moc"] = moc
     await get_db()[COLLECTION].insert_one(dict(document))
     return strip_id(document)
 
 
 async def list_turns(
-    session_id: str, job_order_code: str, limit: int = 50
+    session_id: str, job_order_code: str | None, limit: int = 50
 ) -> list[dict[str, Any]]:
+    """`job_order_code=None` lấy đúng những lượt cấp hồ sơ, không lẫn lượt theo đơn."""
     cursor = (
         get_db()[COLLECTION]
         .find({"session_id": session_id, "job_order_code": job_order_code}, PROJECTION)
@@ -102,7 +119,34 @@ async def list_turns(
     return [document async for document in cursor]
 
 
-async def count_turns(session_id: str, job_order_code: str) -> int:
+async def list_all_turns(session_id: str, limit: int = 100) -> list[dict[str, Any]]:
+    """**Mọi** lượt của phiên, cả cấp hồ sơ lẫn từng đơn, theo thứ tự thời gian.
+
+    ## Vì sao bản bàn giao cần hàm này
+
+    `list_turns(session_id, None)` lấy đúng một phạm vi — và đó là điều đúng cho
+    giao diện: khung tư vấn hồ sơ không được hiện lẫn câu hỏi về một đơn cụ thể.
+
+    Nhưng bản bàn giao thì ngược lại. Khách hỏi năm câu trong phòng tư vấn đơn
+    DH-0001 rồi bấm "xin gặp nhân viên" — nếu bản bàn giao chỉ gom phạm vi hồ sơ
+    thì nhân viên nhận một phiếu **không có câu nào khách đã hỏi**, và gọi điện
+    với bối cảnh trống. Dữ liệu vẫn nằm trong database, chỉ là không ai mang nó
+    sang.
+
+    Mỗi lượt giữ `job_order_code`, nên bản bàn giao in được "(về đơn DH-0001)"
+    bên cạnh từng câu — nhân viên thấy ngay khách đang quan tâm đơn nào, và
+    thấy qua hành vi chứ không qua một trường khai riêng.
+    """
+    cursor = (
+        get_db()[COLLECTION]
+        .find({"session_id": session_id}, PROJECTION)
+        .sort([("created_at", ASCENDING)])
+        .limit(limit)
+    )
+    return [document async for document in cursor]
+
+
+async def count_turns(session_id: str, job_order_code: str | None) -> int:
     return await get_db()[COLLECTION].count_documents(
         {"session_id": session_id, "job_order_code": job_order_code}
     )
@@ -153,5 +197,14 @@ async def thong_ke(since: Any = None) -> dict[str, Any]:
         # chính xác mà cỡ mẫu này chưa có.
         "ty_le_khong_doan": round(khong_biet * 100 / tong, 1) if tong else None,
         "so_phien": len(await get_db()[COLLECTION].distinct("session_id", query)),
-        "so_don_da_hoi": len(await get_db()[COLLECTION].distinct("job_order_code", query)),
+        # Bỏ `None` khỏi phép đếm: nó là phạm vi "hội thoại cấp hồ sơ", không
+        # phải một đơn. Đếm cả nó thì bảng thống kê báo nhiều hơn một đơn so với
+        # số đơn thật sự được hỏi tới, và con số ấy không tự lộ ra là sai.
+        "so_don_da_hoi": len(
+            [
+                ma
+                for ma in await get_db()[COLLECTION].distinct("job_order_code", query)
+                if ma
+            ]
+        ),
     }

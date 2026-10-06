@@ -162,6 +162,11 @@ def kiem_tra(cau_tra_loi: str, khoi_cho_phep: str) -> str | None:
     for cum in phrasing.CUM_TU_CAM:
         if cum in thap:
             return f"chứa cụm hứa hẹn: {cum!r}"
+    # Cùng lời hứa viết cách khác — danh sách chuỗi cố định không bắt được.
+    # Xem `phrasing._HUA_CHAC`, thêm ngày 01/10 sau khi "chắc chắn sẽ đỗ" lọt
+    # qua cả bảy chốt.
+    if (khop := phrasing._HUA_CHAC.search(sach)) is not None:
+        return f"hứa chắc kết quả: {khop.group()!r}"
     for cum in phrasing.CUM_TU_CAM_KET:
         if cum in thap:
             return f"cam kết thay công ty về bước tiếp theo: {cum!r}"

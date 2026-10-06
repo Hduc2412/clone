@@ -676,6 +676,38 @@ def build_gaps(
     return tuple(gaps)
 
 
+def xep_hang_duoc(soft_rows: Sequence[SoftRow]) -> bool:
+    """Điểm phù hợp có nghĩa để đem hiển thị hay chưa.
+
+    ## Vì sao cần câu hỏi này
+
+    Điểm mềm chấm theo **nguyện vọng** ứng viên nêu: khu vực, loại hình cơ sở,
+    lương, chi phí. Chưa nêu nguyện vọng nào thì cả bốn dòng đều `unknown` và
+    tổng điểm xuống gần 0.
+
+    Khi ấy màn hình hiện **"5/100 điểm phù hợp"** ngay cạnh dòng *"đạt các điều
+    kiện bắt buộc"*. Hai câu đó cạnh nhau nói một điều sai: hồ sơ đạt đủ bảy
+    điều kiện cứng, còn 5/100 đọc như "chỉ hợp 5 phần trăm". Người đọc sẽ bỏ
+    đơn mà họ thật sự nộp được.
+
+    Con số ấy không sai về mặt tính toán — nó đúng là tổng điểm mềm. Nó sai về
+    mặt **ý nghĩa**: nó đo mức khớp với nguyện vọng, mà nguyện vọng thì chưa có.
+    Đo một thứ chưa tồn tại rồi hiện kết quả như một phán quyết là chỗ dễ làm
+    người ta hiểu sai nhất trong cả màn hình.
+
+    ## Vì sao "ít nhất một dòng có thật" chứ không phải "đủ cả bốn"
+
+    Khách nêu đúng một nguyện vọng — ví dụ chỉ muốn Tokyo — thì thứ tự giữa các
+    đơn **đã có nghĩa**: đơn ở Tokyo xếp trên đơn ở Fukuoka, và đó là thông tin
+    dùng được. Đòi đủ bốn dòng mới cho xếp hạng là giấu mất một thứ tự đúng.
+
+    Hàm thuần, và là **nguồn duy nhất** cho câu hỏi này. Hai màn hình cùng hỏi
+    (danh sách đơn và phòng tư vấn theo đơn); để mỗi nơi tự suy từ `score` thì
+    sớm muộn hai nơi nói hai điều khác nhau về cùng một đơn.
+    """
+    return any(row.outcome != "unknown" for row in soft_rows)
+
+
 def collect_missing(
     hard_rows: Sequence[CriterionRow],
     soft_rows: Sequence[SoftRow],

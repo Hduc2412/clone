@@ -22,10 +22,22 @@ export default function ChatWindow({ onExpand }: ChatWindowProps) {
         className="flex items-center justify-between px-4 py-3 text-white"
         style={{ backgroundColor: "#cb1d1e" }}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-400 rounded-full" />
-          <span className="font-semibold text-sm">
-            Tư vấn điều dưỡng Nhật Bản
+        {/* Nói rõ khung này làm gì, ngay trên tiêu đề.
+          *
+          * Bản trước ghi "Tư vấn điều dưỡng Nhật Bản" — không phân biệt được với
+          * phòng tư vấn theo hồ sơ, nên người dùng mang câu "em còn thiếu gì" vào
+          * đây rồi nhận một câu trả lời chung chung từ tài liệu công ty.
+          *
+          * Hai khung biết hai thứ khác nhau: khung này đọc tài liệu công ty và
+          * không có hồ sơ của ai; phòng tư vấn hồ sơ thì ngược lại. Người dùng
+          * biết ranh giới thì hỏi đúng chỗ. */}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full" />
+            <span className="font-semibold text-sm">Hỏi đáp chung</span>
+          </div>
+          <span className="text-[11px] leading-4 text-white/80">
+            Chương trình, chi phí, quy trình
           </span>
         </div>
         <button
@@ -54,6 +66,19 @@ export default function ChatWindow({ onExpand }: ChatWindowProps) {
           </div>
         )}
         <div ref={bottomRef} />
+      </div>
+
+      {/* Đường sang phòng tư vấn hồ sơ.
+        *
+        * Khung này không có hồ sơ của ai, nên câu "em còn thiếu gì" ở đây chỉ
+        * nhận được câu trả lời chung. Để người dùng tự dò ra điều đó sau ba câu
+        * hỏi trượt là bắt họ trả giá cho một ranh giới họ không nhìn thấy. */}
+      <div className="border-t bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-900">
+        Hỏi về <strong>hồ sơ của bạn</strong> hay đơn cụ thể thì sang{" "}
+        <a href="/tu-van" className="font-semibold underline">
+          phòng tư vấn theo hồ sơ
+        </a>{" "}
+        — ở đó trợ lý có dữ liệu của bạn.
       </div>
 
       <div className="p-3 border-t bg-white flex gap-2">

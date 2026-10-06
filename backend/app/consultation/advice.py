@@ -35,6 +35,7 @@ from typing import Any, Sequence
 
 from app.consultation import eligibility
 from app.learning import path as learning_path
+from app.matching import engine as engine_mod
 from app.matching.engine import CHUA_RO, DAT, KHONG_DAT, MISSING_PROMPTS, MatchItem
 
 
@@ -72,6 +73,12 @@ class Advice:
     learning_note: str = ""
     #: Ứng viên đã xem lại và xác nhận hồ sơ chưa.
     profile_confirmed: bool = True
+    #: Điểm phù hợp đã có nghĩa để hiển thị chưa.
+    #
+    #: Chưa nêu nguyện vọng nào thì cả bốn dòng mềm đều chưa rõ và tổng điểm
+    #: xuống gần 0 — màn hình hiện "5/100" cạnh "đạt các điều kiện bắt buộc",
+    #: một cặp câu nói điều sai. Xem `engine.xep_hang_duoc`.
+    score_ranked: bool = True
     #: Khối chữ tất định. Lớp diễn đạt chỉ được nói lại những gì nằm trong đây.
     block: str = ""
 
@@ -291,6 +298,7 @@ def build(
         learning=lo_trinh,
         learning_note=ghi_chu,
         profile_confirmed=profile_confirmed,
+        score_ranked=engine_mod.xep_hang_duoc(item.soft_rows),
     )
     # `block` không tự tính được trong `__init__` vì dataclass đóng băng, nên
     # dựng xong rồi thay — vẫn là một đối tượng bất biến với nơi gọi.
@@ -309,6 +317,7 @@ def as_dict(advice: Advice) -> dict[str, Any]:
         "score": advice.score,
         "can_register": advice.can_register,
         "profile_confirmed": advice.profile_confirmed,
+        "score_ranked": advice.score_ranked,
         "blockers": list(advice.blockers),
         "unknowns": list(advice.unknowns),
         "strengths": list(advice.strengths),

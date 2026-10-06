@@ -64,9 +64,13 @@ export default function SupportRequestForm({
   // nhật ký giới thiệu — trình duyệt không còn là nguồn của thứ nhân viên đọc.
   // Chỉ cần `orderCode` là máy chủ tra ra đúng khối khách đã nhìn thấy.
   const [kind, setKind] = useState<SupportKind>(loaiMacDinh);
+  const [ngay, setNgay] = useState("");
+  const [gio, setGio] = useState("");
+  const [hinhThuc, setHinhThuc] = useState<"truc_tiep" | "truc_tuyen">("truc_tuyen");
   const [dangGui, setDangGui] = useState(false);
   const [loi, setLoi] = useState("");
   const [maDaGui, setMaDaGui] = useState("");
+  const [maLichHen, setMaLichHen] = useState("");
 
   const chon = LOAI.find((l) => l.ma === kind) ?? LOAI[0];
 
@@ -82,8 +86,19 @@ export default function SupportRequestForm({
         full_name: String(form.get("full_name") || ""),
         phone: String(form.get("phone") || ""),
         job_order_code: orderCode,
+        // Chỉ gửi khung giờ với loại "xin gặp mặt", và chỉ khi khách điền đủ
+        // cả ngày lẫn giờ. Gửi một nửa thì máy chủ từ chối cả yêu cầu — xem
+        // `SupportRequestBody._ngay_va_gio_di_cung_nhau`.
+        ...(kind === "gap_mat" && ngay && gio
+          ? {
+              appointment_date: ngay,
+              appointment_time: gio,
+              meeting_kind: hinhThuc,
+            }
+          : {}),
       });
       setMaDaGui(ket_qua.code);
+      setMaLichHen(ket_qua.appointment_code ?? "");
       onDone?.(ket_qua.code);
     } catch (reason) {
       setLoi(reason instanceof Error ? reason.message : "Chưa gửi được, bạn thử lại nhé.");
@@ -101,6 +116,24 @@ export default function SupportRequestForm({
           nhân viên trong khoảng thời gian từ <strong>{COMPANY.contactHours}</strong>,
           thứ Hai đến thứ Bảy.
         </p>
+        {/* Nói rõ lịch đã được ghi nhận hay chưa.
+            Khách chọn giờ rồi gửi mà màn hình không nhắc lại thì họ không biết
+            hệ thống có nhận hay không — và nếu trùng lịch (máy chủ bỏ qua, có
+            chủ ý) thì họ càng cần biết. */}
+        {maLichHen ? (
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            Mình đã ghi lịch hẹn <strong>{maLichHen}</strong>. Nhân viên sẽ xác
+            nhận lại với bạn trước buổi gặp.
+          </p>
+        ) : (
+          kind === "gap_mat" &&
+          Boolean(ngay) && (
+            <p className="mt-2 text-sm leading-6 text-amber-800">
+              Khung giờ bạn chọn chưa thành lịch hẹn — có thể bạn đã có lịch vào
+              đúng giờ đó. Nhân viên sẽ xác nhận lại khi gọi.
+            </p>
+          )
+        )}
       </div>
     );
   }
@@ -167,6 +200,73 @@ export default function SupportRequestForm({
           />
         </label>
       </div>
+
+      {/* Khung giờ — chỉ hiện với "Xin gặp mặt".
+          Trước đây khách bấm xin gặp rồi nhân viên phải gọi điện hỏi lại giờ nào
+          tiện, trong khi khách đang ngồi trước màn hình. Vẫn để trống được: chưa
+          biết lịch mình thì nhân viên hẹn lại. */}
+      {kind === "gap_mat" && (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-medium text-slate-700">
+            Bạn rảnh lúc nào?{" "}
+            <span className="font-normal text-slate-500">
+              Để trống cũng được — nhân viên sẽ hẹn lại.
+            </span>
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm text-slate-700">
+              Ngày
+              <input
+                type="date"
+                value={ngay}
+                onChange={(e) => setNgay(e.target.value)}
+                className={O_NHAP}
+              />
+            </label>
+            <label className="block text-sm text-slate-700">
+              Giờ
+              <input
+                type="time"
+                value={gio}
+                onChange={(e) => setGio(e.target.value)}
+                className={O_NHAP}
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Nhận lịch 08:00–11:30 hoặc 13:30–17:00, thứ Hai đến thứ Bảy.
+              </span>
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(
+              [
+                ["truc_tuyen", "Gặp trực tuyến"],
+                ["truc_tiep", "Gặp tại văn phòng"],
+              ] as const
+            ).map(([ma, nhan]) => (
+              <button
+                key={ma}
+                type="button"
+                onClick={() => setHinhThuc(ma)}
+                aria-pressed={hinhThuc === ma}
+                className={`rounded-full px-4 py-2 text-sm font-medium ring-1 transition ${
+                  hinhThuc === ma
+                    ? "bg-[#cb1d1e] text-white ring-[#cb1d1e]"
+                    : "bg-white text-slate-700 ring-slate-300"
+                }`}
+              >
+                {nhan}
+              </button>
+            ))}
+          </div>
+          {/* Nói trước điều máy chủ sẽ từ chối, thay vì để khách bấm gửi rồi
+              nhận một lời từ chối. */}
+          {Boolean(ngay) !== Boolean(gio) && (
+            <p className="mt-3 text-sm text-amber-800">
+              Bạn chọn cả ngày và giờ giúp mình nhé, hoặc để trống cả hai.
+            </p>
+          )}
+        </div>
+      )}
 
       {loi && (
         <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{loi}</p>

@@ -8,7 +8,7 @@ Mọi ca dưới đây đều nhằm vào cách nguyên tắc đó có thể b�
 - hồ sơ bị bỏ lại vì người phụ trách nghỉ mà không ai gỡ ra được.
 """
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException, Request
 
@@ -155,6 +155,65 @@ class ReleaseTests(unittest.IsolatedAsyncioTestCase):
         event = mocks["event"].await_args.args[0]
         self.assertEqual(event["action"], "released")
         self.assertEqual(event["details"]["note"], "Nhận nhầm, trả lại hàng đợi")
+
+
+class AssignedListTests(unittest.IsolatedAsyncioTestCase):
+    """Quản lý phải nhìn thấy hồ sơ của người khác thì mới chuyển được.
+
+    Kiểm trên trình duyệt 06/10: API `handover` cho quản lý chuyển mọi hồ sơ, nhưng
+    giao diện chỉ có hàng đợi (chưa ai nhận) và "tôi đang phụ trách" — hồ sơ A đang
+    giữ không hiện ở đâu với quản lý, nên không có gì để bấm.
+    """
+
+    async def _list(self, actor, items=()):
+        with patch.object(
+            api, "list_assigned_registrations", AsyncMock(return_value=list(items))
+        ) as tra:
+            return await api.assigned_registrations(limit=100, current_user=actor), tra
+
+    async def test_quan_ly_thay_ho_so_cua_moi_nguoi(self):
+        ra, _ = await self._list(MANAGER, [application(), application(assigned_to=OTHER["email"])])
+        self.assertEqual(ra["count"], 2)
+        self.assertEqual(
+            {x["assigned_to"] for x in ra["items"]}, {OWNER["email"], OTHER["email"]}
+        )
+
+    async def test_tu_van_vien_khong_xem_duoc(self):
+        """Cùng quyền với `handover` — không chuyển được thì không cần danh sách này."""
+        with self.assertRaises(HTTPException) as ctx:
+            await self._list(OWNER)
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    async def test_truy_van_chi_lay_ho_so_dang_co_nguoi_giu_va_con_mo(self):
+        from app.db import database
+
+        cursor = MagicMock()
+        cursor.sort.return_value = cursor
+        cursor.limit.return_value = cursor
+        cursor.to_list = AsyncMock(return_value=[])
+        db = MagicMock()
+        db.recruitment_applications.find.return_value = cursor
+        with patch.object(database, "get_db", return_value=db):
+            await database.list_assigned_registrations(limit=7)
+        query = db.recruitment_applications.find.call_args.args[0]
+        self.assertEqual(
+            query,
+            {"source": "self_registration", "assigned_to": {"$ne": None}, "is_active": True},
+        )
+        cursor.limit.assert_called_once_with(7)
+
+    async def test_chuyen_duoc_ho_so_cua_tai_khoan_da_xoa(self):
+        """Người đang giữ đã bị xóa tài khoản: chỉ người NHẬN phải là tài khoản hợp lệ.
+
+        Đây đúng là tình huống của dữ liệu demo sau lượt kiểm 06/10.
+        """
+        existing = application(assigned_to="da-xoa@local.test")
+        updated = application(assigned_to=OTHER["email"])
+        result, mocks = await HandoverTests._handover(self, existing, updated, MANAGER)
+        self.assertEqual(result["assigned_to"], OTHER["email"])
+        self.assertEqual(mocks["update"].await_args.kwargs["owner_email"], "da-xoa@local.test")
+
+    _mocks = HandoverTests._mocks
 
 
 class NotificationRoutingTests(unittest.IsolatedAsyncioTestCase):

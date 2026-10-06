@@ -39,6 +39,11 @@ class InMemoryRateLimiter:
         with self._lock:
             self._attempts.pop(key, None)
 
+    def clear(self) -> None:
+        """Xóa sạch mọi khóa. Bộ kiểm thử gọi trước mỗi ca — xem `tests/__init__.py`."""
+        with self._lock:
+            self._attempts.clear()
+
 
 rate_limiter = InMemoryRateLimiter()
 

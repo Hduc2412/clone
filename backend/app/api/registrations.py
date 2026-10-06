@@ -32,6 +32,7 @@ from app.db.database import (
     create_application_event,
     create_notification,
     get_recruitment_application,
+    list_assigned_registrations,
     list_recruitment_applications,
     list_unassigned_registrations,
     update_recruitment_application,
@@ -207,6 +208,22 @@ async def my_registrations_staff(
     return {
         "items": [item for item in items if item.get("source") == "self_registration"],
     }
+
+
+@router.get("/assigned")
+async def assigned_registrations(
+    limit: int = Query(default=100, ge=1, le=200),
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    """Hồ sơ đang có người phụ trách, của mọi nhân viên — để quản lý chuyển giao.
+
+    Cùng quyền với `handover`: chỉ ai chuyển được mới cần nhìn danh sách này.
+    Thiếu nó, ô "Chuyển cho…" chỉ hiện ở hồ sơ chính quản lý đang giữ — kiểm trên
+    trình duyệt ngày 06/10, quản lý không chuyển được hồ sơ của A sang B.
+    """
+    ensure_can_assign(current_user, "Chỉ Admin/Manager xem được hồ sơ của mọi người.")
+    items = await list_assigned_registrations(limit=limit)
+    return {"items": items, "count": len(items)}
 
 
 @router.post("/{application_code}/handover")

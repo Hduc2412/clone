@@ -30,6 +30,7 @@ bấm nút. Nhân viên gọi lại đọc được **chính thứ khách đã �
 dựng lại rồi đoán xem khách đang hiểu thế nào. Đây là bản chụp cố định, không
 đổi kể cả khi hồ sơ hay đơn thay đổi về sau.
 """
+import logging
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -38,6 +39,8 @@ from pymongo import ASCENDING, DESCENDING, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from app.db.common import get_db, now, strip_id
+
+logger = logging.getLogger(__name__)
 
 
 COLLECTION = "support_requests"
@@ -261,3 +264,91 @@ async def count_waiting(kind: str | None = None) -> int:
     if kind is not None:
         query["kind"] = kind
     return await get_db()[COLLECTION].count_documents(query)
+
+
+async def gan_lich_hen(
+    code: str, appointment_code: str, *, ban_giao: str | None = None
+) -> None:
+    """Gắn mã lịch hẹn vào yêu cầu hỗ trợ.
+
+    Hai chiều đều cần: bản ghi lịch mang `support_code`, và yêu cầu mang
+    `appointment_code`. Nhân viên mở từ phía nào cũng lần được sang phía kia —
+    họ đọc hàng đợi hỗ trợ trước khi gọi, nhưng cũng mở màn hình lịch hẹn để
+    xem hôm nay phải gặp ai.
+
+    Yêu cầu vừa bị đóng thì `update_one` không khớp bản ghi nào và lặng lẽ không
+    làm gì — đúng ý: lịch đã tạo rồi, một liên kết thiếu không đáng để hủy nó.
+
+    **Nhưng hàm này vẫn ném lỗi khi database trục trặc thật**, và đó là chuyện
+    khác hẳn. Người gọi phải tự chịu trách nhiệm chặn: xem
+    `api/support._gan_lich_vao_yeu_cau`. Bản docstring trước ghi gọn là "không
+    ném lỗi", và câu ấy bị đọc thành một bảo đảm mà hàm không có — một lời gọi
+    thất bại ở đây từng làm gãy cả đường gửi yêu cầu hỗ trợ.
+    """
+    dat = {"appointment_code": appointment_code, "updated_at": now()}
+    if ban_giao is not None:
+        # Dựng lại bản bàn giao SAU khi có lịch hẹn.
+        #
+        # Thứ tự tạo là: yêu cầu hỗ trợ trước, lịch hẹn sau — vì yêu cầu là thứ
+        # bảo đảm có người gọi lại, còn lịch chỉ làm cuộc gọi đó đúng giờ hơn.
+        # Hệ quả: bản bàn giao dựng lúc tạo yêu cầu **chưa thấy lịch**, nên khối
+        # "khách đã chọn khung giờ" rỗng dù khách vừa chọn giờ. Gặp thật 05/10.
+        #
+        # Dựng lại thì rẻ: bản này ghép bằng mã, không gọi mô hình.
+        dat["ban_giao"] = ban_giao
+        # Bản bàn giao này đã thấy lịch nào. Đây là tín hiệu duy nhất đáng tin
+        # cho câu "bàn giao đã lưu có giờ hẹn chưa" — xem `can_dung_lai_ban_giao`.
+        dat["ban_giao_lich"] = appointment_code
+    await get_db()[COLLECTION].update_one({"code": code}, {"$set": dat})
+
+
+def can_dung_lai_ban_giao(yeu_cau: dict[str, Any], lich: dict[str, Any] | None) -> bool:
+    """Bản bàn giao đã lưu có thiếu lịch hẹn không.
+
+    ## Vì sao không suy từ `appointment_code`
+
+    Bản 06/10 suy "cần dựng lại" từ việc `appointment_code` trên yêu cầu đang
+    trống. Đó là tín hiệu **gián tiếp**, và một đường khác xóa nó mất: nhân viên
+    bấm "nhận xử lý" trước, đường ấy gắn lại `appointment_code`, rồi khi mở chi
+    tiết thì trường đã có — nên không ai dựng lại bản bàn giao, và nó thiếu giờ
+    hẹn mãi mãi. Chủ đồ án tái hiện được đúng thứ tự ấy.
+
+    Nên hỏi thẳng câu cần hỏi: bản bàn giao đang lưu **được dựng với lịch nào**
+    (`ban_giao_lich`), có trùng lịch thật không. Không phụ thuộc đường nào chạy
+    trước, cũng không phụ thuộc lần sửa trước có xong hay không.
+    """
+    if not lich or not lich.get("appointment_code"):
+        return False
+    return yeu_cau.get("ban_giao_lich") != lich["appointment_code"]
+
+
+async def lay_lich_hen_lien_quan(code: str) -> dict[str, Any] | None:
+    """Lịch hẹn của một yêu cầu, tra **từ phía lịch** theo `support_code`.
+
+    ## Vì sao tra ngược thay vì tin trường đã lưu
+
+    Liên kết nằm ở hai chỗ: `support_code` trên bản ghi lịch (ghi ngay lúc tạo
+    lịch) và `appointment_code` trên yêu cầu (ghi ở một lời gọi riêng sau đó).
+    Lời gọi thứ hai có thể thất bại, và khi ấy trường tra nhanh trống trong khi
+    **liên kết vẫn tồn tại**. Nguồn sự thật là `support_code` ở phía lịch.
+
+    ## Chỉ đọc, không ghi
+
+    Bản trước tự gắn lại `appointment_code` ngay trong hàm này. Hệ quả: mọi nơi
+    gọi nó đều sửa liên kết, nhưng **không nơi nào dựng lại bản bàn giao** — và
+    chính việc gắn lại ấy xóa mất dấu hiệu duy nhất để biết bản bàn giao còn
+    thiếu giờ hẹn. Sửa một nửa ở một chỗ thì nửa kia hỏng ở chỗ khác.
+
+    Nay việc sửa nằm gọn ở một nơi, `api/support._dong_bo_lich`, và nó sửa **cả
+    hai thứ trong cùng một lần ghi**.
+
+    Trả `None` khi yêu cầu này thật sự không có lịch nào — phần lớn yêu cầu là
+    như vậy, vì chỉ loại "xin gặp mặt" mới sinh lịch.
+    """
+    # Lịch MỚI NHẤT, không phải lịch bất kỳ. Khách gửi lại yêu cầu với một khung
+    # giờ khác thì yêu cầu được gộp vào yêu cầu cũ, còn lịch thứ hai vẫn được tạo
+    # với cùng `support_code`. `find_one` không sắp xếp trả lịch đầu tiên — trong
+    # khi khách vừa được báo mã của lịch thứ hai.
+    return await get_db().consultation_appointments.find_one(
+        {"support_code": code}, {"_id": 0, "booking_key": 0}, sort=[("created_at", -1)]
+    )

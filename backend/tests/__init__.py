@@ -31,7 +31,10 @@ việc đo mô hình thật nằm ở `scripts/nghiem_thu_*.py`, chạy tay, và
 `JWT_SECRET` vẫn `setdefault` — nó không đi ra mạng, và giữ giá trị thật giúp phần
 nào đó chạy gần hơn với bản thật.
 """
+import atexit
 import os
+import shutil
+import tempfile
 
 
 # Ghi đè, không `setdefault`. Xem docstring ở trên.
@@ -39,6 +42,45 @@ KHOA_GIA_CHO_KIEM_THU = "test-gemini-api-key-not-a-real-key"
 os.environ["GEMINI_API_KEY"] = KHOA_GIA_CHO_KIEM_THU
 os.environ["ADVISOR_API_KEY"] = KHOA_GIA_CHO_KIEM_THU
 
+# Mọi ghi file trong test phải nằm ngoài `backend/storage`. Đặc biệt, khi chạy
+# bộ test bên trong container đang gắn volume `/app/storage`, một ca cố ý giả
+# lập MongoDB hỏng sẽ ghi điểm giả vào volume thật. Lần khởi động sau app sẽ
+# replay chúng như dữ liệu nghiệp vụ. Dùng một thư mục tạm riêng cho toàn lượt
+# test và dọn khi Python thoát để test không bao giờ chạm kho runtime.
+_THU_MUC_LUU_TRU_KIEM_THU = tempfile.mkdtemp(prefix="xkld-tests-storage-")
+os.environ["STORAGE_PATH"] = _THU_MUC_LUU_TRU_KIEM_THU
+atexit.register(
+    shutil.rmtree,
+    _THU_MUC_LUU_TRU_KIEM_THU,
+    ignore_errors=True,
+)
+
 os.environ.setdefault(
     "JWT_SECRET", "test-secret-that-is-long-enough-for-all-backend-tests"
 )
+
+
+# Mỗi ca bắt đầu với bộ giới hạn tần suất SẠCH.
+#
+# `rate_limiter` là một đối tượng dùng chung trong tiến trình, và `unittest
+# discover` chạy MỌI module trong cùng một tiến trình — nên các ca dùng chung hạn
+# mức của nhau, kể cả giữa các file. Ngày 06/10 một ca mới được thêm vào làm một
+# ca KHÁC nhận 429: đỏ hay xanh tùy số ca đứng trước nó. Trước đó ba file đã tự
+# chống chế mỗi kiểu một cách (xóa đúng khóa mình dùng, hoặc vô hiệu hóa hẳn bộ
+# giới hạn). Xóa ở một chỗ, trước mỗi ca, thay cho các mẹo rời rạc ấy.
+#
+# Chỉ xóa GIỮA các ca. Trong một ca, bộ giới hạn chạy y như thật — nên ca kiểm
+# ngưỡng 429 vẫn chạm được ngưỡng.
+import unittest as _unittest
+
+_chay_ca_goc = _unittest.TestCase.run
+
+
+def _chay_ca_voi_bo_gioi_han_sach(self, result=None):
+    from app.core.rate_limit import rate_limiter
+
+    rate_limiter.clear()
+    return _chay_ca_goc(self, result)
+
+
+_unittest.TestCase.run = _chay_ca_voi_bo_gioi_han_sach

@@ -304,3 +304,82 @@ test("nhưng 404 ở đường khác vẫn là lỗi", async () => {
   const { api } = dung({ dapAn: { ok: false, status: 404, body: { detail: "không thấy" } } });
   await assert.rejects(() => api.fetchMatches(PHIEN), (loi) => loi.status === 404);
 });
+
+// --- Agent điều phối tư vấn ---
+//
+// Ba thứ đáng canh ở tầng này, và thứ hai là thứ dễ sai nhất:
+//
+// 1. **Đúng đường.** Agent đi `/tro-ly`, phòng tư vấn theo đơn đi `/don/{mã}`.
+//    Trộn hai đường thì hội thoại cấp hồ sơ lẫn vào hội thoại về một đơn, và
+//    lịch sử của cả hai thành vô nghĩa.
+// 2. **KHÔNG gửi `source` lên máy chủ.** Nguồn do máy chủ quyết. Gửi lên là mở
+//    sẵn một đường đè lên dữ liệu nhân viên vừa chốt — máy chủ cũng từ chối,
+//    nhưng một trường trôi nổi trong payload là chỗ sớm muộn có người tin vào.
+// 3. **Cookie phiên.** Như mọi đường khác.
+
+test("Agent đi đúng đường, không lẫn với phòng tư vấn theo đơn", async () => {
+  const { api, goi } = dung({
+    dapAn: { ok: true, status: 200, body: { reply: "x", turns: [] } },
+  });
+  await api.fetchAgentState(PHIEN);
+  await api.askAgent(PHIEN, "Em còn thiếu gì?");
+  await api.openAgentTurn(PHIEN, "sau_cv");
+  await api.fetchHandoffSummary(PHIEN);
+
+  const duong = goi.map((g) => g.url);
+  assert.equal(duong[0], `${MAY_CHU}/tu-van/v1/${PHIEN}/tro-ly`);
+  assert.equal(duong[1], `${MAY_CHU}/tu-van/v1/${PHIEN}/tro-ly/hoi`);
+  assert.equal(duong[2], `${MAY_CHU}/tu-van/v1/${PHIEN}/tro-ly/mo-dau`);
+  assert.equal(duong[3], `${MAY_CHU}/tu-van/v1/${PHIEN}/tro-ly/ban-giao`);
+  for (const d of duong) {
+    assert.ok(!d.includes("/don/"), `${d} lẫn sang đường của phòng tư vấn theo đơn`);
+  }
+});
+
+test("xác nhận một điều trợ lý nghe được KHÔNG gửi nguồn lên máy chủ", async () => {
+  const { api, goi } = dung({ dapAn: { ok: true, status: 200, body: {} } });
+  await api.confirmAgentFact(PHIEN, "care_experience", true);
+
+  assert.equal(goi[0].url, `${MAY_CHU}/tu-van/v1/${PHIEN}/tro-ly/xac-nhan`);
+  assert.equal(goi[0].method, "POST");
+  const than = JSON.parse(goi[0].body);
+  assert.deepEqual(Object.keys(than).sort(), ["field", "value"]);
+  assert.ok(!("source" in than), "payload mang `source` — nguồn phải do máy chủ quyết");
+  assert.ok(!("status" in than), "payload mang `status` — không được tự xác nhận hồ sơ");
+});
+
+test("mọi đường của Agent đều kèm cookie phiên", async () => {
+  const { api, goi } = dung({
+    dapAn: { ok: true, status: 200, body: { turns: [] } },
+  });
+  await api.fetchAgentState(PHIEN);
+  await api.askAgent(PHIEN, "x?");
+  await api.openAgentTurn(PHIEN, "sau_matching");
+  await api.confirmAgentFact(PHIEN, "gender", "nu");
+  await api.fetchHandoffSummary(PHIEN);
+  assert.equal(goi.length, 5);
+  for (const g of goi) {
+    assert.equal(g.credentials, "include", `${g.url} không gửi cookie phiên`);
+  }
+});
+
+test("mốc mở đầu chỉ nhận hai giá trị, gửi nguyên văn", async () => {
+  const { api, goi } = dung({ dapAn: { ok: true, status: 200, body: {} } });
+  await api.openAgentTurn(PHIEN, "sau_cv");
+  await api.openAgentTurn(PHIEN, "sau_matching");
+  assert.equal(JSON.parse(goi[0].body).moc, "sau_cv");
+  assert.equal(JSON.parse(goi[1].body).moc, "sau_matching");
+});
+
+test("Agent gặp lỗi mạng thì ra câu tiếng Việt, không ra TypeError", async () => {
+  const { api } = dung({ dapAn: null });
+  await assert.rejects(
+    () => api.askAgent(PHIEN, "Em còn thiếu gì?"),
+    (loi) => {
+      assert.equal(loi.name, "ApiError");
+      assert.equal(loi.status, 0);
+      assert.match(loi.message, /mạng/i);
+      return true;
+    },
+  );
+});

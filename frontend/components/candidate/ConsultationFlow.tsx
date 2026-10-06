@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AdvisorChat from "./AdvisorChat";
 import CvUpload from "@/components/candidate/CvUpload";
 import MatchCard from "@/components/candidate/MatchCard";
 import {
@@ -102,6 +103,7 @@ export default function ConsultationFlow() {
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [step, setStep] = useState<Step>("form");
+  const [showProfileForm, setShowProfileForm] = useState(false);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [booting, setBooting] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -110,6 +112,26 @@ export default function ConsultationFlow() {
   const [registrations, setRegistrations] = useState<MyRegistration[]>([]);
   const [justRegistered, setJustRegistered] = useState<RegistrationResult | null>(null);
   const [registering, setRegistering] = useState<string | null>(null);
+
+/** Mã phiên rỗng thì dừng ngay, với một câu nói đúng chuyện gì đang xảy ra.
+ *
+ * `ensureSessionId` trả chuỗi rỗng khi máy chủ không trả lời VÀ trong máy chưa
+ * có mã nào — đúng trường hợp khách vào lần đầu lúc mạng chập chờn. Bản trước đi
+ * tiếp với mã rỗng, gọi `fetchProfile("")`, rồi hiện lỗi của một đường dẫn hỏng
+ * thay vì nói thẳng là chưa kết nối được. */
+const LOI_KHONG_MO_DUOC_PHIEN =
+  "Chưa mở được phiên tư vấn — có thể mạng đang chập chờn. Bạn bấm Thử lại nhé.";
+function moPhien(sessionId: string): string {
+  if (!sessionId) throw new Error(LOI_KHONG_MO_DUOC_PHIEN);
+  return sessionId;
+}
+
+/** "Khai lại từ đầu" hỏng thì màn hình đó không có nút "Thử lại" nào — nút để bấm
+ * lại chính là "Khai lại từ đầu". Kiểm trên trình duyệt ngày 06/10: câu chung bảo
+ * "bấm Thử lại" và khách đi tìm một nút không tồn tại. */
+const LOI_KHAI_LAI =
+  "Chưa mở được phiên tư vấn mới — có thể mạng đang chập chờn. Hồ sơ hiện tại vẫn " +
+  "giữ nguyên; bạn bấm lại “Khai lại từ đầu” nhé.";
 
 /** Máy chủ từ chối vì phiên, không phải vì dữ liệu. */
 function khong_nhan_phien(reason: unknown): boolean {
@@ -129,15 +151,21 @@ function khong_nhan_phien(reason: unknown): boolean {
       // bằng khoá khác). Khi lệch thì mọi lời gọi trả 401 và trang chết hẳn —
       // tải lại bao nhiêu lần cũng vậy, vì bản sao hỏng vẫn nằm trong máy. Nên
       // thử một lần nữa với mã hỏi thẳng máy chủ trước khi báo lỗi cho người dùng.
-      let sessionId = await ensureSessionId();
-      if (alive) setSessionId(sessionId);
       try {
+        // Lấy mã phiên NẰM TRONG `try`.
+        //
+        // `ensureSessionId` tự bắt lỗi mạng, nên mất mạng không làm nó ném. Nhưng
+        // nó chạm `localStorage` ngoài `try` của chính nó, và trình duyệt chặn bộ
+        // nhớ trang thì chỗ ấy ném. Để ngoài `try` ở đây là `booting` không bao
+        // giờ về `false` — trang treo ở "Đang tải biểu mẫu…", không lỗi, không nút.
+        let sessionId = moPhien(await ensureSessionId());
+        if (alive) setSessionId(sessionId);
         let ho_so_ban_dau;
         try {
           ho_so_ban_dau = await fetchProfile(sessionId);
         } catch (reason) {
           if (!khong_nhan_phien(reason)) throw reason;
-          sessionId = await refreshSessionId();
+          sessionId = moPhien(await refreshSessionId());
           if (alive) setSessionId(sessionId);
           ho_so_ban_dau = await fetchProfile(sessionId);
         }
@@ -170,6 +198,23 @@ function khong_nhan_phien(reason: unknown): boolean {
     return () => {
       alive = false;
     };
+  }, []);
+
+  /** Hồ sơ vừa đổi qua phòng tư vấn thì kết quả đối chiếu phải tính lại.
+   *
+   * `refresh: true` bắt buộc. Kết quả được cache mười phút theo phiên bản hồ sơ
+   * và dấu vân tay danh mục đơn; không có cờ này thì ứng viên vừa xác nhận thêm
+   * một trường sẽ nhìn đúng bảng xếp hạng cũ, và kết luận là xác nhận chẳng có
+   * tác dụng gì. */
+  const taiLaiKetQua = useCallback(async () => {
+    const id = getSessionId();
+    if (!id) return;
+    try {
+      setResult(await fetchMatches(id, { refresh: true }));
+    } catch {
+      /* Hồ sơ có thể vừa rời trạng thái đã xác nhận. Giữ bảng cũ, không xoá
+         màn hình của người đang đọc. */
+    }
   }, []);
 
   const register = useCallback(async (jobOrderCode: string) => {
@@ -218,6 +263,7 @@ function khong_nhan_phien(reason: unknown): boolean {
       }
     }
     setErrors(found);
+    if (Object.keys(found).length > 0) setShowProfileForm(true);
     return Object.keys(found).length === 0;
   }, [form]);
 
@@ -266,6 +312,7 @@ function khong_nhan_phien(reason: unknown): boolean {
       const apiError = reason as ApiError;
       setError(apiError.message);
       if (apiError.missing?.length) {
+        setShowProfileForm(true);
         setErrors(
           Object.fromEntries(
             apiError.missing.map((key) => [key, "Mục này cần điền để đối chiếu."]),
@@ -278,13 +325,35 @@ function khong_nhan_phien(reason: unknown): boolean {
   };
 
   const startOver = async () => {
-    setSessionId(await resetSession());
+    // Mở phiên mới TRƯỚC, xóa màn hình SAU — và chỉ xóa khi đã có phiên mới.
+    //
+    // Bản trước xóa trắng màn hình bất kể `resetSession` trả gì. Mất mạng đúng lúc
+    // bấm "Khai lại từ đầu" thì khách nhìn một biểu mẫu trống không có ô gửi CV
+    // (ô ấy không vẽ với mã rỗng), không một lời giải thích.
+    let moi: string;
+    try {
+      moi = moPhien(await resetSession());
+    } catch {
+      setError(LOI_KHAI_LAI);
+      return;
+    }
+    // Xóa MỌI trạng thái gắn với phiên cũ — không chỉ hồ sơ và kết quả.
+    //
+    // Bản trước bỏ sót ba thứ của phần đăng ký. Chủ đồ án tái hiện ngày 06/10:
+    // khai lại, khai hồ sơ mới, xem kết quả — vẫn hiện "bạn đang có hồ sơ đăng ký
+    // đơn …" của phiên trước, và đơn ấy hiện là "đã đăng ký" trên thẻ. Danh mục
+    // (`meta`) là thứ duy nhất được giữ: nó không thuộc về phiên nào.
+    setSessionId(moi);
     setProfile(null);
     setResult(null);
     setForm(EMPTY);
     setErrors({});
     setError("");
     setStep("form");
+    setShowProfileForm(false);
+    setRegistrations([]);
+    setJustRegistered(null);
+    setRegistering(null);
   };
 
   const summary = useMemo(() => {
@@ -350,6 +419,15 @@ function khong_nhan_phien(reason: unknown): boolean {
               </Button>
             </div>
           </div>
+          {/* Bước kết quả trước đây KHÔNG vẽ `error`, dù hai việc ở đúng bước này
+              báo lỗi qua nó: đăng ký một đơn, và "Khai lại từ đầu". Khách bấm, đăng
+              ký hỏng hoặc không mở được phiên mới, và màn hình đứng im không một
+              lời — bắt được ngày 06/10 bằng ca kiểm thử của "Khai lại từ đầu". */}
+          {error && (
+            <p className="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700" role="alert">
+              {error}
+            </p>
+          )}
         </Card>
 
         {justRegistered && (
@@ -391,6 +469,18 @@ function khong_nhan_phien(reason: unknown): boolean {
           </Card>
         )}
 
+        {/* Phòng tư vấn đặt NGAY TRÊN danh sách thẻ đơn, không ở cuối trang.
+            Danh sách thẻ đọc được, nhưng nó không trả lời câu người ta thật sự
+            đang hỏi: *tóm lại tôi có cơ hội không, và vướng ở đâu*. Đặt dưới
+            danh sách thì phải cuộn qua mười mấy thẻ mới thấy. */}
+        {sessionId && (
+          <AdvisorChat
+            sessionId={sessionId}
+            moc="sau_matching"
+            onProfileChanged={taiLaiKetQua}
+          />
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-semibold text-ink-900">
             {result.eligible_count > 0
@@ -399,6 +489,17 @@ function khong_nhan_phien(reason: unknown): boolean {
           </h2>
           <Badge tone="neutral">đã xét {result.total_considered} đơn</Badge>
         </div>
+
+        {/* Hai quy tắc của bộ đối chiếu, đặt NGAY cạnh kết quả.
+            Trước 06/10, ý thứ nhất chỉ có ở thẻ cuối trang, ý thứ hai nằm trong
+            biểu mẫu thu gọn — tức là ở xa đúng chỗ người ta đang đọc kết quả và
+            tự hỏi "sao đơn kia không có". Không có hai câu này, một hồ sơ khai
+            thiếu đọc kết quả như một lời từ chối. */}
+        <p className="-mt-3 text-sm leading-6 text-slate-600">
+          Mục nào bạn chưa khai thì hệ thống <strong>không loại đơn vì nó</strong> —
+          chỉ ghi là chưa rõ và hỏi thêm. Nguyện vọng (khu vực, loại cơ sở, lương,
+          chi phí) <strong>chỉ dùng để xếp thứ tự</strong>, không làm đơn nào bị loại.
+        </p>
 
         {result.missing_info.length > 0 && (
           <Card className="border-amber-200 bg-amber-50 p-5">
@@ -461,9 +562,8 @@ function khong_nhan_phien(reason: unknown): boolean {
   return (
     <Card className="p-5 sm:p-7">
       <p className="text-sm text-slate-600">
-        Mục nào chưa rõ thì cứ bỏ trống. Hệ thống sẽ ghi là “chưa rõ” và hỏi lại,
-        chứ <span className="font-medium text-ink-900">không loại đơn của bạn</span>.
-        Chỉ hai mục có dấu <span className="text-brand-600">*</span> là bắt buộc.
+        Gửi CV để hệ thống đọc hồ sơ, sau đó trao đổi trực tiếp với trợ lý tư vấn.
+        Bạn kiểm tra và xác nhận thông tin trước khi đối chiếu đơn tuyển dụng.
       </p>
 
       {error && (
@@ -473,7 +573,11 @@ function khong_nhan_phien(reason: unknown): boolean {
       )}
 
       <div className="mt-6">
+        {/* `key` theo phiên: ô gửi CV giữ kết quả lần đọc trong trạng thái riêng
+            của nó, nên không dựng lại thì sau "Khai lại từ đầu" nó vẫn hiện "đã
+            đọc xong" của CV phiên trước. `AdvisorChat` đã có `key` như vậy. */}
         <CvUpload
+          key={sessionId}
           sessionId={sessionId}
           onProfileRead={(read) => {
             setProfile(read);
@@ -482,130 +586,161 @@ function khong_nhan_phien(reason: unknown): boolean {
         />
       </div>
 
-      <div className="mt-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Năng lực trên giấy tờ
-        </h3>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
-          <TextField
-            label="Họ và tên"
-            required
-            value={form.full_name}
-            onChange={(value) => set("full_name", value)}
-            error={errors.full_name}
-            placeholder="Nguyễn Văn An"
-            maxLength={100}
-          />
-          <SelectField
-            label="Trình độ tiếng Nhật"
-            required
-            hint="Chưa học cũng là một câu trả lời, vẫn có đơn phù hợp."
-            value={form.japanese_level}
-            onChange={(value) => set("japanese_level", value)}
-            options={meta.japanese_levels}
-            error={errors.japanese_level}
-            emptyLabel="— Chọn mức —"
-          />
-          <NumberField
-            label="Năm sinh"
-            value={form.birth_year}
-            onChange={(value) => set("birth_year", value.slice(0, 4))}
-            error={errors.birth_year}
-            placeholder="2003"
-          />
-          <SelectField
-            label="Giới tính"
-            hint="Một số đơn chỉ tuyển nam hoặc chỉ tuyển nữ."
-            value={form.gender}
-            onChange={(value) => set("gender", value)}
-            options={meta.genders}
-          />
-          <SelectField
-            label="Bằng cấp cao nhất"
-            value={form.education_level}
-            onChange={(value) => set("education_level", value)}
-            options={meta.education_levels}
-          />
-          <TextField
-            label="Chuyên ngành"
-            value={form.major}
-            onChange={(value) => set("major", value)}
-            placeholder="Điều dưỡng"
-            maxLength={100}
-          />
-          <NumberField
-            label="Số năm kinh nghiệm"
-            value={form.experience_years}
-            onChange={(value) => set("experience_years", value.slice(0, 2))}
-            suffix="năm"
-            placeholder="0"
-          />
-          <TextField
-            label="Số điện thoại"
-            hint="Để nhân viên gọi lại. Không bắt buộc."
-            value={form.phone}
-            onChange={(value) => set("phone", value)}
-            inputMode="tel"
-            placeholder="09xx xxx xxx"
-            maxLength={15}
+      {/* Trợ lý lên tiếng ngay sau khi máy đọc xong CV, TRƯỚC bước xác nhận.
+          Đây là lúc ứng viên vừa gửi một tệp và đang chờ xem máy hiểu được gì.
+          Nói lại thứ đọc được là cách duy nhất để họ phát hiện máy đọc nhầm, và
+          hỏi một hai thứ còn thiếu lúc họ còn đang chú ý thì tỉ lệ được trả lời
+          cao hơn hẳn so với hỏi sau. */}
+      {profile && sessionId && (
+        <div className="mt-6">
+          <AdvisorChat
+            sessionId={sessionId}
+            moc="sau_cv"
+            onProfileChanged={async () => {
+              const moi = await fetchProfile(sessionId).catch(() => null);
+              if (moi) {
+                setProfile(moi);
+                setForm(fromProfile(moi));
+              }
+            }}
           />
         </div>
-        <div className="mt-5">
-          <TriStateField
-            label="Đã từng chăm sóc người bệnh hoặc người cao tuổi chưa?"
-            hint="Kể cả chăm người nhà, thực tập hay làm bán thời gian."
-            value={form.care_experience}
-            onChange={(value) => set("care_experience", value)}
-            yesLabel="Đã từng"
-            noLabel="Chưa từng"
-          />
-        </div>
-      </div>
+      )}
 
-      <div className="mt-8 border-t border-slate-100 pt-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Nguyện vọng
-        </h3>
-        <p className="mt-1 text-xs text-slate-500">
-          Phần này chỉ dùng để xếp thứ tự đơn nào hợp với bạn hơn. Nó không bao giờ
-          loại đơn nào ra khỏi danh sách.
-        </p>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
-          <SelectField
-            label="Tỉnh mong muốn"
-            hint="Nêu tỉnh là đủ, hệ thống tự suy ra vùng."
-            value={form.desired_prefecture}
-            onChange={(value) => set("desired_prefecture", value)}
-            options={meta.prefectures}
-            emptyLabel="Đâu cũng được"
-          />
-          <SelectField
-            label="Loại hình cơ sở"
-            value={form.desired_employer_type}
-            onChange={(value) => set("desired_employer_type", value)}
-            options={meta.employer_types}
-            emptyLabel="Đâu cũng được"
-          />
-          <NumberField
-            label="Lương mong muốn mỗi tháng"
-            value={form.salary_expectation_jpy}
-            onChange={(value) => set("salary_expectation_jpy", value.slice(0, 7))}
-            suffix="¥"
-            placeholder="190000"
-          />
-          <NumberField
-            label="Chi phí có thể chuẩn bị"
-            value={form.budget_vnd}
-            onChange={(value) => set("budget_vnd", value.slice(0, 10))}
-            suffix="đ"
-            placeholder="150000000"
-          />
+      <details
+        className="mt-6"
+        open={showProfileForm}
+        onToggle={(event) => setShowProfileForm(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+          {profile ? "Xem hoặc sửa thông tin hồ sơ đã đọc" : "Chưa có CV? Khai thông tin bằng biểu mẫu"}
+        </summary>
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Năng lực trên giấy tờ
+          </h3>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <TextField
+              label="Họ và tên"
+              required
+              value={form.full_name}
+              onChange={(value) => set("full_name", value)}
+              error={errors.full_name}
+              placeholder="Nguyễn Văn An"
+              maxLength={100}
+            />
+            <SelectField
+              label="Trình độ tiếng Nhật"
+              required
+              hint="Chưa học cũng là một câu trả lời, vẫn có đơn phù hợp."
+              value={form.japanese_level}
+              onChange={(value) => set("japanese_level", value)}
+              options={meta.japanese_levels}
+              error={errors.japanese_level}
+              emptyLabel="— Chọn mức —"
+            />
+            <NumberField
+              label="Năm sinh"
+              value={form.birth_year}
+              onChange={(value) => set("birth_year", value.slice(0, 4))}
+              error={errors.birth_year}
+              placeholder="2003"
+            />
+            <SelectField
+              label="Giới tính"
+              hint="Một số đơn chỉ tuyển nam hoặc chỉ tuyển nữ."
+              value={form.gender}
+              onChange={(value) => set("gender", value)}
+              options={meta.genders}
+            />
+            <SelectField
+              label="Bằng cấp cao nhất"
+              value={form.education_level}
+              onChange={(value) => set("education_level", value)}
+              options={meta.education_levels}
+            />
+            <TextField
+              label="Chuyên ngành"
+              value={form.major}
+              onChange={(value) => set("major", value)}
+              placeholder="Điều dưỡng"
+              maxLength={100}
+            />
+            <NumberField
+              label="Số năm kinh nghiệm"
+              value={form.experience_years}
+              onChange={(value) => set("experience_years", value.slice(0, 2))}
+              suffix="năm"
+              placeholder="0"
+            />
+            <TextField
+              label="Số điện thoại"
+              hint="Để nhân viên gọi lại. Không bắt buộc."
+              value={form.phone}
+              onChange={(value) => set("phone", value)}
+              inputMode="tel"
+              placeholder="09xx xxx xxx"
+              maxLength={15}
+            />
+          </div>
+          <div className="mt-5">
+            <TriStateField
+              label="Đã từng chăm sóc người bệnh hoặc người cao tuổi chưa?"
+              hint="Kể cả chăm người nhà, thực tập hay làm bán thời gian."
+              value={form.care_experience}
+              onChange={(value) => set("care_experience", value)}
+              yesLabel="Đã từng"
+              noLabel="Chưa từng"
+            />
+          </div>
         </div>
-      </div>
+
+        <div className="mt-8 border-t border-slate-100 pt-6">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Nguyện vọng
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Phần này chỉ dùng để xếp thứ tự đơn nào hợp với bạn hơn. Nó không bao giờ
+            loại đơn nào ra khỏi danh sách.
+          </p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <SelectField
+              label="Tỉnh mong muốn"
+              hint="Nêu tỉnh là đủ, hệ thống tự suy ra vùng."
+              value={form.desired_prefecture}
+              onChange={(value) => set("desired_prefecture", value)}
+              options={meta.prefectures}
+              emptyLabel="Đâu cũng được"
+            />
+            <SelectField
+              label="Loại hình cơ sở"
+              value={form.desired_employer_type}
+              onChange={(value) => set("desired_employer_type", value)}
+              options={meta.employer_types}
+              emptyLabel="Đâu cũng được"
+            />
+            <NumberField
+              label="Lương mong muốn mỗi tháng"
+              value={form.salary_expectation_jpy}
+              onChange={(value) => set("salary_expectation_jpy", value.slice(0, 7))}
+              suffix="¥"
+              placeholder="190000"
+            />
+            <NumberField
+              label="Chi phí có thể chuẩn bị"
+              value={form.budget_vnd}
+              onChange={(value) => set("budget_vnd", value.slice(0, 10))}
+              suffix="đ"
+              placeholder="150000000"
+            />
+          </div>
+        </div>
+
+      </details>
 
       <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
         <Button size="lg" onClick={submit} disabled={busy}>
-          {busy ? "Đang đối chiếu…" : "Xem đơn phù hợp với tôi"}
+          {busy ? "Đang đối chiếu…" : "Xác nhận hồ sơ và xem đơn phù hợp"}
         </Button>
         {result && (
           <Button variant="ghost" onClick={() => setStep("results")}>

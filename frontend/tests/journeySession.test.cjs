@@ -36,7 +36,7 @@ function kho() {
  * `maDangGiu` là thứ đã nằm sẵn trong `localStorage`. `dapAn` là thứ máy chủ sẽ
  * trả về; đặt `null` để giả lập backend không với tới được.
  */
-function dung({ maDangGiu = null, dapAn = MA_MAY_CHU } = {}) {
+function dung({ maDangGiu = null, dapAn = MA_MAY_CHU, moi = undefined } = {}) {
   const goi = [];
   const su_kien = [];
   const window = {
@@ -48,6 +48,11 @@ function dung({ maDangGiu = null, dapAn = MA_MAY_CHU } = {}) {
 
   const fetch = async (url, opts) => {
     goi.push({ url, ...opts });
+    // `moi` giả lập riêng `/phien/moi`: một đối tượng phản hồi, hoặc "mat_mang".
+    if (moi !== undefined && url.endsWith("/public/phien/moi")) {
+      if (moi === "mat_mang") throw new Error("khong ket noi duoc");
+      return moi;
+    }
     if (dapAn === null) throw new Error("khong ket noi duoc");
     return { ok: true, json: async () => ({ session_id: dapAn, vua_mo: true }) };
   };
@@ -152,4 +157,48 @@ test("khai lại từ đầu thì dọn cả hai kho và xin phiên khác", asyn
   // ghi đè qua đường riêng.
   assert.match(goi[0].url, /\/public\/phien\/moi$/);
   assert.deepEqual(su_kien, ["xkld-journey-reset"]);
+});
+
+// --- Khai lại từ đầu thất bại không được coi là thành công --------------------
+//
+// Chủ đồ án tái hiện ngày 06/10: `/phien/moi` trả 503, `fetch` không ném, cookie
+// vẫn là cookie cũ nên `ensureSessionId` trả lại PHIÊN CŨ — một mã không rỗng —
+// và giao diện tưởng đã sang phiên mới rồi xoá màn hình.
+
+test("/phien/moi trả 503: KHÔNG coi là có phiên mới, không đụng gì trong máy", async () => {
+  // `/phien` (đường của ensureSessionId) vẫn trả phiên cũ, đúng như cookie cũ.
+  const { api, window, su_kien } = dung({
+    maDangGiu: MA_CU, dapAn: MA_CU, moi: { ok: false, status: 503, json: async () => ({}) },
+  });
+  window.sessionStorage.setItem("xkld-chat-state-v1", "{}");
+
+  assert.equal(await api.resetSession(), "", "503 mà vẫn trả về một mã phiên");
+  assert.equal(maDangLuu(window), MA_CU, "mã phiên cũ trong máy bị xoá dù chưa có phiên mới");
+  assert.equal(window.sessionStorage.getItem("xkld-chat-state-v1"), "{}", "lịch sử chat bị xoá oan");
+  assert.deepEqual(su_kien, [], "phát sự kiện đổi phiên khi chưa đổi được");
+});
+
+test("/phien/moi trả lại ĐÚNG mã cũ: vẫn không phải phiên mới", async () => {
+  const { api, window } = dung({
+    maDangGiu: MA_CU, moi: { ok: true, json: async () => ({ session_id: MA_CU }) },
+  });
+  assert.equal(await api.resetSession(), "");
+  assert.equal(maDangLuu(window), MA_CU);
+});
+
+test("mất mạng lúc khai lại: trả rỗng, giữ nguyên phiên cũ", async () => {
+  const { api, window, su_kien } = dung({ maDangGiu: MA_CU, moi: "mat_mang" });
+  assert.equal(await api.resetSession(), "");
+  assert.equal(maDangLuu(window), MA_CU);
+  assert.deepEqual(su_kien, []);
+});
+
+test("mã phiên mới lấy từ chính câu trả lời của /phien/moi", async () => {
+  const MOI = "33333333-3333-4333-8333-333333333333";
+  // `/phien` trả mã khác hẳn: nếu code còn hỏi ensureSessionId thì sẽ lộ ra đây.
+  const { api, window } = dung({
+    maDangGiu: MA_CU, dapAn: MA_MAY_CHU, moi: { ok: true, json: async () => ({ session_id: MOI }) },
+  });
+  assert.equal(await api.resetSession(), MOI);
+  assert.equal(maDangLuu(window), MOI);
 });

@@ -40,6 +40,31 @@ CUM_TU_CAM: tuple[str, ...] = (
     "đủ điều kiện tuyệt đối",
 )
 
+# Cùng lời hứa, nhưng viết cách khác — và cách khác thì danh sách trên không bắt.
+#
+# Bắt được ngày 01/10 bằng một ca kiểm thử mới: câu *"Bạn chắc chắn sẽ đỗ đơn này,
+# yên tâm nhé."* đi qua toàn bộ bảy chốt. Hai lý do, cả hai đều là lỗ hổng của
+# cách so khớp chuỗi cố định:
+#
+# 1. **"đỗ" không có trong danh sách.** Có "trúng tuyển", có "đậu", không có "đỗ"
+#    — mà đó là chữ thông dụng nhất ở miền Bắc cho cùng một việc.
+# 2. **Một chữ chen vào giữa là trượt hết.** "chắc chắn **sẽ** trúng tuyển" không
+#    khớp "chắc chắn trúng tuyển". Danh sách phải liệt kê mọi biến thể, và không
+#    danh sách nào làm được việc đó.
+#
+# Nên thêm một mẫu: từ chỉ sự chắc chắn, cách tối đa hai mươi lăm ký tự, rồi tới
+# một kết quả mà không ai được phép hứa. Giữ cả danh sách trên vì nó bắt những
+# cụm không có từ chỉ sự chắc chắn ("hoàn toàn phù hợp", "đủ điều kiện tuyệt đối").
+#
+# Không đưa "yên tâm" vào nhóm từ chắc chắn: *"bạn yên tâm là công ty đưa đi khám
+# miễn phí"* là một câu đúng và cần nói được.
+_HUA_CHAC = re.compile(
+    r"(?:chắc chắn|đảm bảo|cam kết|nhất định|chắc suất)"
+    r"[^.!?]{0,25}?"
+    r"(?:đỗ|đậu|trúng tuyển|đi được|sang được|được nhận|có visa|xuất cảnh)",
+    re.IGNORECASE,
+)
+
 # Cụm từ hứa **hành động** thay công ty. Tách khỏi nhóm trên vì đây là một loại
 # vượt rào khác. Đo trên máy thật, ca ứng viên đã có N4: mô hình tự thêm câu cuối
 # "Chúng tôi sẽ nộp hồ sơ của bạn vào đơn hàng sau khi có kết quả khám sức khỏe."
@@ -202,6 +227,8 @@ def kiem_tra(cau_tra_loi: str, block: str) -> str | None:
     for cum in CUM_TU_CAM:
         if cum in thap:
             return f"chứa cụm hứa hẹn: {cum!r}"
+    if (khop := _HUA_CHAC.search(sach)) is not None:
+        return f"hứa chắc kết quả: {khop.group()!r}"
     for cum in CUM_TU_CAM_KET:
         if cum in thap:
             return f"cam kết thay công ty về bước tiếp theo: {cum!r}"

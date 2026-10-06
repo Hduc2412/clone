@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ContactStatus from "@/components/candidate/ContactStatus";
 import PageHero from "@/components/site/PageHero";
 import { Button, Card, Section } from "@/components/ui/primitives";
 import { COMPANY, OFFICES, coDiaChiThat } from "@/content/site";
@@ -75,22 +76,22 @@ export default function ContactPage() {
               vọng của bạn rồi mới gọi, nên không phải kể lại từ đầu.
             </p>
 
-            {/* Biểu mẫu nối vào API đăng ký ở giai đoạn sau. Hiện dẫn sang luồng
-                tư vấn để không có nút bấm vào rồi không xảy ra chuyện gì. */}
-            <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-              <p className="text-sm leading-6 text-slate-600">
-                Biểu mẫu đặt lịch đang được hoàn thiện cùng phần đối chiếu hồ sơ.
-                Trong lúc chờ, bạn gọi hotline hoặc nhắn vào khung chat ở góc phải,
-                cả hai đều tới cùng một nhân viên phụ trách.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button href="/tu-van" size="sm">
-                  Đối chiếu hồ sơ trước
-                </Button>
-                <Button href={COMPANY.hotlineHref} variant="outline" size="sm">
-                  Gọi ngay
-                </Button>
-              </div>
+            {/* Biểu mẫu thật, biết ngữ cảnh.
+                Trước đó chỗ này là một khối "đang hoàn thiện" kèm hai nút dẫn đi
+                nơi khác — người vừa đi hết luồng tư vấn bấm sang đây và phải kể
+                lại từ đầu cho một hệ thống đã biết tất cả. Nay yêu cầu gửi đi
+                mang theo bản bàn giao do máy chủ dựng. */}
+            <div className="mt-6">
+              <ContactStatus />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button href="/tu-van" variant="outline" size="sm">
+                Đối chiếu hồ sơ trước
+              </Button>
+              <Button href={COMPANY.hotlineHref} variant="outline" size="sm">
+                Gọi ngay
+              </Button>
             </div>
 
             <dl className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm">

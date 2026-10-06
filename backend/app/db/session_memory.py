@@ -78,6 +78,36 @@ async def dat_don_dang_xet(session_id: str, job_order_code: str) -> None:
     )
 
 
+async def ghi_moc_tu_van(session_id: str, *, giai_doan: str, nhan: str) -> None:
+    """Ghi **mốc** của phòng tư vấn hồ sơ — một dòng trạng thái, không có nội dung.
+
+    ## Vì sao chỉ ghi mốc
+
+    Đây là mức thứ hai của "hai mức bộ nhớ". Bản tóm tắt đầy đủ về cuộc trò
+    chuyện đi kèm yêu cầu hỗ trợ, cho **nhân viên** đọc. Chỗ này chỉ nhận một
+    dòng kiểu *"đã tư vấn tới bước đối chiếu"*.
+
+    Lý do nằm ở bên đọc nó: **khung chat**. Khung chat làm hỏi đáp chung theo tài
+    liệu công ty, và kho tài liệu ấy còn rác nhận dạng ảnh ở 24/32 đoạn. Đưa nội
+    dung tư vấn vào đây là mời nó trả lời sâu về hồ sơ, matching và lộ trình học
+    bằng đúng cái kho đó — chỗ dễ nói sai con số nhất.
+
+    Nên bất biến của gói `app/memory` vẫn nguyên: **chở câu hỏi, không chở câu
+    trả lời**. Một mốc trạng thái không phải là câu trả lời; nó chỉ giúp khung
+    chat biết khách không phải người mới, và biết đường chỉ sang phòng tư vấn.
+    """
+    await get_db()[COLLECTION].update_one(
+        {"session_id": session_id},
+        {
+            "$set": {
+                "moc_tu_van": {"giai_doan": giai_doan, "nhan": nhan, "luc": now()}
+            },
+            "$setOnInsert": {"session_id": session_id, "created_at": now()},
+        },
+        upsert=True,
+    )
+
+
 async def ghi_moi_quan_tam(
     session_id: str, *, chu_de: str, cau_hoi: str, ben: str
 ) -> None:

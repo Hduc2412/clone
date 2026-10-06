@@ -111,10 +111,18 @@ export default function OrderAdvicePanel({
             </h2>
           </div>
           {/* Đơn chưa đạt thì không hiện điểm — xem docstring đầu file. */}
-          {advice.branch === "phu_hop" && (
+          {advice.branch === "phu_hop" && advice.score_ranked !== false && (
             <p className="text-right">
               <span className="text-2xl font-semibold text-slate-900">{advice.score}</span>
               <span className="ml-1 text-xs text-slate-500">/100 điểm phù hợp</span>
+            </p>
+          )}
+          {/* Chưa nêu nguyện vọng thì nói thẳng là chưa xếp hạng được, đừng
+              hiện một con số đo mức khớp với thứ chưa tồn tại. */}
+          {advice.branch === "phu_hop" && advice.score_ranked === false && (
+            <p className="max-w-[11rem] text-right text-xs leading-5 text-slate-500">
+              Chưa xếp hạng được — bạn nêu khu vực hoặc loại cơ sở mong muốn để
+              hệ thống so thứ tự giữa các đơn.
             </p>
           )}
         </div>

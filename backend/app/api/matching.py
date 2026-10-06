@@ -13,7 +13,7 @@ from app.core.rate_limit import client_ip, rate_limiter
 from app.db import candidate_profiles as profile_store
 from app.db import recommendation_logs as log_store
 from app.services import matching_service
-from app.services.assignment import can_access, is_privileged
+from app.services import quyen_ho_so
 from app.services.audit_service import audit_action
 
 
@@ -98,15 +98,17 @@ async def recommendation_logs_list(
     limit: int = Query(default=50, ge=1, le=200),
     current_user=Depends(get_current_user),
 ):
-    assigned_to = None if is_privileged(current_user) else current_user["email"]
     query = log_store.build_query(
         profile_code=profile_code,
         session_id=session_id,
-        assigned_to=assigned_to,
         trigger=trigger,
         date_from=date_from,
         date_to=date_to,
     )
+    # Lọc theo hồ sơ ứng viên HIỆN TẠI, không theo `assigned_to` của nhật ký —
+    # trường ấy là ảnh chụp lúc đối chiếu. Lọc theo nó thì hồ sơ chuyển A → B,
+    # A vẫn thấy nhật ký cũ mãi còn B không thấy gì. Xem `services/quyen_ho_so`.
+    query = await quyen_ho_so.dieu_kien_nhat_ky(query, current_user)
     return await log_store.list_logs(query, limit=limit)
 
 
@@ -115,7 +117,7 @@ async def recommendation_log_detail(code: str, current_user=Depends(get_current_
     log = await log_store.get_log(code)
     if log is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi đối chiếu.")
-    if not can_access(log, current_user):
+    if not await quyen_ho_so.co_quyen_nhat_ky(log, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được xem bản ghi này.")
     return log
 
@@ -129,7 +131,7 @@ async def rerun_matching(
     profile = await profile_store.get_by_code(payload.profile_code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
-    if not can_access(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được thao tác trên hồ sơ này.")
 
     log, _ = await matching_service.run_matching(
@@ -151,7 +153,7 @@ async def latest_for_profile(profile_code: str, current_user=Depends(get_current
     profile = await profile_store.get_by_code(profile_code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
-    if not can_access(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được xem hồ sơ này.")
 
     log = await log_store.latest_for_profile(profile_code)

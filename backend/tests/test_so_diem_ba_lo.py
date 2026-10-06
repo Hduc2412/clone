@@ -218,6 +218,15 @@ class MatDiemKhiDatabaseLoiTests(unittest.IsolatedAsyncioTestCase):
 class GhiBuLucKhoiDongTests(unittest.TestCase):
     """Khởi động là thời điểm đúng để bù: database vừa được kiểm tra kết nối."""
 
+    def test_bo_kiem_thu_khong_dung_thu_muc_storage_that(self):
+        """Chạy trong container cũng không được ghi điểm giả vào volume runtime."""
+        from app.core.config import BACKEND_DIR, settings
+
+        self.assertNotEqual(
+            pathlib.Path(settings.storage_path).resolve(),
+            (BACKEND_DIR / "storage").resolve(),
+        )
+
     def test_main_goi_ghi_bu_trong_lifespan(self):
         import ast
 

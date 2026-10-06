@@ -377,8 +377,8 @@ async def apply_changes(
     session_id: str,
     *,
     expected_version: int,
-    fields: dict[str, Any],
-    preferences: dict[str, Any],
+    fields: dict[str, Any] | None,
+    preferences: dict[str, Any] | None,
     history: dict[str, Any],
     status: str | None = None,
     confirmed_at: Any = None,
@@ -389,13 +389,34 @@ async def apply_changes(
     Điều kiện `version: expected_version` là khóa lạc quan. Ứng viên mở hai tab và
     sửa cùng lúc thì tab sau nhận `None` và được yêu cầu tải lại, thay vì ghi đè
     âm thầm lên thay đổi của tab trước.
+
+    ## `None` nghĩa là "giữ nguyên phần này", không phải "xoá phần này"
+
+    Bản trước ghi thẳng giá trị nhận được, nên một lời gọi chỉ đổi `fields` mà
+    truyền `preferences=None` sẽ **ghi `null` vào database** và xoá sạch nguyện
+    vọng của ứng viên.
+
+    Hỏng còn tệ hơn việc mất dữ liệu: `api/profiles._apply` đọc bằng
+    `profile.get("preferences", {})`, mà `.get` chỉ trả mặc định khi **thiếu
+    khóa** — khóa có mặt với giá trị `None` thì nó trả `None`, rồi `None.items()`
+    ném `AttributeError`. Hệ quả là bước xác nhận hồ sơ trả 500, và giao diện
+    hiện "Không kết nối được máy chủ" — một câu chỉ sai hướng hoàn toàn.
+
+    Gặp thật ngày 05/10 trên luồng gửi CV: `api/agent._ghi_mot_truong` xác nhận
+    một trường thuộc `fields` và truyền `preferences=None`. Hồ sơ hỏng ngay từ
+    lúc ấy, nhưng chỉ nổ ở một bước khác, sau vài cú bấm nữa.
+
+    Nên bất biến **"hồ sơ luôn có cả hai phần, có thể rỗng"** được canh ở đây —
+    tại cửa ghi, nơi mọi người gọi đều đi qua — thay vì bắt từng người gọi nhớ.
     """
     changes: dict[str, Any] = {
-        "fields": fields,
-        "preferences": preferences,
         "version": expected_version + 1,
         "updated_at": now(),
     }
+    if fields is not None:
+        changes["fields"] = fields
+    if preferences is not None:
+        changes["preferences"] = preferences
     if status:
         changes["status"] = status
         if status == STATUS_EXTRACTED:
@@ -416,7 +437,7 @@ async def apply_changes(
     # Chỉ ghi chỉ mục, **không tự gộp hồ sơ**: hai anh em dùng chung một số, hay
     # một người khai nhầm một chữ số, mà gộp tự động thì hai người dính vào nhau
     # và gỡ ra rất khó. Việc gộp để nhân viên quyết sau khi gọi điện xác minh.
-    so_dien_thoai = (fields.get("phone") or {}).get("value")
+    so_dien_thoai = ((fields or {}).get("phone") or {}).get("value")
     if so_dien_thoai:
         changes["phone_normalized"] = _chi_so(so_dien_thoai)
 

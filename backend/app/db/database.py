@@ -1120,6 +1120,25 @@ async def list_unassigned_registrations(
     return await cursor.to_list(length=limit)
 
 
+async def list_assigned_registrations(limit: int = 100) -> list[dict[str, Any]]:
+    """Hồ sơ tự đăng ký **đang có người phụ trách**, của mọi nhân viên.
+
+    Phần bù của hàng đợi: không có danh sách này thì quản lý chỉ thấy hồ sơ chưa
+    ai nhận và hồ sơ của chính mình, nên không có gì để bấm "chuyển" khi một tư
+    vấn viên nghỉ — dù API chuyển giao vẫn cho phép.
+    """
+    cursor = (
+        get_db()
+        .recruitment_applications.find(
+            {"source": "self_registration", "assigned_to": {"$ne": None}, "is_active": True},
+            {"_id": 0},
+        )
+        .sort("updated_at", DESCENDING)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
 async def get_recruitment_application(application_code: str) -> dict[str, Any] | None:
     return await get_db().recruitment_applications.find_one(
         {"application_code": application_code},
@@ -1284,3 +1303,24 @@ async def update_staff_user(
         return_document=ReturnDocument.AFTER,
         projection={"_id": 0, "password_hash": 0},
     )
+
+
+async def list_appointments_for_session(session_id: str, limit: int = 10) -> list[dict[str, Any]]:
+    """Lịch hẹn của một phiên tư vấn, mới nhất trước.
+
+    Tra theo `conversation_id` vì đó là trường cả hai nguồn đều ghi mã phiên vào:
+    khung chat (`booking_service`) và hành trình tư vấn (`consultation/lich_hen`).
+    Nhờ vậy bản bàn giao thấy được lịch dù khách hẹn ở đường nào.
+
+    Bỏ `booking_key` khỏi kết quả: nó là khóa chống trùng, ghép từ số điện thoại
+    và giờ, không phải thông tin ai cần đọc.
+    """
+    cursor = (
+        get_db()
+        .consultation_appointments.find(
+            {"conversation_id": session_id}, {"_id": 0, "booking_key": 0}
+        )
+        .sort([("appointment_date", -1), ("appointment_time", -1)])
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)

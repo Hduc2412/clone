@@ -455,6 +455,18 @@ class PublicProfileApiTests(unittest.IsolatedAsyncioTestCase):
 
 
 class StaffProfileApiTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        # Tiền đề ngầm của mọi ca trong lớp này: nhân viên thử KHÔNG phụ trách hồ
+        # sơ đăng ký nào. Trước 06/10 quyền chỉ đi theo `assigned_to` nên tiền đề
+        # ấy không cần nói ra; nay quyền còn đi theo đơn đang phụ trách
+        # (`services/quyen_ho_so`), nên phải nói rõ — và để ca không chạm
+        # database thật. Ca cho quyền đi theo đơn nằm ở `test_quyen_ho_so.py`.
+        vá = patch(
+            "app.services.quyen_ho_so.ma_ho_so_qua_don", AsyncMock(return_value=set())
+        )
+        vá.start()
+        self.addCleanup(vá.stop)
+
     async def test_a_consultant_only_sees_their_own_profiles(self):
         captured = {}
 
@@ -464,7 +476,9 @@ class StaffProfileApiTests(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(store, "list_profiles", new=AsyncMock(side_effect=fake_list)):
             await profiles(status=None, assigned_to=None, lead_code=None, limit=100, current_user=CONSULTANT)
-        self.assertEqual(captured["assigned_to"], CONSULTANT["email"])
+        # Không phụ trách đơn nào → chỉ đúng hồ sơ được phân công trực tiếp.
+        self.assertNotIn("assigned_to", captured)
+        self.assertEqual(captured["$or"], [{"assigned_to": CONSULTANT["email"]}])
 
     async def test_a_manager_sees_everything(self):
         captured = {"touched": False}

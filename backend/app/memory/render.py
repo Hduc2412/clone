@@ -74,7 +74,25 @@ def render(bo_nho: dict[str, Any] | None, *, cho: str) -> str:
     quan_tam = _sap_xep(list(bo_nho.get("moi_quan_tam") or []))
     da_giai_thich = list(bo_nho.get("da_giai_thich") or [])
 
+    moc = bo_nho.get("moc_tu_van") or {}
+
     if cho == "chat":
+        # Mốc của phòng tư vấn hồ sơ: chỉ trạng thái, không nội dung.
+        #
+        # Khung chat cần biết đúng hai điều — khách **không phải người mới**, và
+        # có một chỗ khác trả lời sâu được. Nó không cần biết đã nói những gì, và
+        # cố ý không được biết: kho tài liệu của nó còn rác nhận dạng ảnh ở 24/32
+        # đoạn, nên trả lời sâu về hồ sơ bằng kho ấy là chỗ dễ nói sai số nhất.
+        if moc.get("nhan"):
+            dong.append(
+                f"Khách đã dùng phòng tư vấn hồ sơ và đang ở bước: {moc['nhan']}."
+            )
+            dong.append(
+                "Khách hỏi sâu về hồ sơ của họ, kết quả đối chiếu, hay lộ trình "
+                "học thì ĐỪNG trả lời bằng tài liệu chung — mời họ quay lại phòng "
+                "tư vấn hồ sơ, nơi có dữ liệu của chính họ."
+            )
+
         # Đơn đang xét là thứ giá trị nhất chảy sang phía này.
         if ma_don:
             dong.append(f"Khách đang xem đơn {ma_don} trên website.")

@@ -11,7 +11,10 @@ import {
   managementApi,
 } from "@/lib/managementApi";
 
-type Tab = "queue" | "mine";
+// "all" chỉ dành cho quản lý: hồ sơ đang có người giữ, của mọi nhân viên. Thiếu
+// tab này thì ô "Chuyển cho…" chỉ hiện ở hồ sơ quản lý tự giữ — kiểm trên trình
+// duyệt ngày 06/10, quản lý không có chỗ nào để chuyển hồ sơ của A sang B.
+type Tab = "queue" | "mine" | "all";
 
 function waitedFor(createdAt: string): string {
   const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
@@ -40,7 +43,9 @@ export default function QueuePage() {
     const fetching =
       tab === "queue"
         ? managementApi.registrationQueue().then((payload) => payload.items)
-        : managementApi.myRegistrations();
+        : tab === "all"
+          ? managementApi.assignedRegistrations()
+          : managementApi.myRegistrations();
     fetching
       .then(setItems)
       .catch((reason) => setError(reason.message))
@@ -174,6 +179,7 @@ export default function QueuePage() {
           [
             ["queue", "Chưa ai nhận"],
             ["mine", "Tôi đang phụ trách"],
+            ...(canManage ? [["all", "Đang có người phụ trách"]] : []),
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
@@ -193,11 +199,19 @@ export default function QueuePage() {
         <p className="text-sm text-slate-400">Đang tải…</p>
       ) : items.length === 0 ? (
         <EmptyState
-          title={tab === "queue" ? "Hàng đợi trống" : "Bạn chưa phụ trách hồ sơ nào"}
+          title={
+            tab === "queue"
+              ? "Hàng đợi trống"
+              : tab === "all"
+                ? "Chưa ai đang phụ trách hồ sơ nào"
+                : "Bạn chưa phụ trách hồ sơ nào"
+          }
           description={
             tab === "queue"
               ? "Chưa có ứng viên nào đăng ký chờ xử lý. Hồ sơ mới sẽ xuất hiện ở đây ngay khi ứng viên xác nhận chọn đơn."
-              : "Hồ sơ bạn nhận từ hàng đợi sẽ nằm ở đây, kèm phiếu tóm tắt và các thao tác bàn giao."
+              : tab === "all"
+                ? "Hồ sơ đã có nhân viên nhận sẽ nằm ở đây, để quản lý chuyển cho người khác khi cần."
+                : "Hồ sơ bạn nhận từ hàng đợi sẽ nằm ở đây, kèm phiếu tóm tắt và các thao tác bàn giao."
           }
         />
       ) : (
@@ -230,6 +244,19 @@ export default function QueuePage() {
                     {item.japanese_level ? ` · ${item.japanese_level}` : ""} · đăng ký{" "}
                     {waitedFor(item.created_at)}
                   </p>
+                  {tab === "all" && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Người phụ trách: <span className="font-medium">{item.assigned_to}</span>
+                      {/* Tài khoản đã xóa hoặc bị khóa vẫn còn nằm trên hồ sơ — chính là
+                          lúc phải chuyển, nên nói ra thay vì để quản lý tự đoán. */}
+                      {staff.length > 0 &&
+                        !staff.some((person) => person.email === item.assigned_to) && (
+                          <span className="ml-1 font-medium text-amber-700">
+                            · tài khoản không còn hoạt động
+                          </span>
+                        )}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <button
@@ -270,14 +297,18 @@ export default function QueuePage() {
                             ))}
                         </select>
                       )}
-                      <button
-                        type="button"
-                        disabled={busy === item.application_code}
-                        onClick={() => grantAccess(item.application_code)}
-                        className="rounded-xl border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-60"
-                      >
-                        Cấp tài khoản
-                      </button>
+                      {/* Cấp tài khoản là việc của người đang gọi cho ứng viên — mật khẩu
+                          phải được đọc ngay trong cuộc gọi — nên không đặt ở tab quản lý. */}
+                      {tab === "mine" && (
+                        <button
+                          type="button"
+                          disabled={busy === item.application_code}
+                          onClick={() => grantAccess(item.application_code)}
+                          className="rounded-xl border border-sky-300 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                        >
+                          Cấp tài khoản
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={busy === item.application_code}

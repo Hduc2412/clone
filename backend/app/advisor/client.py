@@ -101,6 +101,7 @@ async def _goi_mot_lan(
     *,
     temperature: float,
     max_tokens: int,
+    timeout: float | None = None,
 ) -> tuple[str | None, str]:
     """Đúng một lượt gọi tới đúng một model. Trả `(đoạn chữ, lý do)`.
 
@@ -135,13 +136,38 @@ async def _goi_mot_lan(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=settings.advisor_timeout_seconds) as client:
+        # Ngưỡng chờ cho phép nơi gọi nới riêng.
+        #
+        # Agent điều phối xin một khối JSON có `reply` cùng bốn trường nữa bên
+        # trong, nên lượt sinh dài hơn hẳn một câu trả lời thuần — và với ngưỡng
+        # chung 12 giây thì nó timeout thường xuyên. Đo thật ngày 02/10: hai lượt
+        # liền trả `ReadTimeout`, mà lúc đó còn hạn mức.
+        #
+        # Không nâng ngưỡng chung: 12 giây là đúng cho phòng tư vấn theo đơn, và
+        # nâng nó lên là bắt ứng viên ở đường ấy ngồi chờ lâu hơn mà chẳng được gì.
+        async with httpx.AsyncClient(
+            timeout=timeout or settings.advisor_timeout_seconds
+        ) as client:
             response = await client.post(
                 url, json=payload, headers={"x-goog-api-key": api_key()}
             )
             data = response.json()
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("Engine tư vấn: không gọi được %s: %s", model, exc)
+        # Ghi cả **tên loại ngoại lệ**, không chỉ lời của nó.
+        #
+        # `str()` của `httpx.ReadTimeout` và `ConnectTimeout` là chuỗi rỗng, nên
+        # dòng log cũ in ra đúng `"không gọi được gemini-3.8-flash: "` và hết.
+        # Timeout lại là lỗi truyền hay gặp nhất — tức là chỗ im lặng nhất của
+        # log lại rơi đúng vào chỗ cần đọc nhất.
+        #
+        # Gặp thật ngày 02/10 khi đo Agent trên mô hình thật: hai lượt liền trả
+        # về lý do rỗng, và không có cách nào biết đó là hết hạn mức, mất mạng,
+        # hay quá thời gian chờ — ba việc cần ba cách xử lý khác nhau.
+        logger.warning(
+            "Engine tư vấn: không gọi được %s: %s",
+            model,
+            f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__,
+        )
         return None, LY_DO_KHONG_GOI_DUOC
 
     if "error" in data:
@@ -191,6 +217,7 @@ async def sinh_van_ban(
     *,
     temperature: float = 0.2,
     max_tokens: int = 1200,
+    timeout: float | None = None,
 ) -> tuple[str | None, str, str]:
     """Gọi mô hình, trả `(đoạn chữ, lý do, model đã trả lời)`.
 
@@ -246,7 +273,7 @@ async def sinh_van_ban(
 
     chinh = settings.advisor_model
     van_ban, ly_do = await _goi_mot_lan(
-        chinh, prompt, temperature=temperature, max_tokens=max_tokens
+        chinh, prompt, temperature=temperature, max_tokens=max_tokens, timeout=timeout
     )
     if van_ban is not None:
         return van_ban, ly_do, chinh
@@ -262,7 +289,7 @@ async def sinh_van_ban(
         du_phong,
     )
     van_ban, ly_do_2 = await _goi_mot_lan(
-        du_phong, prompt, temperature=temperature, max_tokens=max_tokens
+        du_phong, prompt, temperature=temperature, max_tokens=max_tokens, timeout=timeout
     )
     if van_ban is None:
         # Cả hai đều không trả lời được. Báo lý do của lượt sau, vì đó là trạng

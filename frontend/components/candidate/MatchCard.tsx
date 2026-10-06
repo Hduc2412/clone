@@ -56,8 +56,15 @@ export default function MatchCard({
       <div className="flex flex-wrap items-start justify-between gap-4 p-5">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            {item.rank !== null && (
+            {/* Nhãn thứ hạng chỉ hiện khi thứ hạng có nghĩa.
+                Chưa nêu nguyện vọng thì mọi đơn đạt đều 0 điểm mềm, nên thứ tự
+                chỉ do hạn nộp và mã đơn quyết. Dán "Phù hợp nhất #1" lên một
+                thứ tự ngẫu nhiên là biến nó thành một lời khuyên. */}
+            {item.rank !== null && item.score_ranked !== false && (
               <Badge tone="brand">Phù hợp nhất #{item.rank}</Badge>
+            )}
+            {item.rank !== null && item.score_ranked === false && (
+              <Badge tone="neutral">Đủ điều kiện nộp</Badge>
             )}
             <Badge tone="neutral">{item.labels.program ?? item.program}</Badge>
             <Badge tone="neutral">
@@ -79,9 +86,21 @@ export default function MatchCard({
           </p>
         </div>
 
+        {/* Chưa nêu nguyện vọng nào thì KHÔNG hiện số.
+            Điểm mềm đo mức khớp với nguyện vọng; chưa có nguyện vọng thì nó
+            đo một thứ chưa tồn tại, và "5/100" cạnh "đạt điều kiện bắt buộc"
+            đọc thành "chỉ hợp 5%". */}
         <div className="shrink-0 text-right">
-          <p className="text-3xl font-semibold text-ink-900">{item.score}</p>
-          <p className="text-xs text-slate-500">trên 100 điểm phù hợp</p>
+          {item.score_ranked === false ? (
+            <p className="max-w-[9rem] text-xs leading-5 text-slate-500">
+              Chưa xếp hạng được — bạn nêu nguyện vọng để hệ thống so thứ tự.
+            </p>
+          ) : (
+            <>
+              <p className="text-3xl font-semibold text-ink-900">{item.score}</p>
+              <p className="text-xs text-slate-500">trên 100 điểm phù hợp</p>
+            </>
+          )}
         </div>
       </div>
 

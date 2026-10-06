@@ -26,7 +26,8 @@ from app.core.rate_limit import client_ip, rate_limiter
 from app.core.timeutil import local_today, utc_now
 from app.db import candidate_profiles as store
 from app.matching import catalog
-from app.services.assignment import can_access, ensure_can_assign, is_privileged, validate_assignee
+from app.services.assignment import ensure_can_assign, validate_assignee
+from app.services import quyen_ho_so
 from app.services.audit_service import audit_action
 
 
@@ -203,8 +204,22 @@ async def _apply(
 ) -> tuple[dict[str, Any], list[str]]:
     if confirm:
         # Confirming a machine draft promotes its values, not just its status.
-        fields = {key: item["value"] for key, item in profile.get("fields", {}).items()}
-        preferences = {key: item["value"] for key, item in profile.get("preferences", {}).items()}
+        #
+        # `profile.get("x") or {}` chứ không phải `profile.get("x", {})`.
+        #
+        # `.get` chỉ trả mặc định khi **thiếu khóa**. Khóa có mặt với giá trị
+        # `None` thì nó trả `None`, và `None.items()` ném `AttributeError` — bước
+        # xác nhận hồ sơ trả 500, giao diện hiện "Không kết nối được máy chủ".
+        # Gặp thật ngày 05/10 với một hồ sơ bị ghi `preferences: null`.
+        #
+        # Nguyên nhân gốc đã vá ở cửa ghi (`candidate_profiles.apply_changes`),
+        # nhưng dòng này vẫn phải chịu được: những hồ sơ đã hỏng vẫn còn trong
+        # database, và chủ của chúng đáng được đi tiếp chứ không phải mắc kẹt ở
+        # một màn hình báo sai nguyên nhân.
+        fields = {key: item["value"] for key, item in (profile.get("fields") or {}).items()}
+        preferences = {
+            key: item["value"] for key, item in (profile.get("preferences") or {}).items()
+        }
     # Chỉ bước xác nhận mới được nâng nguồn của một ô khi giá trị không đổi. Ở
     # các luồng khác — nhất là nhân viên sửa hồ sơ — gửi lại đúng giá trị cũ phải
     # giữ nguyên ô, để không xóa mất dấu "ứng viên xác nhận" và đoạn trích từ CV.
@@ -391,9 +406,10 @@ async def profiles(
     limit: int = Query(default=100, ge=1, le=500),
     current_user=Depends(get_current_user),
 ):
-    if not is_privileged(current_user):
-        assigned_to = current_user["email"]
     query = store.build_query(status=status, assigned_to=assigned_to, lead_code=lead_code)
+    # Nhân viên thường: hồ sơ được phân công trực tiếp, hoặc hồ sơ của khách mình
+    # đang phụ trách qua một đơn còn mở. Xem `services/quyen_ho_so`.
+    query = await quyen_ho_so.dieu_kien_ho_so(query, current_user)
     return [_decorate(profile) for profile in await store.list_profiles(query, limit=limit)]
 
 
@@ -412,7 +428,7 @@ async def profile_detail(code: str, current_user=Depends(get_current_user)):
     profile = await store.get_by_code(code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
-    if not can_access(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được xem hồ sơ này.")
     return _decorate(profile)
 
@@ -427,7 +443,7 @@ async def update_profile(
     profile = await store.get_by_code(code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
-    if not can_access(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
         raise HTTPException(status_code=403, detail="Bạn không được sửa hồ sơ này.")
 
     updated, changed = await _apply(

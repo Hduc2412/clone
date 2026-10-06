@@ -13,6 +13,7 @@ __pycache__/
 backend/tests/fixtures/chatbot/ket_qua_gan_nhat.json
 backend/tests/fixtures/cv/ket_qua_doc_cv.json
 backend/tests/fixtures/tu_van/ket_qua_tu_van.json
+backend/tests/fixtures/tu_van/ket_qua_agent.json
 
 # Bộ đệm phần chữ đọc từ ảnh trên website công ty. Là dữ liệu dẫn xuất — chạy
 # lại bộ nạp là có lại — nhưng nó chép nguyên văn watermark trong ảnh, nên bên

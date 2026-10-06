@@ -79,11 +79,11 @@ export default function CvUpload({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h3 className="text-sm font-semibold text-ink-900">
-            Có sẵn CV? Gửi lên để đỡ phải gõ
+            Gửi CV để bắt đầu tư vấn
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Nhận file PDF, Word hoặc ảnh chụp. Hệ thống đọc rồi điền sẵn vào biểu
-            mẫu bên dưới — bạn vẫn xem lại và sửa được trước khi đối chiếu.
+            Nhận file PDF, Word hoặc ảnh chụp. Hệ thống đọc thông tin trong CV
+            để trợ lý tư vấn cho bạn — bạn vẫn kiểm tra và sửa được trước khi đối chiếu.
           </p>
         </div>
         <div>
@@ -142,8 +142,10 @@ export default function CvUpload({
           )}
 
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            Bạn xem lại các ô bên dưới giúp em nhé. Máy đọc có thể đọc sai, nên chỉ
-            khi bạn xác nhận thì hệ thống mới đem hồ sơ đi đối chiếu.
+            Bạn có thể trao đổi với trợ lý và mở phần thông tin hồ sơ để kiểm tra —
+            máy đọc có thể đọc sai. Bạn <strong>xác nhận hồ sơ</strong> thì hệ thống
+            mới đối chiếu với các đơn; còn <strong>đăng ký một đơn</strong> là bước
+            riêng, bạn tự chọn đơn và xác nhận sau.
           </p>
         </div>
       )}

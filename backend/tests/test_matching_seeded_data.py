@@ -7,15 +7,37 @@ thật thì vẫn là sai. Nó cũng là bản diễn lại kịch bản trong `
 """
 import json
 import unittest
-from datetime import date
 
+from app.core.timeutil import local_today
 from app.db import candidate_profiles as profile_store
 from app.matching import catalog, engine, explain
 from app.matching.weights import load_weights
 from scripts.seed_job_orders import build_documents
 
 
-AS_OF = date(2026, 9, 15)
+# Ngày đối chiếu phải là **hôm nay**, cùng cái mốc mà dữ liệu mẫu dùng.
+#
+# `scripts/seed_job_orders.build_document` đặt hạn nộp bằng `local_today() +
+# deadline_in_days`, tức **tương đối theo hôm nay**. Bản trước ghim
+# `AS_OF = date(2026, 9, 15)`, nên hai bên nói về hai mốc khác nhau.
+#
+# Hệ quả là một ca kiểm thử đỏ đúng một ngày trong năm, rồi tự xanh lại. Đơn hết
+# hạn trong dữ liệu mẫu có `deadline_in_days = -20`, nên hạn của nó là
+# `hôm nay − 20`. Ngày mà `hôm nay − 20` rơi đúng vào `AS_OF` thì phép lọc
+# `deadline < AS_OF` không bắt được nó, danh sách rỗng, và
+# `test_the_expired_order_is_rejected_for_being_expired` đỏ. Gặp thật ngày
+# 05/10/2026: 05/10 − 20 = 15/09, đúng `AS_OF` cũ.
+#
+# Một ca đỏ một ngày rồi tự hết còn tệ hơn không có ca nào: người gặp nó sẽ đi
+# tìm hồi quy trong mã nguồn mình vừa sửa.
+AS_OF = local_today()
+
+# Tuổi nhân vật demo, suy từ `AS_OF` chứ không ghim năm sinh.
+#
+# Kịch bản trong `docs/design/14` nói "ứng viên 23 tuổi", và nhiều ca dưới đây
+# dựa vào con số ấy. Ghim `birth_year = 2003` thì sang năm nhân vật 24 tuổi và
+# những ca ấy lặng lẽ đo một thứ khác — bom hẹn giờ thứ hai, chỉ nổ chậm hơn.
+TUOI_DEMO = 23
 WEIGHTS = load_weights()
 
 
@@ -45,7 +67,7 @@ def facts_with(fields: dict, preferences: dict) -> engine.CandidateFacts:
 # Nhân vật trong kịch bản demo.
 AN = {
     "full_name": "Nguyễn Văn An",
-    "birth_year": 2003,
+    "birth_year": AS_OF.year - TUOI_DEMO,
     "gender": "nam",
     "education_level": "cao_dang",
     "major": "Điều dưỡng",

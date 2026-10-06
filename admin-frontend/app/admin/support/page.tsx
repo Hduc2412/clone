@@ -287,6 +287,21 @@ export default function SupportQueuePage() {
 
               {mo && (
                 <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+                  {/* Bản bàn giao đặt TRƯỚC khối đối chiếu, có chủ ý.
+                      Nhân viên đọc từ trên xuống rồi bấm số. Thứ cần biết đầu
+                      tiên là khách là ai và việc nên làm tiếp, không phải bảng
+                      điểm của một đơn. */}
+                  {item.ban_giao && (
+                    <div>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Tóm tắt bàn giao — đọc trước khi gọi
+                      </h4>
+                      <pre className="mt-1.5 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2.5 font-mono text-xs leading-5 text-slate-800 ring-1 ring-slate-200">
+                        {item.ban_giao}
+                      </pre>
+                    </div>
+                  )}
+
                   {item.advice_block ? (
                     <div>
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -296,6 +311,16 @@ export default function SupportQueuePage() {
                         {item.advice_block}
                       </pre>
                     </div>
+                  ) : item.ban_giao ? (
+                    // Khối trên đã có đối chiếu cả hồ sơ. Bản trước ghi "không kèm
+                    // kết quả đối chiếu" ngay dưới mục ĐỐI CHIẾU của bàn giao — hai
+                    // câu nói ngược nhau trên cùng màn hình (kiểm trên trình duyệt
+                    // 06/10, HT-C9AD4C). Thứ thật sự vắng là bảng của MỘT đơn.
+                    <p className="text-sm text-slate-500">
+                      Khách gửi từ ngoài phòng tư vấn theo đơn, nên không có bảng đối
+                      chiếu riêng cho một đơn. Kết quả đối chiếu cả hồ sơ nằm trong
+                      bản bàn giao ở trên.
+                    </p>
                   ) : (
                     <p className="text-sm text-slate-500">
                       Yêu cầu này không kèm kết quả đối chiếu — khách gửi từ ngoài

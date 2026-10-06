@@ -113,20 +113,45 @@ export function getSessionId(): string {
   return peekSessionId();
 }
 
+/**
+ * Mở một phiên MỚI. Trả mã phiên mới, hoặc chuỗi rỗng nếu không mở được.
+ *
+ * ## Căn cứ là câu trả lời của `/public/phien/moi`, không phải `ensureSessionId`
+ *
+ * Bản trước xoá mã trong máy, gọi `/phien/moi` mà không xem kết quả, rồi hỏi
+ * `ensureSessionId()`. Máy chủ trả 503 thì `fetch` không ném lỗi, cookie vẫn là
+ * cookie CŨ, nên `ensureSessionId` trả lại đúng phiên cũ — một mã không rỗng —
+ * và giao diện tưởng đã sang phiên mới rồi xoá màn hình. Chủ đồ án tái hiện được
+ * ngày 06/10.
+ *
+ * Nay chỉ coi là đã sang phiên mới khi `/phien/moi` trả `ok` VÀ mang một mã hợp
+ * lệ KHÁC mã cũ. Chưa chắc chắn thì không đụng gì cả: mã cũ vẫn trong máy, lịch
+ * sử chat vẫn còn, không phát sự kiện — vì phiên cũ vẫn đang là phiên thật của
+ * cookie, và mọi thứ trên màn hình vẫn đúng với nó.
+ */
 export async function resetSession(): Promise<string> {
   if (typeof window === "undefined") return "";
-  window.localStorage.removeItem(KEY);
-  window.sessionStorage.removeItem(CHAT_KEY);
-  // Không xoá được cookie từ đây (`httponly`), nên xin máy chủ một phiên khác.
+  const cu = peekSessionId();
+  let moi = "";
   try {
-    await fetch(`${BACKEND_URL}/public/phien/moi`, {
+    // Không xoá được cookie từ đây (`httponly`), nên xin máy chủ một phiên khác.
+    const res = await fetch(`${BACKEND_URL}/public/phien/moi`, {
       method: "POST",
       credentials: "include",
     });
+    if (res.ok) {
+      const { session_id: sessionId } = await res.json();
+      if (typeof sessionId === "string" && UUID.test(sessionId) && sessionId !== cu) {
+        moi = sessionId;
+      }
+    }
   } catch {
-    /* Không mở lại được thì lần gọi sau sẽ tự thử. */
+    /* Mất mạng: chưa có phiên mới. Người gọi báo lỗi, khách thử lại. */
   }
-  const id = await ensureSessionId();
+  if (!moi) return "";
+
+  window.localStorage.setItem(KEY, moi);
+  window.sessionStorage.removeItem(CHAT_KEY);
   window.dispatchEvent(new Event("xkld-journey-reset"));
-  return id;
+  return moi;
 }

@@ -211,6 +211,9 @@ def public_item(item: dict[str, Any]) -> dict[str, Any]:
         **item,
         "explanation_text": explain.render_template_text(match_item),
         "explanation_block": explain.render_block(match_item),
+        # Điểm có nghĩa để hiện hay chưa. Tính ở đây, một lần, thay vì để hai
+        # màn hình tự suy từ `score` — xem `engine.xep_hang_duoc`.
+        "score_ranked": engine.xep_hang_duoc(match_item.soft_rows),
     }
 
 

@@ -6,21 +6,21 @@ import { COMPANY } from "@/content/site";
 import { fetchJobOrder } from "@/lib/publicApi";
 
 export const metadata: Metadata = {
-  title: "Đối chiếu hồ sơ",
+  title: "Tư vấn theo CV",
   description:
     "Nhập hồ sơ của bạn và xem mình đạt hay chưa đạt ở tiêu chí nào của từng đơn hàng điều dưỡng Nhật Bản.",
 };
 
 const STEPS = [
   {
-    title: "Nhập năng lực",
+    title: "Gửi và đọc CV",
     detail:
-      "Năm sinh, bằng cấp, trình độ tiếng Nhật, kinh nghiệm chăm sóc. Mục nào chưa rõ thì bỏ trống, hệ thống sẽ hỏi lại chứ không loại đơn.",
+      "Gửi CV để hệ thống đọc năng lực và kinh nghiệm. Chưa có CV thì có thể khai nhanh bằng biểu mẫu thu gọn.",
   },
   {
-    title: "Nêu nguyện vọng",
+    title: "Trao đổi với trợ lý",
     detail:
-      "Khu vực mong muốn, loại hình cơ sở, mức lương kỳ vọng. Nguyện vọng chỉ dùng để xếp thứ tự, không bao giờ khiến đơn nào bị loại.",
+      "Trợ lý hỏi thêm thông tin thiếu, tư vấn hướng chuẩn bị và nguyện vọng. Bạn kiểm tra, xác nhận hồ sơ trước khi đối chiếu.",
   },
   {
     title: "Xem kết quả đối chiếu",
@@ -28,9 +28,9 @@ const STEPS = [
       "Mỗi đơn hiện rõ từng tiêu chí đạt, chưa đạt hay chưa rõ, kèm điểm phù hợp với nguyện vọng của bạn.",
   },
   {
-    title: "Chọn đơn và đặt lịch",
+    title: "Chọn đơn và xác nhận đăng ký",
     detail:
-      "Bạn tự chọn đơn muốn đăng ký. Hệ thống gửi hồ sơ kèm lịch hẹn cho nhân viên, họ gọi lại đúng khung giờ bạn chọn.",
+      "Bạn tự chọn đơn muốn đăng ký. Khi xác nhận đăng ký hoặc yêu cầu hỗ trợ, hệ thống chuyển thông tin cho nhân viên tiếp nhận.",
   },
 ];
 
@@ -44,9 +44,9 @@ export default async function ConsultPage({
   return (
     <>
       <PageHero
-        eyebrow="Đối chiếu hồ sơ"
+        eyebrow="Tư vấn theo CV"
         title="Biết mình hợp đơn nào, và vì sao"
-        lead="Không cần tài khoản, không cần gọi điện. Hệ thống đối chiếu hồ sơ của bạn với từng đơn đang tuyển rồi nói rõ lý do cho từng tiêu chí."
+        lead="Gửi CV, kiểm tra thông tin đã đọc rồi trò chuyện với trợ lý tư vấn. Khi bạn xác nhận hồ sơ, hệ thống đối chiếu từng đơn đang tuyển và giải thích kết quả."
       />
 
       <Section>
@@ -70,7 +70,7 @@ export default async function ConsultPage({
             <div>
               <SectionHeading
                 eyebrow="Bốn bước"
-                title="Mất khoảng hai phút"
+                title="Từ CV đến tư vấn và chọn đơn"
                 lead="Bạn dừng ở bước nào cũng được, thông tin đã nhập được giữ lại cho phiên của bạn."
               />
               <ol className="mt-8 space-y-5">
@@ -97,8 +97,8 @@ export default async function ConsultPage({
                 Muốn nói chuyện với người thật?
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Biểu mẫu trên trả lời được câu “tôi hợp đơn nào”. Còn những câu
-                riêng của hoàn cảnh bạn thì gọi vẫn nhanh hơn.
+                Trợ lý giúp bạn hiểu hồ sơ và hướng chuẩn bị. Nếu cần hỗ trợ thêm,
+                bạn có thể liên hệ nhân viên để được trao đổi trực tiếp.
               </p>
 
               <div className="mt-6 space-y-3">

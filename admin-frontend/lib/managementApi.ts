@@ -417,6 +417,21 @@ export interface SupportRequest {
   message: string;
   job_order_code: string | null;
   advice_block: string | null;
+  /**
+   * Bản tóm tắt toàn bộ hành trình — **đọc cái này trước** khi bấm số.
+   *
+   * `advice_block` ngay trên trả lời câu "khách vướng gì ở ĐƠN NÀY". Bản này trả
+   * lời câu rộng hơn: khách là ai, đã xác nhận những gì, máy đọc được gì mà chưa
+   * ai kiểm, đã hỏi những câu nào, câu nào trợ lý không trả lời được, và việc nên
+   * làm tiếp.
+   *
+   * Dựng bằng mã ở máy chủ, mô hình ngôn ngữ không tham gia — vì mỗi dòng trong
+   * đó sẽ được nói ra miệng cho ứng viên nghe.
+   *
+   * `null` khi phần dựng tóm tắt trục trặc. Lúc ấy yêu cầu vẫn vào hàng đợi: mất
+   * bản tóm tắt thì phải hỏi thêm vài câu, mất yêu cầu thì không ai gọi cả.
+   */
+  ban_giao: string | null;
   assigned_to: string | null;
   reply: string | null;
   created_at: string;
@@ -513,8 +528,15 @@ export interface MatchItem {
   eligible: boolean;
   score: number;
   rank: number | null;
+  /** Đơn bị loại: nhật ký chỉ giữ các dòng KHÔNG đạt — xem `hard_rows_passed`. */
   hard_rows: CriterionRow[];
-  soft_rows: SoftRow[];
+  /**
+   * Chỉ đơn đạt mới có. Bộ đối chiếu không chấm điểm đơn đã trượt, nên nhật ký
+   * bỏ hẳn khóa này ở đơn bị loại (`matching_service._gon_lai`).
+   */
+  soft_rows?: SoftRow[];
+  /** Số tiêu chí bắt buộc đã đạt nhưng không lưu dòng — chỉ đơn bị loại có. */
+  hard_rows_passed?: number;
   gaps: string[];
   missing_info: string[];
   labels: Record<string, string | null>;
@@ -904,6 +926,11 @@ export const managementApi = {
   // --- Hàng đợi đăng ký sơ bộ ---
   registrationQueue: () =>
     request<{ items: QueuedRegistration[]; count: number }>("/registrations/queue"),
+  /** Hồ sơ đang có người phụ trách, của mọi nhân viên. Chỉ Admin/Manager. */
+  assignedRegistrations: () =>
+    request<{ items: QueuedRegistration[]; count: number }>("/registrations/assigned").then(
+      (payload) => payload.items,
+    ),
   /**
    * Cấp cho ứng viên tài khoản vào hệ khách hàng.
    *

@@ -18,6 +18,7 @@ from fastapi import (
     Path,
     Query,
     Request,
+    Response,
     UploadFile,
 )
 from fastapi.responses import FileResponse
@@ -31,7 +32,8 @@ from app.db import candidate_documents as store
 from app.db import candidate_profiles as profiles
 from app.documents import reader, storage
 from app.services import cv_service
-from app.services.assignment import can_access, is_privileged
+from app.services.assignment import is_privileged
+from app.services import quyen_ho_so
 from app.services.audit_service import audit_action
 
 
@@ -45,6 +47,19 @@ router = APIRouter(
     tags=["Hồ sơ gốc"],
     dependencies=[Depends(get_current_user)],
 )
+
+
+# Trình duyệt không được giữ lại bản CV nào.
+#
+# Thiếu header này, `FileResponse` gửi kèm `ETag` và `Last-Modified`, và trình duyệt
+# tự lưu đệm theo heuristic. Đo được ngày 06/10: chuyển hồ sơ từ A sang B xong, A
+# tải lại CV trên cùng trình duyệt vẫn ra bản PDF — lời gọi không tới máy chủ, nên
+# phép kiểm quyền (đã trả 403 đúng) không có dịp chạy. Máy dùng chung ở văn phòng
+# là đủ để lộ CV của một người thật.
+#
+# `no-store` buộc mỗi lần tải là một lời gọi mới, tức một lần kiểm quyền mới. Nó
+# không thu hồi được bản đã lưu trước khi có header — việc đó chỉ xóa bộ đệm mới làm được.
+KHONG_LUU_DEM = {"Cache-Control": "no-store, private", "Pragma": "no-cache"}
 
 
 # Đọc CV vừa tốn tiền gọi mô hình vừa tốn chỗ trên đĩa, nên hạn mức chặt hơn hẳn
@@ -149,7 +164,7 @@ async def list_profile_documents(
     profile = await profiles.get_by_code(profile_code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ.")
-    if not can_access(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem hồ sơ này.")
 
     items = await store.list_for_profile(profile_code)
@@ -188,20 +203,26 @@ async def download_original(
         path,
         media_type=document.get("content_type") or "application/octet-stream",
         filename=document.get("filename") or code,
+        headers=KHONG_LUU_DEM,
     )
 
 
 @router.get("/{code}/text")
 async def document_text(
     code: str,
+    response: Response,
     current_user=Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Toàn văn đã rút, để đối chiếu với đoạn dẫn của từng trường."""
+    """Toàn văn đã rút, để đối chiếu với đoạn dẫn của từng trường.
+
+    Toàn văn CV chứa đúng những thứ bản gốc chứa, nên cùng không được lưu đệm.
+    """
     document = await store.get_by_code(code)
     if document is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu.")
 
     await _ensure_can_read(document, current_user)
+    response.headers.update(KHONG_LUU_DEM)
     return {"code": code, "text": document.get("text", "")}
 
 
@@ -221,5 +242,5 @@ async def _ensure_can_read(document: dict[str, Any], current_user) -> None:
         return
 
     profile = await profiles.get_by_code(profile_code)
-    if profile is None or not can_access(profile, current_user):
+    if profile is None or not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem tài liệu này.")
