@@ -35,7 +35,19 @@ def buoc(so: int, ten: str) -> None:
     print(f"\n{'─' * 78}\nBƯỚC {so} · {ten}\n{'─' * 78}")
 
 
-async def main() -> None:
+#: Mã thoát khi không có gì để đo — cùng quy ước với các bộ đo khác.
+KHONG_DO_DUOC = 3
+
+
+async def main() -> int:
+    """Diễn lại kịch bản, và KIỂM từng bước. Trả mã thoát.
+
+    Bản trước in ra các phép so ("Giống hệt: True/False") nhưng không kiểm phép
+    nào, rồi luôn in "✓ NGHIỆM THU ĐẠT" và thoát 0 — cùng lỗi với
+    `nghiem_thu_agent` mà chủ đồ án bắt ngày 06/10. Một bộ nghiệm thu chỉ in ra
+    là một bản trình diễn, không phải một phép đo.
+    """
+    hong: list[str] = []
     await init_db()
     try:
         buoc(1, "Kho đơn đem đối chiếu")
@@ -47,7 +59,7 @@ async def main() -> None:
         print("chứng minh được bộ lọc điều kiện đã chạy chứ không phải im lặng bỏ qua.")
         if not pool:
             print("\nChưa có đơn nào. Chạy `python -m scripts.seed_job_orders` trước.")
-            return
+            return KHONG_DO_DUOC
 
         buoc(2, "Ứng viên nhập hồ sơ qua API công khai")
         db = order_store.get_db()
@@ -86,6 +98,12 @@ async def main() -> None:
             SESSION, http_request(), limit=5, refresh=False
         )
         print(f"Đã xét {result['total_considered']} đơn · {result['eligible_count']} đơn đạt")
+        if not result["matches"]:
+            # Hồ sơ demo (docs/design/14: N4, cao đẳng điều dưỡng, muốn Tokyo) phải
+            # nộp được đơn. Không có đơn nào thì các bước sau cũng không có gì để xem.
+            hong.append("hồ sơ demo không có đơn nào đạt")
+            print("\n✗ NGHIỆM THU HỎNG: " + "; ".join(hong))
+            return 1
         print(f"Nhật ký: {result['log_code']}  ·  dùng lại kết quả cũ: {result['from_cache']}")
         print(f"\n{result['disclaimer']}")
 
@@ -107,6 +125,15 @@ async def main() -> None:
             for dong in ly_do:
                 print(f"      ✗ {dong}")
             print(f"      điểm: {item['score']} · hạng: {item['rank']}")
+        if not rejected:
+            hong.append("không đơn nào bị loại — nhật ký không chứng minh được bộ lọc cứng đã chạy")
+        for item in rejected:
+            if not any(r["result"] == "KHONG_DAT" for r in item["hard_rows"]):
+                hong.append(f"{item['code']} bị loại mà không ghi lý do KHÔNG ĐẠT nào")
+            if item["rank"] is not None:
+                # Đơn bị loại không có hạng: "hạng 3 · KHÔNG ĐẠT" cạnh nhau là mời
+                # người đọc đem so sánh hai thứ không so được.
+                hong.append(f"{item['code']} bị loại mà vẫn mang hạng {item['rank']}")
 
         buoc(6, "Chạy lại phải ra kết quả giống hệt")
         again = await matching_api.matches_for_session(
@@ -124,6 +151,10 @@ async def main() -> None:
         )
         print(f"Chạy lại cưỡng bức (bỏ qua bộ nhớ đệm): {khoa(forced)}")
         print(f"Vẫn giống hệt: {khoa(result) == khoa(forced)}")
+        if khoa(result) != khoa(again):
+            hong.append("chạy lại cho kết quả khác — mất tính tất định")
+        if khoa(result) != khoa(forced):
+            hong.append("chạy lại bỏ qua bộ nhớ đệm cho kết quả khác — mất tính tất định")
 
         buoc(7, "Hồ sơ mới điền một nửa vẫn phải thấy đơn")
         await db[profile_store.COLLECTION].delete_many({"session_id": SESSION + "-b"})
@@ -139,6 +170,11 @@ async def main() -> None:
         print("Câu hỏi hệ thống sẽ hỏi tiếp:")
         for cau in log_b["missing_info"]:
             print(f"  · {cau}")
+        if not log_b["eligible_count"]:
+            # Nguyên tắc gốc của bộ đối chiếu: chưa biết không phải là không đạt.
+            hong.append("hồ sơ chỉ có họ tên không thấy đơn nào — 'chưa rõ' đang bị coi là 'không đạt'")
+        if not log_b["missing_info"]:
+            hong.append("hồ sơ thiếu gần hết mà không sinh câu hỏi nào")
 
         buoc(8, "Dọn dẹp")
         await db[profile_store.COLLECTION].delete_many(
@@ -148,10 +184,17 @@ async def main() -> None:
             {"profile_code": {"$in": [created["code"], thieu["code"]]}}
         )
         print("Đã xóa hồ sơ và nhật ký của lần nghiệm thu này.")
-        print("\n✓ NGHIỆM THU ĐẠT")
+        print()
+        if hong:
+            print("✗ NGHIỆM THU HỎNG:")
+            for h in hong:
+                print(f"  ! {h}")
+            return 1
+        print("✓ NGHIỆM THU ĐẠT")
+        return 0
     finally:
         await close_db()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))
