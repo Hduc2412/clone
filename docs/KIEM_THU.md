@@ -1,6 +1,7 @@
 # Kiểm thử hệ thống
 
-Lần chạy gần nhất: 21/09/2026. **617 ca kiểm thử backend và 5 ca frontend, tất cả đạt**, thời gian chạy khoảng 15 giây.
+Lần chạy gần nhất: 06/10/2026. **1188 ca backend, 65 ca website và 27 ca hệ quản trị — tất cả đạt**,
+thời gian chạy khoảng 18 giây cho phần backend.
 
 ```bash
 cd backend
@@ -21,57 +22,115 @@ bản giả lập, nên chạy được cả khi hết hạn mức gọi mô hì
 
 | Module | Số ca | Phạm vi kiểm | Kết quả |
 |---|---:|---|:---:|
-| `test_matching_engine` | 65 | **Bộ đối chiếu**: bảy tiêu chí cứng, bốn tiêu chí mềm, tính tất định, thứ tự xếp hạng, không đọc đồng hồ | Đạt |
-| `test_candidate_profiles` | 43 | Hồ sơ ứng viên: gộp theo thứ tự ưu tiên nguồn, khóa lạc quan theo phiên bản, chặn client tự khai nguồn, phân quyền | Đạt |
+| `test_agent_tu_van` | 85 | **Agent điều phối tư vấn**: sáu giai đoạn, hợp đồng dữ liệu, bảy chốt hậu kiểm, cách ly phiên, nhánh hết hạn mức | Đạt |
+| `test_matching_engine` | 66 | **Bộ đối chiếu**: bảy tiêu chí cứng, bốn tiêu chí mềm, tính tất định, thứ tự xếp hạng, không đọc đồng hồ | Đạt |
+| `test_cv_documents` | 53 | Đọc CV: nhận file, bóc tách, bộ kiểm chứng đoạn dẫn, gộp vào hồ sơ với nguồn `cv` | Đạt |
+| `test_candidate_profiles` | 50 | Hồ sơ ứng viên: gộp theo thứ tự ưu tiên nguồn, khóa lạc quan theo phiên bản, chặn client tự khai nguồn, phân quyền | Đạt |
+| `test_registrations` | 35 | Đăng ký sơ bộ: chuỗi chốt chặn, dựng lại khách hàng cũ theo số điện thoại | Đạt |
+| `test_advisor_phrasing` | 31 | Chốt chặn của engine tư vấn: cụm từ cấm, lời hứa trúng tuyển, câu bỏ dở | Đạt |
+| `test_candidate_portal` | 31 | Hệ khách hàng: hai loại token không dùng lẫn được, ứng viên chỉ thấy hồ sơ của mình, danh sách trường được phép | Đạt |
+| `test_matching_service` | 31 | Tầng điều phối: kho đơn đem xét, dấu vân tay danh mục, bộ nhớ đệm mười phút, nội dung nhật ký | Đạt |
 | `test_job_orders` | 30 | Danh mục đơn tuyển dụng: chuẩn hóa danh mục, ràng buộc dữ liệu, vòng đời trạng thái, phân quyền, lọc công khai | Đạt |
-| `test_matching_service` | 27 | Tầng điều phối: kho đơn đem xét, dấu vân tay danh mục, bộ nhớ đệm mười phút, nội dung nhật ký | Đạt |
+| `test_employee_scores` | 28 | Điểm nhân viên ghi theo từng sự kiện, chống cộng trùng, điều chỉnh của quản lý | Đạt |
 | `test_matching_seeded_data` | 28 | Nghiệm thu bộ đối chiếu trên đúng mười chín đơn mẫu sẽ dùng khi demo | Đạt |
-| `test_matching_api` | 22 | API đối chiếu: chặn hồ sơ chưa xác nhận, ẩn đơn bị loại khỏi ứng viên, phạm vi xem của nhân viên | Đạt |
-| `test_matching_weights` | 19 | Bộ trọng số ngoài mã: tổng đúng 100, mỗi luật con không vượt trọng số, thiếu file thì báo lỗi | Đạt |
-| `test_matching_explain` | 12 | Khối lý do: khớp từng byte với bản thiết kế, không import gì liên quan mô hình ngôn ngữ | Đạt |
 | `test_job_order_import` | 26 | Nhập hàng loạt từ Excel: đọc file, báo lỗi từng dòng, chốt chặn ở tầng API | Đạt |
+| `test_so_diem_ba_lo` | 25 | Ba lỗ của sổ điểm nhân viên: lọc theo giờ Việt Nam, lý do chỉ có dấu cách, ghi điểm khi database lỗi | Đạt |
+| `test_advisor_qa` | 24 | Bot tư vấn theo đơn: chỉ nói thứ có trong khối đầu vào | Đạt |
+| `test_lich_hen` | 23 | **Hẹn gặp từ hành trình tư vấn**, kèm ca chống lệch quy tắc giờ với khung chat (so cả ngày, mỗi 5 phút) | Đạt |
+| `test_prompt_rules` | 23 | Quy tắc dựng prompt: mỗi luật sinh từ một lời đã đo được | Đạt |
+| `test_matching_api` | 22 | API đối chiếu: chặn hồ sơ chưa xác nhận, ẩn đơn bị loại khỏi ứng viên, phạm vi xem của nhân viên | Đạt |
+| `test_consultation_advice` | 21 | Phân nhánh phòng tư vấn theo đơn: phù hợp / thiếu thông tin / chưa phù hợp | Đạt |
+| `test_advisor_boundary` | 20 | **Ranh giới engine tư vấn ↔ khung chat, cưỡng chế bằng quét mã nguồn**: `app/advisor` không được import phần chat | Đạt |
+| `test_learning_path` | 20 | Ghép lộ trình học tiếng Nhật: cộng tháng và học phí từ bảng, không có đường thì trả rỗng | Đạt |
+| `test_password_resets` | 20 | Quên mật khẩu: không dò được ai đã đăng ký, phân quyền xử lý, bắt buộc đổi sau khi đặt lại | Đạt |
+| `test_so_tuyen` | 20 | Ghi kết quả buổi sơ tuyển: một lời gọi đổi cả trình độ lẫn trạng thái hồ sơ | Đạt |
+| `test_consultation_eligibility` | 19 | Khối điều kiện và khối đơn: những câu nói với khách về tiền và sức khỏe | Đạt |
+| `test_courses_api` | 19 | Quản lý danh mục khóa học qua API | Đạt |
+| `test_matching_weights` | 19 | Bộ trọng số ngoài mã: tổng đúng 100, mỗi luật con không vượt trọng số, thiếu file thì báo lỗi | Đạt |
+| `test_ra_soat_30_09` | 19 | Bảy lỗi từ bản rà soát 30/09, mỗi lỗi một ca canh | Đạt |
+| `test_memory_chung` | 17 | Bộ nhớ dùng chung giữa khung chat và engine tư vấn | Đạt |
+| `test_consultation_context` | 16 | Khối ngữ cảnh tư vấn: bot phải biết đang nói với ai, và không được thấy số điện thoại | Đạt |
+| `test_handover` | 16 | Bàn giao hồ sơ: nhận xử lý, phân công, chuyển giao | Đạt |
+| `test_support_requests` | 15 | Hàng đợi hỗ trợ: việc cần người, tách khỏi hàng đợi tuyển dụng | Đạt |
+| `test_journey_access` | 14 | **Biết mã phiên của người khác không đủ để đọc hồ sơ của họ** | Đạt |
+| `test_job_lookup` | 13 | Chatbot tra cứu đơn theo mã trong hội thoại | Đạt |
+| `test_response_validator` | 13 | Kiểm chứng câu trả lời của mô hình trước khi gửi đi | Đạt |
 | `test_seed_job_orders` | 13 | Dữ liệu mẫu: tính hợp lệ và độ phủ của mười chín đơn hàng | Đạt |
+| `test_journey_profile` | 12 | Nối hội thoại với hồ sơ ứng viên: trích xuất theo quy tắc, ghi nguồn `chat`, không đè thông tin đã xác nhận | Đạt |
+| `test_matching_explain` | 12 | Khối lý do: khớp từng byte với bản thiết kế, không import gì liên quan mô hình ngôn ngữ | Đạt |
 | `test_appointment_management` | 11 | Lịch hẹn: trạng thái, phân công, đổi lịch, chặn trùng | Đạt |
 | `test_recruitment_applications` | 11 | Hồ sơ tuyển dụng: chuyển trạng thái, quyền sở hữu | Đạt |
+| `test_refusal_flag` | 11 | Khi nào chatbot phải từ chối thay vì đoán | Đạt |
+| `test_embedding_cache` | 10 | Bộ nhớ đệm vector nhúng, tiết kiệm hạn mức gọi mô hình | Đạt |
+| `test_ho_tro_ben_vung` | 10 | Yêu cầu hỗ trợ lưu được rồi thì không được mất, và không được nhân đôi | Đạt |
+| `test_intent_classifier` | 10 | Phân loại ý định câu hỏi | Đạt |
 | `test_lead_access_control` | 10 | Phân quyền truy cập khách hàng | Đạt |
+| `test_retriever_selection` | 9 | Chọn đoạn đem vào ngữ cảnh: sàn tuyệt đối và dải tương đối | Đạt |
 | `test_chat_pipeline` | 8 | Luồng hội thoại: dự phòng, nguồn tham khảo, xếp hạng truy xuất | Đạt |
+| `test_khong_lo_lien_lac` | 8 | Không để số điện thoại thật lọt vào kho mã | Đạt |
 | `test_api_hardening` | 7 | Kiểm tra dữ liệu vào, giới hạn tần suất, không chặn vòng lặp sự kiện | Đạt |
 | `test_auth` | 7 | Băm mật khẩu, ký và kiểm token, khóa sau năm lần sai | Đạt |
 | `test_managed_lead_phone` | 7 | Chuẩn hóa và chống trùng số điện thoại | Đạt |
+| `test_rag_resilience` | 7 | Chịu lỗi khi mô hình quá tải hoặc kho vector không phản hồi | Đạt |
 | `test_audit_log` | 6 | Nhật ký thao tác: che dữ liệu nhạy cảm, phân quyền đọc | Đạt |
+| `test_session_id` | 6 | Mã phiên ẩn danh chính là mật khẩu của hồ sơ công khai | Đạt |
 | `test_customer_journey` | 5 | Hành trình khách hàng gộp từ nhiều nguồn | Đạt |
-| `test_rag_resilience` | 5 | Chịu lỗi khi mô hình quá tải hoặc kho vector không phản hồi | Đạt |
+| `test_log_privacy` | 5 | **Nội dung khách nói không được đi ra log** | Đạt |
 | `test_analytics_service` | 4 | Số liệu thống kê hoạt động | Đạt |
 | `test_booking` | 4 | Đặt lịch qua khung chat | Đạt |
+| `test_advisor_stats` | 3 | Số liệu độ tin được của bot: `khong_goi_duoc` không tính vào mẫu số | Đạt |
 | `test_intent_entity` | 3 | Phân loại ý định và trích xuất thực thể | Đạt |
 | `test_session_lead` | 3 | Khôi phục phiên hội thoại | Đạt |
 | `test_runtime` | 2 | Bảng mã đầu ra | Đạt |
-| `test_cv_documents` | 31 | Đọc CV: nhận file, bóc tách, bộ kiểm chứng đoạn dẫn, gộp vào hồ sơ với nguồn `cv` | Đạt |
-| `test_employee_scores` | 28 | Điểm nhân viên ghi theo từng sự kiện, chống cộng trùng, điều chỉnh của quản lý | Đạt |
-| `test_registrations` | 26 | Đăng ký sơ bộ: chuỗi chốt chặn, dựng lại khách hàng cũ theo số điện thoại | Đạt |
-| `test_handover` | 16 | Bàn giao hồ sơ: nhận xử lý, phân công, chuyển giao | Đạt |
-| `test_response_validator` | 13 | Kiểm chứng câu trả lời của mô hình trước khi gửi đi | Đạt |
-| `test_prompt_rules` | 18 | Quy tắc dựng prompt: mỗi luật sinh từ một lời đã đo được | Đạt |
-| `test_refusal_flag` | 11 | Khi nào chatbot phải từ chối thay vì đoán | Đạt |
-| `test_embedding_cache` | 10 | Bộ nhớ đệm vector nhúng, tiết kiệm hạn mức gọi mô hình | Đạt |
-| `test_intent_classifier` | 10 | Phân loại ý định câu hỏi | Đạt |
-| `test_retriever_selection` | 9 | Chọn đoạn đem vào ngữ cảnh: sàn tuyệt đối và dải tương đối | Đạt |
-| `test_journey_profile` | 12 | Nối hội thoại với hồ sơ ứng viên: trích xuất theo quy tắc, ghi nguồn `chat`, không đè thông tin đã xác nhận | Đạt |
-| `test_candidate_portal` | 21 | Hệ khách hàng: hai loại token không dùng lẫn được, ứng viên chỉ thấy hồ sơ của mình, danh sách trường được phép | Đạt |
-| `test_password_resets` | 16 | Quên mật khẩu: không dò được ai đã đăng ký, phân quyền xử lý, bắt buộc đổi sau khi đặt lại | Đạt |
-| `test_job_lookup` | 13 | Chatbot tra cứu đơn theo mã trong hội thoại | Đạt |
-| **Tổng** | **617** | | **Đạt** |
+| **Tổng** | **1096** | | **Đạt** |
 
-**285 ca cho danh mục đơn hàng và bộ đối chiếu**, **101 ca** cho đọc CV, đăng ký sơ bộ, hàng đợi
-và điểm nhân viên, **37 ca** cho hệ khách hàng và luồng mật khẩu, **194 ca** còn lại cho phần hội
-thoại, truy xuất tri thức và nền hệ thống.
+Nhóm lại theo phần việc:
 
-Ngoài ra website có **5 ca** chạy bằng `node --test` cho phần mã phiên dùng chung giữa khung
-chat và luồng hồ sơ: `cd frontend && npm test`.
+| Phần | Số ca | Số file |
+|---|---:|---:|
+| Engine tư vấn, Agent điều phối và các chốt chặn của chúng | 317 | 13 |
+| Đọc CV, hồ sơ ứng viên, đăng ký sơ bộ, hàng đợi, điểm nhân viên | 291 | 13 |
+| Danh mục đơn hàng và bộ đối chiếu | 260 | 10 |
+| Quyền truy cập, mật khẩu, nhật ký thao tác, bảo mật log | 121 | 11 |
+| Hội thoại, truy xuất tri thức và nền hệ thống | 107 | 13 |
+| **Tổng** | **1096** | **60** |
 
-Bộ đối chiếu chiếm phần lớn số ca không phải ngẫu nhiên. Nó là thứ quyết định ứng viên nào được
-giới thiệu đơn nào, và vì nó là Python thuần — không gọi mô hình ngôn ngữ, không đọc đồng hồ,
-không chạm database — nên mọi tính chất của nó chứng minh được bằng số chứ không phải bằng lời.
+Hai bộ đáng chú ý riêng vì chúng **kiểm bằng cách đọc mã nguồn**, không bằng cách gọi hàm:
+
+- `test_advisor_boundary` quét AST của `app/advisor/` và bắt lỗi nếu có dòng nào import phần
+  khung chat. Ranh giới kiến trúc được cưỡng chế, không chỉ được hứa trong tài liệu.
+- Một ca trong `test_agent_tu_van` đọc file `MatchCard.tsx` và khẳng định nhãn thứ hạng trên
+  thẻ đơn đi theo cờ của máy chủ. Quy tắc "chưa xếp hạng được thì không nói thứ hạng" phải
+  đúng ở cả bốn chỗ, và một trong bốn chỗ ấy nằm trong React.
+
+Ngoài ra hai app web có **65 ca** (website) và **27 ca** (hệ quản trị) chạy bằng `node --test`:
+`cd frontend && npm test`, `cd admin-frontend && npm test`. TypeScript được biên dịch rồi chạy
+trong hộp cát `vm`, nên không cần trình duyệt.
+
+### Ba bộ nghiệm thu, chạy riêng
+
+Bộ kiểm thử trên trả lời câu *"mã có đúng như thiết kế không"*. Ba bộ dưới đây trả lời câu khác:
+*"hệ thống chạy thật có đúng không"*. Chúng không nằm trong `unittest discover` vì một bộ cần
+máy chủ đang chạy và một bộ tốn hạn mức gọi mô hình.
+
+| Bộ | Đo gì | Gọi mô hình |
+|---|---|:-:|
+| `scripts/nghiem_thu_xuyen_suot.py` | năm hồ sơ đi hết chuỗi, dựng bằng quy tắc; so bật/tắt engine tư vấn từng ký tự | không |
+| `scripts/e2e_xuyen_suot.py` | năm hồ sơ qua HTTP thật: cookie đã ký, bộ giới hạn theo IP, MongoDB | tùy chọn |
+| `scripts/nghiem_thu_agent.py` | sáu ca gọi mô hình thật, gồm hai ca tiêm lệnh | có |
+
+Kết quả 05/10/2026: **5/5**, **5/5**, **6/6**. Chi tiết ở `docs/AGENT_TU_VAN.md §10`.
+
+**Bộ đối chiếu dày ca không phải ngẫu nhiên.** Nó là thứ quyết định ứng viên nào được giới thiệu
+đơn nào, và vì nó là Python thuần — không gọi mô hình ngôn ngữ, không đọc đồng hồ, không chạm
+database — nên mọi tính chất của nó chứng minh được bằng số chứ không phải bằng lời: cùng một hồ
+sơ cho cùng một kết quả, xáo trộn danh mục vẫn ra cùng thứ tự, thiếu dữ liệu thì không loại ai.
+
+**Phần tư vấn vượt lên dẫn đầu từ 05/10** (317 ca so với 260), và đó là điều phải thế. Bộ đối
+chiếu đúng thì chứng minh được bằng tính tất định; còn một câu do mô hình ngôn ngữ viết thì
+không — nó chỉ chứng minh được bằng **chốt chặn**: bảy chốt hậu kiểm chạy trên từng câu, một
+danh sách trường được phép ghi, ranh giới kiến trúc cưỡng chế bằng quét mã nguồn, và một bộ đo
+riêng xem mô hình có nghe theo lệnh tiêm hay không. Mỗi chốt chặn ấy cần ca canh của nó.
 
 ---
 
@@ -244,7 +303,7 @@ Lần chạy gần nhất: 18 đơn đã xét, 9 đạt, đơn đứng đầu 10
 
 ## 3. Chín lỗi thật do kiểm thử phát hiện
 
-Phần này đáng chú ý hơn con số 617, vì nó cho thấy bộ kiểm thử có tác dụng thật.
+Phần này đáng chú ý hơn con số 1188, vì nó cho thấy bộ kiểm thử có tác dụng thật.
 
 | Lỗi | Nếu lọt ra thì sao | Ca chặn |
 |---|---|---|
@@ -267,6 +326,57 @@ Lỗi thứ tư đáng nói thêm: nó không bị bộ kiểm thử đơn vị 
 liệu để lưu. Nó lộ ra khi chạy kịch bản nghiệm thu đầu-cuối trên database thật và nhìn thấy dòng
 `Vùng suy ra từ tỉnh: None`. Ca HS-13 được thêm vào sau đó, và giờ nó kiểm đúng chỗ: giá trị suy
 ra có thực sự đi được tới hồ sơ hay không.
+
+### 3.0. Bảy lỗi nữa, từ 02/10 đến 05/10
+
+| Lỗi | Nếu lọt ra thì sao | Tìm ra bằng |
+|---|---|---|
+| **Chốt số loại chính con số khách vừa nói** | Khách viết *"em làm hai năm"*, mô hình đáp *"2 năm"*, cả câu bị loại và đề xuất lưu mất theo. **Việc chính của Agent gần như không chạy được** — và không ca mock nào bắt được, vì phải có mô hình thật đổi "hai" thành "2" mới lộ | gọi mô hình thật 02/10 |
+| `"chắc chắn sẽ đỗ"` qua được **cả bảy** chốt hậu kiểm | Bot hứa trúng tuyển, và câu đó được đọc như lời công ty. Danh sách cụm cấm không có "đỗ" và không chịu được chữ chen giữa | ca kiểm thử mới |
+| `preferences=None` **xoá trắng hồ sơ** | Khách xác nhận một trường thì mất cả phần nguyện vọng, máy chủ trả 500, màn hình hiện *"Không kết nối được máy chủ"*. Lỗi nằm ở ba tầng cùng lúc: cửa ghi, chỗ đọc, và nơi gọi | chạy tay luồng thật |
+| Đường xác nhận **chặn luôn việc ứng viên sửa dữ liệu CV** | Máy đọc nhầm N4 thành N3 thì không có cách nào sửa qua phòng tư vấn | ca kiểm thử |
+| Quy tắc "chưa xếp hạng được" chỉ áp cho **ô điểm** | Ô điểm ẩn đúng, nhưng câu ngay bên dưới vẫn in *"Xếp hạng 1 với 5/100 điểm"* — và con số ấy còn đi vào khối ngữ cảnh mô hình đọc, tức thành số hợp lệ để dùng ở bất cứ đâu | bản rà soát của chủ đồ án |
+| **Bom hẹn giờ trong chính ca kiểm thử** | `AS_OF` ghi cứng `date(2026,9,15)` còn hạn nộp của đơn mẫu tính theo "hôm nay". Đúng ngày 05/10 thì `hôm nay − 20 == AS_OF`, ca kiểm đơn quá hạn đỏ lên mà **không ai sửa gì** | bộ kiểm thử tự đỏ |
+| Lý do lỗi in ra **chuỗi rỗng** | `str()` của một `ReadTimeout` là chuỗi rỗng, nên dòng log đọc ra `"không gọi được gemini-3.8-flash: "`. Chỗ im lặng nhất của log rơi đúng vào lỗi hay gặp nhất | gọi mô hình thật 02/10 |
+
+**Hai lỗi cuối cùng một họ với lỗi thứ nhất và thứ tư ở bảng trên**, nhưng nguy hiểm theo kiểu
+khác: chúng không làm sai kết quả, chúng làm **mất khả năng nhìn thấy** kết quả sai. Một bộ kiểm
+thử tự đỏ vì ngày tháng và một dòng log không nói được lý do đều dẫn tới cùng một hậu quả — lần
+sau có lỗi thật thì không ai tin dòng đỏ, hoặc không ai đọc được dòng log.
+
+### 3.0b. Và một lỗi của chính bộ đo
+
+Bộ chấm chất lượng Agent từng lưu phán quyết (`dat`, `hong`) **cạnh** câu trả lời đo được, trong
+cùng một file. Sửa bộ chấm thì phán quyết trong file thành cũ: ca `TIEM-02` vẫn mang `dat: false`
+trong khi công cụ in ra ĐẠT. Ai mở file ra đọc thấy một kết luận trái với thứ công cụ nói.
+
+Nguyên tắc rút ra, đã ghi vào mã: **phép đo tốn hạn mức nên phải lưu; phán quyết miễn phí nên
+tính lại mỗi lần.** Lưu cả hai là mời chúng lệch nhau. Tám trường phán quyết cũ đã bị bỏ khỏi file.
+
+Đây là lần thứ mười trong dự án này mà **bộ đo sai trước khi mã sai**. Hệ quả: mỗi bộ đo mới đều
+phải qua phép đột biến — cố ý làm hỏng từng chốt chặn rồi xem bộ đo có đỏ không — và mỗi lượt
+chạy đột biến đều có một lần chạy đối chứng trước đó.
+
+### 3.0c. Tám điểm chỉ trình duyệt thật mới thấy (06/10)
+
+Lượt chốt 14:40 đạt mọi bộ đo — rồi một lượt bấm trên trình duyệt thật tìm ra tám điểm. Không
+bộ nào trước đó đi qua đúng chỗ ấy: bộ HTTP không dựng giao diện, kiểu `MatchItem` khai sai
+về dữ liệu nên `next build` không thấy, và các ca component dùng dữ liệu đẹp hơn dữ liệu thật.
+Chi tiết, cách tái hiện và lượt kiểm lại: `docs/nghiem_thu/2026-10-06_1510_trinh_duyet.md`.
+
+| # | Lỗi | Nếu lọt ra thì sao | Ca chặn |
+|---|---|---|---|
+| 8 | CV gốc trả về không có `Cache-Control` | Chuyển hồ sơ từ A sang B xong, A vẫn mở lại được CV trên cùng trình duyệt — lời gọi không tới máy chủ nên phép kiểm quyền không chạy | `test_cv_khong_luu_dem` (3 ca, qua HTTP) |
+| 5 | Trang chi tiết nhật ký giới thiệu sập với mọi nhật ký có đơn bị loại (154/218) | Nhân viên không mở được bằng chứng "vì sao đơn này trượt" — đúng thứ màn hình đó tồn tại để chứng minh | `recommendationLogPage.test.cjs` (4 ca, dựng trang thật) |
+| 7 | Quản lý không có đường trên giao diện để chuyển hồ sơ người khác đang giữ | Tư vấn viên nghỉ thì hồ sơ nằm chết; API cho phép mà không ai bấm được | `queueHandover.test.cjs` (5 ca), `test_handover` (+4 ca) |
+| 3 | Khai tay vẫn nghe "đã nhận được tệp của bạn nhưng chưa rút được…"; sửa hồ sơ sinh lượt mở đầu thứ hai | Lời trợ lý nói sai chuyện vừa xảy ra, ngay câu đầu tiên | `test_mo_dau_theo_tep` (13 ca) |
+| 1 | Đề xuất hiện mã `vien_duong_lao` | Khách phải đọc mã máy rồi bấm "Đúng, lưu lại" | `test_de_xuat_nhan_va_vung`, ca website "đề xuất mang mã danh mục" |
+| 2 | Xác nhận tỉnh qua trợ lý không kèm vùng | Đơn cùng vùng mất 25 điểm, chấm ngang đơn ở đầu kia nước Nhật | `test_de_xuat_nhan_va_vung` |
+| 4 | Lỗi "Khai lại" bảo bấm nút "Thử lại" không tồn tại | Khách đi tìm một nút không có | ca website "Khai lại từ đầu mà không mở được phiên mới" |
+| 6 | Bàn giao có đối chiếu, ngay dưới ghi "không kèm kết quả đối chiếu" | Nhân viên không biết tin dòng nào | `supportHandoff.test.cjs` (3 ca) |
+
+Mỗi chốt kèm một phép đột biến trong `scripts/dot_bien.py`. Đây cũng là lần đầu các ca quản trị
+**dựng trang thật** (`tests/dungTrang.cjs`) thay vì chỉ soi cấu trúc mã.
 
 ### 3.1. Lỗi lệch múi giờ — đã sửa và **đã xác minh**
 
@@ -338,16 +448,19 @@ ra điều gì vừa hỏng, không phải mở mã nguồn ra đọc mới bi�
 
 ## 5. Những phần chưa có kiểm thử tự động
 
-Nói rõ để không hiểu nhầm con số 617 là đã phủ hết hệ thống.
+Nói rõ để không hiểu nhầm con số 1188 là đã phủ hết hệ thống.
 
 | Phần | Hiện trạng | Dự kiến |
 |---|---|---|
-| Giao diện website và màn hình quản trị | Kiểm tra bằng mắt và bằng lệnh dựng bản phát hành | Chưa có kế hoạch kiểm thử tự động trong phạm vi đồ án |
+| Giao diện website và màn hình quản trị | **92 ca** chạy bằng `node --test` (65 website, 27 quản trị): TypeScript biên dịch rồi chạy trong hộp cát `vm`. Hai lượt kiểm trên trình duyệt thật ngày 06/10 (`docs/nghiem_thu/2026-10-06_1510_trinh_duyet.md`) — bằng **sự kiện DOM**, chưa phải thao tác chuột, chưa kiểm bố cục | Thêm ca khi có màn hình mới; không dựng bộ kiểm thử trình duyệt tự động trong phạm vi đồ án |
 | Đọc hồ sơ CV | Có bộ nghiệm thu `scripts/nghiem_thu_doc_cv.py` chấm từng trường trên sáu hồ sơ mẫu | Chạy lại trước mỗi mốc bàn giao |
 | Chatbot trả lời có căn cứ | Có bộ nghiệm thu `scripts/nghiem_thu_chatbot.py` trên bộ câu hỏi chuẩn | Bổ sung câu hỏi khi kho tri thức dày thêm |
 | Đăng ký sơ bộ và phiếu tóm tắt | Đã có `test_registrations.py` | — |
 | Hàng đợi và điểm nhân viên | Đã có `test_handover.py` và `test_employee_scores.py`, gồm ca hai người cùng nhận một hồ sơ | — |
 | Đóng gói Docker | Đã dựng và chạy thử cả sáu dịch vụ ngày 17/09: website, quản trị và backend lên qua nginx, nạp được 19 đơn mẫu, toàn bộ ca kiểm thử chạy trong container đều đạt | Chạy lại trước khi bàn giao |
+| Chất lượng câu mô hình viết cho Agent | `scripts/nghiem_thu_agent.py` — sáu ca gọi mô hình thật, 6/6 đạt ngày 05/10. **Cỡ mẫu là sáu**: đó là "sáu tình huống đã thử thì đúng", không phải "tính năng đúng" | Bồi thêm ca sau mỗi lượt đo; mỗi lượt tốn hạn mức |
+| Cả chuỗi từ hồ sơ tới lời tư vấn | `scripts/nghiem_thu_xuyen_suot.py` (năm ca, dựng bằng quy tắc) và `scripts/e2e_xuyen_suot.py` (năm ca qua HTTP thật) | Chạy trước mỗi mốc bàn giao |
+| Số viết bằng chữ trong câu mô hình trả lời | **Chốt số không thấy.** Mô hình viết *"hai trăm năm mươi triệu"* thì không có chữ số nào để bóc. Lỗ hổng có từ trước, nói rõ chứ không giả vờ đã kín | Cần một bộ đọc số tiếng Việt ghép được; một bộ nửa vời sẽ chặn oan *"năm nay"* hay *"một số đơn"* |
 | Chạy tải | Chưa làm | Ngoài phạm vi |
 
 Sáu file CV mẫu đã sẵn sàng, gồm bốn định dạng khác nhau và một bản scan không có lớp chữ.
@@ -358,25 +471,47 @@ ra đúng, dùng để chấm điểm bằng số khi phần đó hoàn thành.
 
 ---
 
-## 6. Ba bộ nghiệm thu chạy tay
+## 6. Tám bộ nghiệm thu chạy tay
 
-`docs/design/13 §4` đặt ra ba câu hỏi đúng/sai cho phần đo kiểm. Mỗi câu có một bộ riêng.
-Cả ba **không nằm trong `unittest`** vì chúng cần mạng, cần database thật, và hai trong ba
-bộ gọi mô hình ngôn ngữ. Bộ kiểm thử thường phải chạy được cả khi mất mạng và hết hạn mức,
-nên trộn vào đó là làm hỏng tính chất ấy.
+`docs/design/13 §4` đặt ra ba câu hỏi đúng/sai cho phần đo kiểm, mỗi câu một bộ. Ba bộ nữa thêm
+sau, khi mô hình ngôn ngữ bắt đầu tham gia vào đường chính của phần tư vấn.
 
-| Câu hỏi của spec | Bộ nghiệm thu | Cần gì |
+Cả tám **không nằm trong `unittest`** vì chúng cần mạng, cần database thật, hoặc cần máy chủ
+đang chạy; ba bộ gọi mô hình ngôn ngữ. Bộ kiểm thử thường phải chạy được cả khi mất mạng và hết
+hạn mức, nên trộn vào đó là làm hỏng tính chất ấy.
+
+| Câu hỏi | Bộ nghiệm thu | Cần gì |
 |---|---|---|
 | Hệ thống có trả lời sai khi không đủ căn cứ không? | `scripts.nghiem_thu_chatbot` | Qdrant, MongoDB, gọi mô hình |
 | Bộ lọc điều kiện cứng có loại nhầm đơn nào không? | `scripts.nghiem_thu_doi_chieu` | MongoDB. **Không** gọi mô hình |
 | Thông tin rút từ CV có đúng bản gốc không? | `scripts.nghiem_thu_doc_cv` | Gọi mô hình |
+| Agent có bịa, và có nghe theo lệnh tiêm không? | `scripts.nghiem_thu_agent` | Gọi mô hình. Chấm lại từ bản ghi cũ thì miễn phí: `--gioi-han=0` |
+| Cả chuỗi năm hồ sơ có đúng không, và **hết hạn mức thì còn gì**? | `scripts.nghiem_thu_xuyen_suot` | Không cần gì. **Không** gọi mô hình |
+| Qua HTTP thật — cookie đã ký, giới hạn theo IP, MongoDB — có còn đúng không? | `scripts.e2e_xuyen_suot` | Backend đang chạy ở 8020 |
+| Trọn hành trình CV → tư vấn → đăng ký → lịch hẹn → **nhân viên nhận việc** có đúng không? | `scripts.e2e_hanh_trinh` | Backend ở 8020; một lượt mô hình cho bước đọc CV, hoặc `--khai-tay` để không gọi lượt nào |
+| Các bộ đo trên có **thật sự đỏ** khi mã sai không? | `scripts.dot_bien` | Dựng máy chủ riêng cho mỗi đột biến; không gọi mô hình; hoàn nguyên đúng từng byte và giờ sửa. 62/62 ngày 06/10 (bản cuối `c6328b30…`), gồm mười một chốt của giao diện, bốn chốt của mã thoát và mười ba chốt cho tám điểm bắt trên trình duyệt |
+| *(chốt)* Mọi bộ trên, trên **một** bản code, kèm biên bản | `scripts.nghiem_thu_chot` | Backend ở 8020. Từ chối chạy nếu máy chủ khởi động trước lần sửa mã máy chủ gần nhất; ghi dấu vân tay mã (`scripts.dau_van_tay_ma`) trước và sau, lệch là kết quả không hợp lệ |
+| *(dọn)* Dữ liệu các bộ E2E để lại trong database thật | `scripts.don_du_lieu_e2e` | Chỉ xóa phiên có trong sổ ghi danh hoặc danh sách đã duyệt; mặc định chỉ xem; `--xoa` sao lưu rồi xóa; `--khoi-phuc` đưa phiên trở lại |
 
 ```bash
 cd backend
 .\venv\Scripts\python.exe -m scripts.nghiem_thu_chatbot
 .\venv\Scripts\python.exe -m scripts.nghiem_thu_doi_chieu
 .\venv\Scripts\python.exe -m scripts.nghiem_thu_doc_cv
+.\venv\Scripts\python.exe -m scripts.nghiem_thu_agent --gioi-han=0
+.\venv\Scripts\python.exe -m scripts.nghiem_thu_xuyen_suot
+.\venv\Scripts\python.exe -m scripts.e2e_xuyen_suot
+.\venv\Scripts\python.exe -m scripts.e2e_hanh_trinh            # hoặc --khai-tay
+.\venv\Scripts\python.exe -m scripts.dot_bien
 ```
+
+Kết quả 05/10/2026 của ba bộ mới: **6/6**, **5/5**, **5/5**. Chi tiết, kèm lời mô hình trả lời
+nguyên văn, ở `docs/AGENT_TU_VAN.md §10`.
+
+**Bộ xuyên suốt trả lời được câu "hết hạn mức Gemini thì sao" bằng số**, không bằng lời hứa: nó
+chạy cả năm ca hai lần, một lần engine tư vấn bật và một lần tắt, rồi so lượt mở đầu, bản bàn
+giao, câu giải thích và khối ngữ cảnh **từng ký tự**. Không đoạn chữ nào đổi. Nếu có đoạn nào
+đổi thì đoạn ấy phụ thuộc mô hình, và ngày hết hạn mức nó sẽ biến mất khỏi màn hình khách.
 
 ### Bộ câu hỏi chatbot có hai chiều
 
@@ -406,6 +541,17 @@ sau chỉ đo những câu chưa có:
 
 Muốn chạy trọn một lượt thì cần khoá trả phí. Đây là điều kiện cần ghi vào kế hoạch bảo vệ,
 không phải chuyện phát sinh lúc chạy.
+
+**Cùng nguyên tắc ấy áp cho `nghiem_thu_agent`, và thêm một bước nữa**: phép đo tách khỏi phép
+chấm. Câu trả lời đo được thì lưu vào file vì nó tốn hạn mức; phán quyết đạt/hỏng thì **tính lại
+mỗi lần** vì nó miễn phí. Nhờ vậy sửa bộ chấm là chấm lại được cả sáu ca mà không gọi mô hình
+lần nào: `--gioi-han=0`.
+
+Bản đầu lưu cả hai vào cùng file và chúng đã lệch nhau — xem §3.0b.
+
+**Và hai bộ xuyên suốt cố ý không gọi mô hình**, để có ít nhất một đường nghiệm thu chạy được
+vào bất cứ giờ nào trong ngày. Hết hạn mức thì vẫn còn 1096 ca kiểm thử, 5 ca xuyên suốt và 5 ca
+qua HTTP — đủ để biết hệ thống có gãy hay không, chỉ không biết câu mô hình viết có hay không.
 
 ### Bộ nghiệm thu phải trung thực về chính nó
 

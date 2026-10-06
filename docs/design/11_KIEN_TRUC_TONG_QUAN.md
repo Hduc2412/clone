@@ -236,8 +236,20 @@ nó. Ba điểm giữ nguyên ràng buộc kiến trúc:
   website, để đơn nháp hoặc đã đóng không lọt ra ngoài qua đường chat.
 
 Đây là lời giải cho một ca cụ thể, chưa phải bộ định tuyến ý định đầy đủ như sơ đồ
-3.2 mô tả. Hành vi đầu-cuối chưa đo được: hạn ngạch sinh văn bản trong ngày đã hết
-khi tính năng hoàn thành.
+3.2 mô tả.
+
+**Hành vi đầu-cuối đã đo, 05/10/2026.** Dòng cũ ở đây ghi *"chưa đo được: hạn
+ngạch sinh văn bản trong ngày đã hết khi tính năng hoàn thành"*. Nay có số:
+
+| Bộ đo | Phạm vi | Kết quả |
+|---|---|---|
+| `scripts/nghiem_thu_agent.py` | sáu ca gọi **mô hình thật**, gồm hai ca tiêm lệnh | **6/6 đạt** |
+| `scripts/nghiem_thu_xuyen_suot.py` | năm hồ sơ đi hết chuỗi, dựng bằng quy tắc | **5/5 đạt** |
+| `scripts/e2e_xuyen_suot.py` | năm hồ sơ qua **HTTP thật** | **5/5 đạt** |
+
+Bộ thứ hai và thứ ba **không gọi mô hình**, nên chúng chạy được cả khi hết hạn
+mức — và chính đó là cách trả lời câu "hết hạn mức thì còn gì": bộ xuyên suốt so
+từng ký tự giữa hai chế độ bật/tắt engine tư vấn, và không đoạn chữ nào đổi.
 
 ### 3.3. Luồng C — Bàn giao cho nhân viên
 

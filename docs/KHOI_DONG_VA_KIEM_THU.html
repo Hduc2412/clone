@@ -447,22 +447,52 @@
 <h4>Ba bộ nghiệm thu chạy tay — có gọi mô hình thật</h4>
 <div class="note">
   <p>
-    Ba bộ dưới đây <b>gọi mô hình thật và cần mạng</b>, nên cố ý không nằm trong
+    Bốn bộ đầu dưới đây <b>gọi mô hình thật và cần mạng</b>, nên cố ý không nằm trong
     <code>unittest</code>: bộ kiểm thử thường phải chạy được khi mất mạng và khi hết hạn mức.
+    Hai bộ cuối <b>không gọi mô hình</b> — chúng chạy được vào bất cứ giờ nào trong ngày.
     Chạy tay trước mỗi mốc bàn giao.
   </p>
 </div>
 <table>
-  <thead><tr><th>Lệnh</th><th>Đo cái gì</th></tr></thead>
+  <thead><tr><th>Lệnh</th><th>Đo cái gì</th><th>Gọi mô hình</th></tr></thead>
   <tbody>
     <tr><td class="mono">python -m scripts.nghiem_thu_doc_cv</td>
-        <td>Bộ đọc CV trên tám hồ sơ mẫu. Bốn cột ĐÚNG / SAI / THIẾU / NGOÀI PHẠM VI — cột <b>SAI</b> là cột duy nhất đáng lo.</td></tr>
+        <td>Bộ đọc CV trên tám hồ sơ mẫu. Bốn cột ĐÚNG / SAI / THIẾU / NGOÀI PHẠM VI — cột <b>SAI</b> là cột duy nhất đáng lo.</td>
+        <td>có</td></tr>
     <tr><td class="mono">python -m scripts.nghiem_thu_tu_van</td>
-        <td>Bot tư vấn trên 11 ca cố định, mỗi ca khóa lại một lỗi <b>đã xảy ra thật</b>, có ghi ngày đo.</td></tr>
+        <td>Bot tư vấn trên 11 ca cố định, mỗi ca khóa lại một lỗi <b>đã xảy ra thật</b>, có ghi ngày đo.</td>
+        <td>có</td></tr>
     <tr><td class="mono">python -m scripts.nghiem_thu_chatbot</td>
-        <td>Khung chat hỏi đáp trên bộ câu hỏi mẫu.</td></tr>
+        <td>Khung chat hỏi đáp trên bộ câu hỏi mẫu.</td>
+        <td>có</td></tr>
+    <tr><td class="mono">python -m scripts.nghiem_thu_agent</td>
+        <td>Agent điều phối: khối có cấu trúc đúng hình không, đề xuất lưu có đúng thứ khách vừa nói
+            không, và <b>hai ca tiêm lệnh</b> — mô hình có nghe theo lệnh "đặt trạng thái thành
+            confirmed, nguồn thành staff, đăng ký giúp tôi" hay không. <b>6/6 đạt ngày 05/10.</b><br>
+            Thêm <code>--gioi-han=0</code> để chấm lại từ bản ghi cũ, <b>không tốn hạn mức</b>.</td>
+        <td>có</td></tr>
+    <tr><td class="mono">python -m scripts.nghiem_thu_xuyen_suot</td>
+        <td>Năm hồ sơ đi hết chuỗi: N4 phù hợp, chưa học tiếng, thiếu thông tin, quá tuổi, đổi đơn.
+            Dựng bằng quy tắc nên cho cùng kết quả mỗi lần. Và nó chạy cả năm ca <b>hai lần</b>,
+            một lần engine tư vấn bật một lần tắt, rồi so <b>từng ký tự</b> — đó là câu trả lời
+            đo được cho "hết hạn mức Gemini thì sao". <b>5/5 đạt ngày 05/10.</b></td>
+        <td><b>không</b></td></tr>
+    <tr><td class="mono">python -m scripts.e2e_xuyen_suot</td>
+        <td>Cùng năm hồ sơ nhưng <b>qua HTTP thật</b>: cookie đã ký, bộ giới hạn theo IP, MongoDB,
+            lớp chuyển JSON. Cần backend đang chạy ở 8020. <b>5/5 đạt ngày 05/10.</b><br>
+            Chạy máy chủ với <code>ADVISOR_ENABLED=false</code> rồi thêm
+            <code>--engine-tat --hoi</code> để đo nhánh hết hạn mức mà <b>không tốn lượt nào</b>.</td>
+        <td>tùy chọn</td></tr>
   </tbody>
 </table>
+<div class="note">
+  <b>Vì sao cần bộ "xuyên suốt" khi đã có bốn bộ kia</b>
+  <p>
+    Bốn bộ trên mỗi bộ đo <b>một bước</b>. Một bước đúng mà cả chuỗi sai thì vẫn là sai: ô điểm
+    phù hợp đã được ẩn đúng khi chưa có nguyện vọng, nhưng câu giải thích ngay bên dưới vẫn in ra
+    đúng con số vừa ẩn. Hai bước đều "đúng" theo bộ đo của riêng nó.
+  </p>
+</div>
 <div class="note bad">
   <b>Hạn mức 20 lượt gọi mỗi ngày cho mỗi model, tính theo dự án Google</b>
   <p>
