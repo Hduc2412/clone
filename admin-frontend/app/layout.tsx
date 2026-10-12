@@ -1,22 +1,9 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro, Gelasio } from "next/font/google";
+import "./phong-chu.css";
 import "./globals.css";
 
-// Cùng hai phông với website (12/10). Trước đó màn quản trị dùng phông hệ thống;
-// Gelasio cho dòng nhấn nghiêng vì Georgia trên Windows thiếu chữ hai dấu ("ắ", "ầ").
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["vietnamese", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-const gelasio = Gelasio({
-  subsets: ["vietnamese", "latin"],
-  weight: ["400", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-serif",
-  display: "swap",
-});
+// Cùng hai phông với website, tự phục vụ từ `public/fonts` (`phong-chu.css`) — build không
+// cần mạng tới Google (12/10).
 
 export const metadata: Metadata = {
   title: "DC Kaigo | Hệ thống quản lý",
@@ -25,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={`${beVietnamPro.variable} ${gelasio.variable}`}>
+    <html lang="vi">
       <body>{children}</body>
     </html>
   );

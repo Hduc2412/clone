@@ -1,35 +1,17 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro, Gelasio } from "next/font/google";
+import "./phong-chu.css";
 import "./globals.css";
 
 /**
- * Be Vietnam Pro thay cho Geist. Geist không có bộ dấu tiếng Việt đầy đủ nên
- * những chữ như "ữ", "ặ", "ỡ" bị trình duyệt thay bằng phông dự phòng, làm dòng
- * chữ cao thấp không đều. Ngoài ra Geist trước đây cũng đang bị `globals.css`
- * ghi đè nên thực tế chưa bao giờ có tác dụng.
- */
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["vietnamese", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-/**
- * Chữ nhấn nghiêng có chân (`.chu-nhan`) — thay Georgia (12/10).
+ * Phông: Be Vietnam Pro (thân chữ) và Gelasio (chữ nhấn nghiêng) — **tự phục vụ** từ
+ * `public/fonts`, khai trong `phong-chu.css` (12/10).
  *
- * Georgia trên Windows thiếu các chữ hai dấu như "ắ", "ầ": trình duyệt tách thành chữ
- * gốc + dấu rời và đặt dấu lệch — "Bắt đầu" hiện thành "Bă´t đâ`u" (thấy trên ảnh
- * chụp trang chủ). Gelasio được vẽ cùng số đo với Georgia nên giữ đúng dáng bản thiết
- * kế, và có bộ chữ tiếng Việt đầy đủ.
+ * Trước 12/10 dùng `next/font/google`, tức `next build` tải phông từ Google lúc dựng: máy
+ * dựng không có mạng (Docker) là hỏng, và ngày 12/10 đã có một lần hỏng giữa chừng. Vẫn
+ * giữ cách Google chia bộ chữ (`unicode-range` tiếng Việt / Latin) để trình duyệt chỉ tải
+ * phần cần dùng. Vì sao chọn hai phông này: Geist thiếu dấu tiếng Việt; Georgia trên
+ * Windows thiếu chữ hai dấu ("ắ", "ầ") — xem `app/globals.css` và `tests/phongChu.test.cjs`.
  */
-const gelasio = Gelasio({
-  subsets: ["vietnamese", "latin"],
-  weight: ["400", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-serif",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://xklddieuduong.vn"),
@@ -60,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${beVietnamPro.variable} ${gelasio.variable}`}>
+    <html lang="vi">
       <body className="antialiased">{children}</body>
     </html>
   );

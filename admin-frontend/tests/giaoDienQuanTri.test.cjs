@@ -67,8 +67,27 @@ test("ô báo lỗi dùng đỏ của Tailwind, không dùng màu thương hiệ
   assert.doesNotMatch(khoi, /brand-/);
 });
 
-test("phông: nạp Be Vietnam Pro và Gelasio kèm bộ tiếng Việt, gắn vào <html>", () => {
-  const layout = fs.readFileSync(path.join(GOC, "app", "layout.tsx"), "utf8");
-  assert.equal((layout.match(/subsets:\s*\["vietnamese"/g) || []).length, 2);
-  assert.match(layout, /className=\{`\$\{beVietnamPro\.variable\} \$\{gelasio\.variable\}`\}/);
+
+// Phông tự phục vụ (12/10): build không còn tải từ Google. Kiểm: không còn `next/font/google`;
+// `phong-chu.css` chỉ trỏ tệp trong `public/fonts` và mọi tệp ấy có thật; có bộ chữ tiếng Việt
+// cho cả hai phông; có giấy phép OFL đi kèm.
+function kiemPhongTuPhucVu(GOC) {
+  const layout = fs.readFileSync(path.join(GOC, 'app', 'layout.tsx'), 'utf8');
+  assert.doesNotMatch(layout, /from ["']next\/font\/google["']/, 'còn tải phông từ Google lúc build');
+  assert.match(layout, /import ["']\.\/phong-chu\.css["']/);
+  const css = fs.readFileSync(path.join(GOC, 'app', 'phong-chu.css'), 'utf8');
+  assert.doesNotMatch(css, /fonts\.(googleapis|gstatic)\.com/, 'CSS phông còn trỏ ra Google');
+  const tep = [...css.matchAll(/url\(\/fonts\/([^)]+)\)/g)].map((m) => m[1]);
+  assert.ok(tep.length >= 24, `chỉ thấy ${tep.length} tệp phông`);
+  for (const t of tep) assert.ok(fs.existsSync(path.join(GOC, 'public', 'fonts', t)), `thiếu tệp ${t}`);
+  for (const ho of ['Be Vietnam Pro', 'Gelasio']) {
+    assert.match(css, new RegExp(`/\\* ${ho} \\d+ \\w+ — vietnamese \\*/`), `${ho} thiếu bộ chữ tiếng Việt`);
+  }
+  assert.match(css, /--font-sans: 'Be Vietnam Pro'/);
+  assert.match(css, /--font-serif: 'Gelasio'/);
+  assert.match(fs.readFileSync(path.join(GOC, 'public', 'fonts', 'OFL.txt'), 'utf8'), /SIL Open Font License/);
+}
+
+test("phông tự phục vụ: không tải từ Google lúc build, đủ tệp, có bộ tiếng Việt", () => {
+  kiemPhongTuPhucVu(GOC);
 });
