@@ -548,3 +548,90 @@ dụng (khớp bản gốc), xoá 1 sự kiện, 2 nhật ký, tài khoản tạ
 | Quản trị | 53/53, `tsc` sạch, dựng sạch |
 | Website | 85/85, `tsc` sạch, dựng sạch |
 | Database thật | 10 bảng `[342, 197, 85, 83, 294, 2, 679, 87, 224, 80]`, `storage/cv` 25 tệp — không đổi |
+
+### 11.6 Đo mô hình thật — lần 2 (12/10, 16:00)
+
+Chủ đồ án đồng ý mở đợt mới. **Công bố trước khi gọi:** `gemini-3.8-flash`, tắt dự phòng, chờ 30 giây/lượt, không thử lại,
+0 lượt đọc CV; cả đợt tối đa **8 lượt HTTP** — `nghiem_thu_agent` 6 ca, trần 6; `danh_gia_tu_van_that` 2 ca tiến độ, trần 2.
+Gặp 429 hoặc hai lỗi dịch vụ liên tiếp thì dừng; bộ đầu dừng vì lý do ấy thì không chạy bộ sau.
+
+**Kết quả:** `nghiem_thu_agent` dùng **3/6** lượt: lượt 1 → 200, lượt 2 và 3 → **503** ("high demand"). Hai lỗi liên tiếp →
+dừng theo luật; **không chạy** `danh_gia_tu_van_that`. Cả đợt dùng 3/8 lượt. Nhật ký:
+`2026-10-12_nghiem_thu_agent_ngan_sach_lan2.json`.
+
+| Bộ | Ca | Kết quả |
+|---|---|---|
+| `nghiem_thu_agent` (cách đo `13c8f3`) | FACT-01 | **ĐẠT** — nói đúng 11/18 đơn đạt, nêu DH-0001 kèm tiêu chí, đề xuất ghi kinh nghiệm 2 năm (nguồn chat) |
+| | FACT-02, FACT-03 | **CHƯA ĐO ĐƯỢC** — 503 |
+| | FACT-04, TIEM-01, TIEM-02 | **CHƯA ĐO ĐƯỢC** — không gọi (đã dừng) |
+| `danh_gia_tu_van_that` | `tien_do`, `chuong_trinh` | **CHƯA ĐO** — không chạy |
+
+Một ca đạt không đủ để kết luận về chất lượng Agent; hai ca tiêm lệnh (TIEM-01, TIEM-02) vẫn chưa có kết quả với cách đo hiện
+tại. Còn 5 lượt trong ngân sách đợt này, chưa dùng.
+
+## 12. Kiểm từng chức năng theo vai trò: Admin → tư vấn viên → khách (12/10, chiều)
+
+Database thử `xkld_kiem_thu_0710`, bản dựng production của hai app, tài khoản tạm đúng vai trò (`tq-vt-admin`,
+`tq-vt-tu-van` — consultant thật, không dùng admin để kiểm việc của nhân viên); đã xóa sau khi xong.
+
+### 12.1 Không gọi mô hình — ba bộ toàn tuyến qua HTTP thật
+
+| Bộ | Kết quả |
+|---|---|
+| `nghiem_thu_xuyen_suot --tat-ai` | 5 ca · 0 chỗ hỏng |
+| `e2e_xuyen_suot` | 5 ca · 0 chỗ hỏng · tám kỳ vọng so chéo đều đúng |
+| `e2e_hanh_trinh --khai-tay` | 0 chỗ hỏng: khai hồ sơ → đối chiếu (5 đơn đạt) → đăng ký → hỗ trợ + lịch (gửi lại lần hai ra cùng mã) → hai consultant giành việc (409) → quyền đọc phiếu/CV/nhật ký đúng người → quản lý chuyển giao. **Không đo** bước đọc CV (khai tay) |
+
+### 12.2 Trình duyệt — từng màn hình
+
+| Vai trò | Đã đi qua | Kết quả |
+|---|---|---|
+| Admin | Tổng quan, Người dùng, Nhật ký hệ thống, Đơn tuyển dụng (tạo nháp → sửa → xóa), Khóa học, Tri thức AI, Điểm hiệu suất, Đặt lại mật khẩu, Hội thoại, Nhật ký giới thiệu (danh sách + chi tiết: 18 xét / 11 đạt / 7 loại, lý do từng tiêu chí), Khách hàng | Chạy; 4 lỗi (12.3) |
+| Tư vấn viên | Menu đúng vai trò (không có Người dùng, Nhật ký hệ thống); hàng đợi hồ sơ (tên viết tắt khi chưa nhận → nhận → phiếu tóm tắt đủ 5 phần → trả về hàng đợi có hỏi lý do); hàng đợi hỗ trợ (nhận → bản bàn giao có khung giờ, câu trợ lý chưa trả lời được, khối đối chiếu khách đã thấy → trả về); lịch hẹn; thông báo theo phạm vi; hồ sơ | Chạy; 3 lỗi (12.3). Ảnh `31_…` |
+| Khách | Mọi trang trong menu trả 200; đơn quá hạn DH-0017 → 404; trang đơn có "Còn 73 ngày", "Còn 5/5 người"; phòng tư vấn khi trợ lý tắt (trả lời dự phòng nói rõ "chưa phải câu trả lời riêng"); "Khai lại từ đầu" → khai tay khách **chưa học tiếng Nhật** → 0/18 đơn đạt, "vướng nhiều nhất là tiếng Nhật", không loại vì mục chưa khai; phòng DH-0001: 6/7 tiêu chí, lộ trình "Chưa học → N4 · 6–7 tháng · 35.000.000đ trong tổng 90.000.000đ" từ bảng khóa học, nút Đăng ký tự ẩn; "Tôi muốn được tư vấn về việc học" mở biểu mẫu, ô đồng ý xem hồ sơ **không** tích sẵn; gửi → HT-BE1E95, nằm đúng hàng đợi hỗ trợ (`hoc_tap`, DH-0001), không lọt hàng đợi đăng ký | Chạy; 2 lỗi (12.3). Ảnh `32_…` |
+
+Giới hạn: phiên khách cũ giữ bằng cookie đã ký (httpOnly) nên phần khách bắt đầu như **khách quay lại**, rồi dùng "Khai lại
+từ đầu". Kiểm bằng sự kiện DOM và gõ phím thật; bố cục chỉ xem trên ảnh chụp các màn đã nêu.
+
+### 12.3 Chín lỗi tìm thấy — đã sửa, kiểm lại trên trình duyệt
+
+| # | Lỗi | Sửa | Ca chặn |
+|---|---|---|---|
+| 1 | Xóa đơn nháp báo "Failed to execute 'json' on 'Response': Unexpected end of JSON input" dù máy chủ đã xóa (204) | `request` không đọc JSON khi 204/thân rỗng | `managementApi.test.cjs` |
+| 2 | Màn Người dùng hiện chữ viết tắt "V(", "A(" | Hàm dùng chung `lib/chuVietTat.ts` cho mọi màn | `chuVietTat.test.cjs` (kèm quét mã: không màn nào tự tách tên) |
+| 3 | Thanh bên của consultant ghi "Lịch hẹn 34", mở ra 0 lịch | `GET /appointments/pending-count` theo phạm vi, cùng luật với danh sách | `test_dem_lich_cho`, `adminShellBadge.test.cjs` |
+| 4 | Nhật ký thao tác hiện mã máy (`support.released`…), bộ lọc thiếu 26/38 hành động | Đủ nhãn tiếng Việt | `nhanNhatKy.test.cjs` dò mọi `audit_action(...)` ở backend |
+| 5 | Consultant gõ thẳng `/admin/users` vẫn thấy khung trang và nút "Thêm người dùng" (máy chủ vẫn chặn dữ liệu) | Khung chặn nội dung bằng cùng danh sách `CHI_QUAN_LY` với thanh bên | `giaoDienQuanTri.test.cjs` |
+| 6 | Cột "Nguồn" ở Khách hàng hiện `self_registration`; mô tả trang đã cũ | Nhãn nguồn; mô tả đúng hiện trạng | — |
+| 7 | Hồ sơ/Hồ sơ tuyển dụng của consultant trống báo "Chưa có hồ sơ nào" như thể cả hệ thống trống | Câu báo nói rõ "trong phạm vi bạn được xem" | — |
+| 8 | Màn gửi CV hứa "đọc thông tin" từ ảnh chụp, trong khi ảnh/scan không được đọc (đúng phạm vi 26/09) | Câu nói đúng: đọc CV có chữ; ảnh/scan thì khai bằng biểu mẫu | — |
+| 9 | Biểu mẫu "Nói chuyện với nhân viên" bắt khách gõ lại họ tên, số điện thoại vừa khai (rà soát 29/09 đã nêu) | Điền sẵn từ hồ sơ, vẫn sửa được | `supportDienSan.test.cjs` |
+
+Đột biến trong `scripts/dot_bien.py` cho 1, 2, 3 (cả hai phía), 4, 5, 9: **7/7 bị bắt** (`--khong-ghi-db`, chạy riêng từng mục).
+
+### 12.4 Mô hình thật — phần còn lại của đợt 12/10
+
+**Công bố trước khi gọi:** trần 5 lượt HTTP tới Gemini, chặn cứng trong chính tiến trình máy chủ thử (trình khởi động
+`_tam/chay_backend_ngan_sach.py`, không sửa mã ứng dụng): một bộ đếm cho cả `httpx` (trợ lý) lẫn `requests` (khung chat,
+đọc CV); tắt thử lại ngầm (`_post_with_retry` 1 lần, `RETRY_DELAYS = ()`); tắt model dự phòng. Phân bổ: phòng theo đơn 1 ·
+trợ lý hồ sơ 1 · khung chat 2 (nhúng + sinh) · đọc CV mẫu giả 1. Qdrant bật lại từ container `xkld-retest-qdrant-1`
+(alias `xkld_knowledge` → `v20260917b`).
+
+**Kết quả:** lượt 1 — mở trang phòng tư vấn **tự gọi mô hình** viết đoạn mở đầu (ngoài phân bổ, tính vào trần như đã nói) →
+**503**; lượt 2 — câu "Em còn thiếu gì cho đơn này?" → **ReadTimeout**. Hai lỗi liên tiếp → dừng, bộ đếm khóa. Dùng 2/5.
+Nhật ký: `2026-10-12_kiem_vai_tro_ngan_sach.jsonl`.
+
+| Ca | Kết quả |
+|---|---|
+| Phòng tư vấn DH-0001 — "Em còn thiếu gì?" | **CHƯA ĐO ĐƯỢC** (ReadTimeout). Bản dự phòng hiện đúng: nói rõ chưa phải câu trả lời riêng, nêu "Tiếng Nhật (yêu cầu N4 — ứng viên Chưa học)" và lộ trình KH-0001 6–7 tháng |
+| Trợ lý hồ sơ — "Em cần học bao lâu thì đủ?" | **CHƯA ĐO ĐƯỢC** — không gọi |
+| Khung chat | **CHƯA ĐO ĐƯỢC** — không gọi |
+| Đọc CV mẫu (`e2e_hanh_trinh` không khai tay) | **CHƯA ĐO ĐƯỢC** — không gọi |
+
+Ghi nhận: mở phòng tư vấn khi trợ lý bật là tốn một lượt dù khách chưa hỏi gì — cần tính khi ước hạn mức.
+
+### 12.5 Tổng kết
+
+Backend **1374/1374**, quản trị **59/59**, website **88/88**; `tsc` sạch, dựng production sạch cả hai app. Database thật không
+đổi (`[342, 197, 85, 83, 294, 2, 679, 87, 224, 80]`, `storage/cv` 25 tệp). Để lại trong database thử: hồ sơ khách "Lê Thị Kiểm
+Thử", yêu cầu HT-BE1E95, sự kiện điểm của tài khoản tạm (đã xóa tài khoản).

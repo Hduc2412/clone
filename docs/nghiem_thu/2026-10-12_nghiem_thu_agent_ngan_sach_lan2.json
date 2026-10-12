@@ -1,0 +1,66 @@
+{
+  "dot": "12/10 lần 2 (16:00)",
+  "model": "gemini-3.8-flash",
+  "du_phong": null,
+  "cho_giay": 30.0,
+  "phan_bo_cong_bo": {
+    "nghiem_thu_agent": 6,
+    "danh_gia_tu_van_that": 2,
+    "doc_cv": 0,
+    "tong": 8
+  },
+  "toi_da": 6,
+  "da_goi": 3,
+  "ly_do_dung": "hai lỗi dịch vụ liên tiếp",
+  "luot": [
+    {
+      "luot": 1,
+      "model": "gemini-3.8-flash",
+      "ket_qua": "200",
+      "ca": "FACT-01"
+    },
+    {
+      "luot": 2,
+      "model": "gemini-3.8-flash",
+      "ket_qua": "503",
+      "ca": "FACT-02"
+    },
+    {
+      "luot": 3,
+      "model": "gemini-3.8-flash",
+      "ket_qua": "503",
+      "ca": "FACT-03"
+    }
+  ],
+  "cach_do": "13c8f3",
+  "ket_qua": {
+    "FACT-01": {
+      "ma": "FACT-01",
+      "model": "gemini-3.8-flash",
+      "cau_hoi": "Em đã làm điều dưỡng ở viện dưỡng lão hai năm rồi. Em hợp đơn nào?",
+      "cau_tra_loi": "Bạn từng chia sẻ rằng mình đã làm điều dưỡng ở viện dưỡng lão hai năm, đây là điểm kinh nghiệm thực tế rất tốt cho công việc hộ lý tại Nhật Bản. Theo hệ thống đối chiếu cho thấy, trong số 18 đơn đã xét thì bạn đang đủ điều kiện 11 đơn. Hiện tại có đơn DH-0001 — Điều dưỡng viện dưỡng lão Tokyo (Viện dưỡng lão, Kỹ năng đặc định) đang tuyển với các tiêu chí về tiếng Nhật N4, bằng Cao đẳng và độ tuổi mà CV đang ghi nhận ở bạn. Bạn có thể xem lại và xác nhận hồ sơ để hệ thống khớp thêm các nguyện vọng về khu vực hay mức lương nhé.",
+      "nguon": "mo_hinh",
+      "intent": "tư vấn đơn phù hợp theo kinh nghiệm",
+      "de_xuat": [
+        {
+          "field": "experience_years",
+          "value": 2.0,
+          "value_label": null,
+          "source": "chat",
+          "requires_confirmation": true,
+          "evidence": "Em đã làm điều dưỡng ở viện dưỡng lão hai năm rồi."
+        }
+      ],
+      "chot_chan_da_loai": [],
+      "vi_sao": "Ca trung tâm của cả tính năng: khách nói ra một điều, Agent phải nghe được và đề xuất lưu. Đo 02/10 bản đầu: mô hình đáp đúng nhưng chốt số loại cả câu vì số `2` không nằm trong khối dữ liệu — khách viết 'hai' bằng chữ. Đã sửa bằng cách đưa câu của khách vào khối cho phép."
+    },
+    "CHUA_DO_DUOC": [
+      "FACT-02",
+      "FACT-03",
+      "FACT-04",
+      "TIEM-01",
+      "TIEM-02"
+    ]
+  },
+  "danh_gia_tu_van_that": "không chạy — bộ trước dừng theo luật"
+}
