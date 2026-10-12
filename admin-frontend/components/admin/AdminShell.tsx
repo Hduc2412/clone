@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { managementApi } from "@/lib/managementApi";
 import { AuthUser, loadCurrentUser, logout } from "@/lib/auth";
+import { SU_KIEN_THONG_BAO } from "@/lib/thongBao";
 
 const navigation = [
   { href: "/admin", label: "Tổng quan", icon: "▦" },
@@ -53,20 +54,25 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const load = () =>
+    const load = () => {
       managementApi
         .overview()
-        .then((data) => {
-          setUnread(data.notifications_unread);
-          setLichCho(data.appointments_pending);
-        })
-        .catch(() => {
-          setUnread(0);
-          setLichCho(0);
-        });
+        .then((data) => setLichCho(data.appointments_pending))
+        .catch(() => setLichCho(0));
+      // Số thông báo theo PHẠM VI người xem (12/10). Trước đó lấy tổng của cả hệ thống
+      // từ trang tổng quan: consultant thấy cả việc của người khác, và con số chỉ tăng.
+      managementApi
+        .notificationCount()
+        .then((data) => setUnread(data.count))
+        .catch(() => setUnread(0));
+    };
     load();
     const interval = window.setInterval(load, 30000);
-    return () => window.clearInterval(interval);
+    window.addEventListener(SU_KIEN_THONG_BAO, load);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener(SU_KIEN_THONG_BAO, load);
+    };
   }, [user]);
 
   if (checkingAuth || !user) {
@@ -188,19 +194,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               Dữ liệu cập nhật từ backend local
             </p>
           </div>
-          {/* Trỏ về hàng đợi hồ sơ, không phải lịch hẹn.
-            *
-            * Mọi thông báo hiện sinh ra đều thuộc một trong hai loại: hồ sơ mới
-            * đăng ký (`application`) và tin nhắn khách để lại (`support_request`).
-            * Không loại nào là lịch hẹn. Hàng đợi hồ sơ là chỗ xử lý loại đông
-            * nhất, nên đưa người bấm về đó.
-            *
-            * Còn thiếu: API `/notifications` đã có đủ danh sách và nút đánh dấu
-            * đã đọc, nhưng chưa màn hình nào đọc nó — nên con số này giảm được
-            * chỉ khi nhân viên mở hồ sơ qua đường khác. Xem BAO_CAO_E2E_01_10.md.
-            */}
+          {/* Trỏ về trang Thông báo (12/10). Trước đó trỏ hàng đợi hồ sơ vì chưa màn hình
+            * nào đọc `/notifications` — con số chỉ tăng, không ai đánh dấu đã đọc được. */}
           <Link
-            href="/admin/queue"
+            href="/admin/notifications"
             className="relative rounded-md border border-[#bbc7bd] bg-white px-3 py-2 text-sm font-medium text-slate-800 hover:bg-reu-50"
           >
             Thông báo

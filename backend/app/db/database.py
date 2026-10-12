@@ -860,41 +860,102 @@ async def _backfill_notification_references(db: AsyncIOMotorDatabase) -> None:
     )
 
 
+REFERENCE_SUPPORT = "support_request"
+#: Thông báo gửi riêng cho người được giao việc (mang `detail.assigned_to`).
+LOAI_BAN_GIAO = ("application_handover", "support_handover")
+
+
+async def _pham_vi_thong_bao(assigned_to: str | None) -> tuple[dict[str, Any], set[str]]:
+    """Bộ lọc thông báo một nhân viên được thấy, và tập mã việc là CỦA họ.
+
+    `assigned_to=None` (Admin/Manager): thấy hết. Consultant: lịch hẹn của mình; hồ sơ
+    đăng ký và yêu cầu hỗ trợ của mình **hoặc chưa ai nhận** — việc chưa của ai thì ai
+    cũng phải thấy mới có người nhận. Thông báo về đơn tuyển dụng không bao giờ ở đây
+    (chỉ Admin/Manager). Tập "của mình" để lớp trên biết dòng nào phải rút gọn tên.
+    """
+    if not assigned_to:
+        return {}, set()
+    db = get_db()
+    lich = [r["appointment_code"] for r in await db.consultation_appointments.find(
+        {"assigned_to": assigned_to}, {"appointment_code": 1}).to_list(length=None)]
+    ho_so = await db.recruitment_applications.find(
+        {"$or": [{"assigned_to": assigned_to}, {"assigned_to": None}]},
+        {"application_code": 1, "assigned_to": 1},
+    ).to_list(length=None)
+    ho_tro = await db.support_requests.find(
+        {"$or": [{"assigned_to": assigned_to}, {"assigned_to": None}]}, {"code": 1, "assigned_to": 1}
+    ).to_list(length=None)
+    cua_minh = set(lich)
+    cua_minh |= {r["application_code"] for r in ho_so if r.get("assigned_to") == assigned_to}
+    cua_minh |= {r["code"] for r in ho_tro if r.get("assigned_to") == assigned_to}
+    loc = {
+        "$or": [
+            {"reference_type": REFERENCE_APPOINTMENT, "reference_code": {"$in": lich}},
+            {"reference_type": REFERENCE_APPLICATION, "reference_code": {"$in": [r["application_code"] for r in ho_so]}},
+            {"reference_type": REFERENCE_SUPPORT, "reference_code": {"$in": [r["code"] for r in ho_tro]}},
+        ],
+        # "Bạn được giao …" chỉ dành cho người nhận. Kiểm trên trình duyệt 12/10: việc được
+        # giao rồi trả về hàng đợi thì thông báo bàn giao hiện cho MỌI consultant, nói "bạn
+        # được giao" với người không được giao gì.
+        "$and": [{"$or": [
+            {"type": {"$nin": list(LOAI_BAN_GIAO)}},
+            {"detail.assigned_to": assigned_to},
+        ]}],
+    }
+    return loc, cua_minh
+
+
+def _rut_gon_ten(tb: dict[str, Any]) -> dict[str, Any]:
+    """Việc chưa phải của người xem: chỉ còn tên viết tắt (quyết định 08/10, bản tối thiểu)."""
+    from app.services.ban_toi_thieu import ten_viet_tat
+
+    ra = dict(tb)
+    chi_tiet = dict(ra.get("detail") or {})
+    if chi_tiet.get("customer_name"):
+        chi_tiet["customer_name"] = ten_viet_tat(chi_tiet["customer_name"])
+    chi_tiet.pop("note", None)
+    ra["detail"] = chi_tiet
+    for khoa in ("customer_name", "phone"):
+        if khoa in ra:
+            ra[khoa] = ten_viet_tat(ra[khoa]) if khoa == "customer_name" else None
+    ra["ban_toi_thieu"] = True
+    return ra
+
+
 async def list_notifications(
     unread_only: bool = False,
     assigned_to: str | None = None,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    query: dict[str, Any] = {"is_read": False} if unread_only else {}
-    if assigned_to:
-        db = get_db()
-        appointments = await db.consultation_appointments.find(
-            {"assigned_to": assigned_to},
-            {"appointment_code": 1},
-        ).to_list(length=None)
-        # Hồ sơ đăng ký: thấy hồ sơ của mình, và thấy cả hồ sơ **chưa ai nhận** —
-        # phần việc chưa của ai thì ai cũng phải nhìn thấy mới có người nhận.
-        applications = await db.recruitment_applications.find(
-            {"$or": [{"assigned_to": assigned_to}, {"assigned_to": None}]},
-            {"application_code": 1},
-        ).to_list(length=None)
-        query["$or"] = [
-            {
-                "reference_type": REFERENCE_APPOINTMENT,
-                "reference_code": {"$in": [row["appointment_code"] for row in appointments]},
-            },
-            {
-                "reference_type": REFERENCE_APPLICATION,
-                "reference_code": {"$in": [row["application_code"] for row in applications]},
-            },
-        ]
+    loc, cua_minh = await _pham_vi_thong_bao(assigned_to)
+    query: dict[str, Any] = {**loc, **({"is_read": False} if unread_only else {})}
     cursor = (
         get_db()
         .notifications.find(query, {"_id": 0})
         .sort("created_at", DESCENDING)
         .limit(limit)
     )
-    return await cursor.to_list(length=limit)
+    ds = await cursor.to_list(length=limit)
+    if not assigned_to:
+        return ds
+    # Consultant: trước 12/10 API này trả họ tên đầy đủ của khách ở hồ sơ CHƯA ai nhận —
+    # trái quyết định "hàng đợi chỉ tên viết tắt trước khi nhận".
+    return [tb if tb.get("reference_code") in cua_minh else _rut_gon_ten(tb) for tb in ds]
+
+
+async def count_notifications(unread_only: bool = True, assigned_to: str | None = None) -> int:
+    """Đếm theo đúng phạm vi người xem — con số trên nút "Thông báo"."""
+    loc, _ = await _pham_vi_thong_bao(assigned_to)
+    return await get_db().notifications.count_documents({**loc, **({"is_read": False} if unread_only else {})})
+
+
+async def mark_all_notifications_read(assigned_to: str | None = None) -> int:
+    """Đánh dấu đã đọc mọi thông báo người xem đang thấy — không chạm phần của người khác."""
+    loc, _ = await _pham_vi_thong_bao(assigned_to)
+    ra = await get_db().notifications.update_many(
+        {**loc, "is_read": False}, {"$set": {"is_read": True, "read_at": _now()}}
+    )
+    return ra.modified_count
 
 
 async def mark_notification_read(reference_code: str) -> bool:

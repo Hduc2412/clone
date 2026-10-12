@@ -195,6 +195,10 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
         )
         db.recruitment_applications.find.return_value = application_cursor
 
+        support_cursor = MagicMock()
+        support_cursor.to_list = AsyncMock(return_value=[{"code": "HT-001", "assigned_to": None}])
+        db.support_requests.find.return_value = support_cursor
+
         notification_cursor = make_cursor([{"reference_code": "LH-001"}])
         db.notifications.find.return_value = notification_cursor
 
@@ -214,6 +218,8 @@ class AppointmentManagementTests(unittest.IsolatedAsyncioTestCase):
             [
                 {"reference_type": "appointment", "reference_code": {"$in": ["LH-001"]}},
                 {"reference_type": "application", "reference_code": {"$in": ["HS-001"]}},
+                # 12/10: yêu cầu hỗ trợ của mình hoặc chưa ai nhận cũng thấy được.
+                {"reference_type": "support_request", "reference_code": {"$in": ["HT-001"]}},
             ],
         )
         # Hồ sơ chưa ai nhận phải nằm trong điều kiện tra cứu.

@@ -309,6 +309,28 @@ async def get_notifications(
     )
 
 
+@notification_router.get("/unread-count")
+async def unread_notification_count(current_user=Depends(get_current_user)):
+    """Số trên nút "Thông báo" — theo đúng phạm vi người xem (12/10).
+
+    Trước đó con số lấy từ tổng quan, đếm MỌI thông báo chưa đọc của cả hệ thống:
+    consultant thấy cả việc của người khác, và vì không màn hình nào đánh dấu đã đọc
+    được nên số chỉ tăng (161 trên database thật ngày 12/10).
+    """
+    from app.db.database import count_notifications
+
+    assigned_to = current_user["email"] if current_user["role"] == "consultant" else None
+    return {"count": await count_notifications(unread_only=True, assigned_to=assigned_to)}
+
+
+@notification_router.patch("/read-all")
+async def read_all_notifications(current_user=Depends(get_current_user)):
+    from app.db.database import mark_all_notifications_read
+
+    assigned_to = current_user["email"] if current_user["role"] == "consultant" else None
+    return {"updated": await mark_all_notifications_read(assigned_to=assigned_to)}
+
+
 @notification_router.patch("/{reference_code}/read")
 async def read_notification(
     reference_code: str,
@@ -329,6 +351,19 @@ async def read_notification(
         # người quản lý đơn — consultant không thấy, cũng không tắt được.
         if current_user.get("role") not in ("admin", "manager"):
             raise HTTPException(status_code=403, detail="Chỉ Admin/Manager xử lý thông báo về đơn.")
+    elif notification.get("reference_type") == "support_request":
+        # Trước 12/10 rơi xuống nhánh lịch hẹn và trả 404 "không tìm thấy lịch hẹn":
+        # thông báo yêu cầu hỗ trợ không ai đánh dấu đã đọc được.
+        from app.db import support_requests as ho_tro_store
+
+        yeu_cau = await ho_tro_store.get_request(reference_code)
+        if yeu_cau is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu hỗ trợ.")
+        if (
+            current_user["role"] == "consultant"
+            and yeu_cau.get("assigned_to") not in (None, current_user["email"])
+        ):
+            raise HTTPException(status_code=403, detail="Yêu cầu này do người khác phụ trách.")
     elif notification.get("reference_type") == REFERENCE_APPLICATION:
         application = await get_recruitment_application(reference_code)
         if application is None:

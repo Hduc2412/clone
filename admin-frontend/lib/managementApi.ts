@@ -72,6 +72,8 @@ export interface Notification {
   appointment_time: string;
   is_read: boolean;
   created_at: string;
+  /** Việc chưa phải của người xem: máy chủ đã rút tên còn chữ viết tắt (12/10). */
+  ban_toi_thieu?: boolean;
   /** Có từ khi thông báo dùng chung nhiều nghiệp vụ; thông báo lịch hẹn cũ có thể thiếu. */
   type?: string;
   title?: string;
@@ -334,11 +336,43 @@ export interface ProfileCell<T = unknown> {
   evidence: string | null;
 }
 
+/** Một mục trong `consultation.conflicts`. `kind` có từ 08/10; bản ghi cũ không có. */
+export interface ProfileConflict {
+  field: string;
+  previous: unknown;
+  suggested: unknown;
+  evidence?: string;
+  /** "khac_gia_tri_nhan_vien" (đề xuất chờ nhân viên) | "khach_sua_o_nhan_vien_nhap" (đã áp dụng) */
+  kind?: string;
+  /** "cho_nhan_vien" | "da_xu_ly" | "da_ap_dung" */
+  trang_thai?: string;
+  source?: string;
+  recorded_at?: string;
+}
+
+/** Trình độ tiếng Nhật kèm căn cứ, do máy chủ ghép nhãn (08/10). */
+export interface TrangThaiTiengNhat {
+  muc: string | null;
+  ma: string | null;
+  nhan: string | null;
+  dang_hoc?: { nhan: string } | null;
+  chuong_trinh?: { nhan: string } | null;
+}
+
+export interface HocTap {
+  trang_thai: "dang_hoc" | "tam_dung" | "da_hoan_thanh";
+  muc_tieu?: string | null;
+  khoa_code?: string | null;
+  ket_qua?: string | null;
+}
+
 export interface CandidateProfile {
   consultation_profile?: {
     recent_messages?: { content: string; intent: string; recorded_at: string }[];
-    conflicts?: { field: string; previous: unknown; suggested: unknown; evidence: string }[];
+    conflicts?: ProfileConflict[];
   };
+  hoc_tap?: HocTap | null;
+  trang_thai_tieng_nhat?: TrangThaiTiengNhat;
   code: string;
   session_id: string;
   status: string;
@@ -736,6 +770,10 @@ export const managementApi = {
     ),
   markNotificationRead: (code: string) =>
     request(`/notifications/${code}/read`, { method: "PATCH" }),
+  /** Số chưa đọc theo đúng phạm vi người xem (12/10) — dùng cho nút "Thông báo". */
+  notificationCount: () => request<{ count: number }>("/notifications/unread-count"),
+  markAllNotificationsRead: () =>
+    request<{ updated: number }>("/notifications/read-all", { method: "PATCH" }),
   leads: () => request<ManagedLead[]>("/management/leads"),
   createLead: (data: {
     customer_name: string;
@@ -904,6 +942,18 @@ export const managementApi = {
    * mở cùng một hồ sơ là chuyện thường, và không có nó thì người lưu sau lặng
    * lẽ xóa mất phần người lưu trước vừa sửa. Sai phiên bản thì máy chủ trả 409.
    */
+  /** Nhân viên ghi tiến độ học (12/10). Hoàn thành KHÔNG đổi trình độ dùng để đối chiếu. */
+  ghiHocTap: (code: string, body: HocTap & { expected_version?: number }) =>
+    request<CandidateProfile>(`/profiles/${encodeURIComponent(code)}/hoc-tap`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  /** Giữ giá trị nhân viên đã ghi, đóng đề xuất của khách cho mục ấy (kèm lý do). */
+  giuNguyenDeXuat: (code: string, field: string, lyDo: string) =>
+    request<CandidateProfile>(`/profiles/${encodeURIComponent(code)}/de-xuat/giu-nguyen`, {
+      method: "POST",
+      body: JSON.stringify({ field, ly_do: lyDo }),
+    }),
   updateCandidateProfile: (code: string, patch: CandidateProfilePatch) =>
     request<CandidateProfile>(`/profiles/${encodeURIComponent(code)}`, {
       method: "PATCH",

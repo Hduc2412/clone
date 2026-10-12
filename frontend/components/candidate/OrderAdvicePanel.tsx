@@ -104,7 +104,12 @@ function giaTri(o: CandidateProfile["fields"], key: string): unknown {
 
 /** Hai chữ đầu của hai tiếng cuối trong tên — "Nguyễn Thị Hoa" → "TH". */
 export function chuDauTen(ten: unknown): string {
-  const chu = String(ten ?? "").trim().split(/\s+/).filter(Boolean);
+  // Chỉ lấy tiếng bắt đầu bằng chữ cái (có dạng hoa/thường khác nhau — gồm cả "Đ", "Ư"):
+  // tên kèm "(tạm)" hay "- KT" từng ra "(" — cùng lỗi đã sửa bên màn quản trị 12/10.
+  const chu = String(ten ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 0 && t[0].toLowerCase() !== t[0].toUpperCase());
   if (chu.length === 0) return "?";
   return chu.slice(-2).map((t) => t[0]!.toUpperCase()).join("");
 }

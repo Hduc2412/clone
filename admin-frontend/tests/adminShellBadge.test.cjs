@@ -117,15 +117,15 @@ function hrefChuoiCuaCacLink() {
 
 test("hai con số là hai biến khác nhau, lấy từ hai khóa khác nhau", () => {
   const bienLich = bienGanVoi("appointments_pending");
-  const bienThongBao = bienGanVoi("notifications_unread");
+  const bienThongBao = bienGanVoi("count");
   assert.ok(bienLich, "không thấy biến nào nhận giá trị appointments_pending");
-  assert.ok(bienThongBao, "không thấy biến nào nhận giá trị notifications_unread");
+  assert.ok(bienThongBao, "không thấy biến nào nhận giá trị count (số thông báo theo phạm vi, 12/10)");
   assert.notEqual(bienLich, bienThongBao, "hai con số phải là hai biến khác nhau");
 });
 
 test("badge cạnh mục Lịch hẹn đọc số lịch đang chờ, không đọc số thông báo", () => {
   const bienLich = bienGanVoi("appointments_pending");
-  const bienThongBao = bienGanVoi("notifications_unread");
+  const bienThongBao = bienGanVoi("count");
   const trongBadge = bienCanhBadgeTheoSoSanh("/admin/appointments");
   assert.ok(trongBadge, "không tìm thấy badge nào canh mục /admin/appointments");
   assert.ok(
@@ -139,12 +139,12 @@ test("badge cạnh mục Lịch hẹn đọc số lịch đang chờ, không đ�
 });
 
 test("badge Thông báo ở đầu trang không trỏ sang màn hình lịch hẹn", () => {
-  // Thông báo hiện có hai loại: hồ sơ mới đăng ký (`application`) và tin nhắn
-  // khách để lại (`support_request`). Không loại nào xử lý ở màn hình lịch hẹn.
+  // 12/10: có trang Thông báo riêng (đọc `/notifications`, đánh dấu đã đọc được). Trước
+  // đó chưa có màn hình nào đọc thông báo nên nút trỏ tạm về hàng đợi hồ sơ.
   const href = hrefChuoiCuaCacLink();
   assert.ok(
-    href.includes("/admin/queue"),
-    `badge Thông báo phải trỏ về hàng đợi hồ sơ; href đang có: ${href.join(", ")}`,
+    href.includes("/admin/notifications"),
+    `badge Thông báo phải trỏ về trang Thông báo; href đang có: ${href.join(", ")}`,
   );
   assert.ok(
     !href.includes("/admin/appointments"),

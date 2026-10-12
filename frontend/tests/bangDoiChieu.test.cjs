@@ -229,6 +229,10 @@ test('thẻ hồ sơ dùng nguyên nhãn tiếng Nhật máy chủ ghép, kể c
   assert.match(chu, /Hoàn thành chương trình N4 tại trung tâm — chưa xác minh chứng chỉ/);
   assert.match(chu, /Kinh nghiệm Chưa cung cấp/);
   assert.equal(Panel.chuDauTen(''), '?');
+  // Tiếng không bắt đầu bằng chữ cái thì bỏ qua — trước 12/10 tên "… (tạm)" ra "(".
+  assert.equal(Panel.chuDauTen('Nguyễn Thị Hoa (tạm)'), 'TH');
+  assert.equal(Panel.chuDauTen('Đặng Ưng'), 'ĐƯ');
+  assert.equal(Panel.chuDauTen('(tạm) - 123'), '?');
 });
 
 // --- Thanh bước ------------------------------------------------------------
