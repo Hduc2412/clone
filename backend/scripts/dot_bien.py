@@ -933,6 +933,65 @@ DOT_BIEN = [
         '        if False:',
         ["tests.test_chi_tieu"],
     ),
+    # --- Thông báo theo phạm vi (12/10) ---
+    (
+        "thông báo: consultant lại thấy họ tên đầy đủ ở việc chưa nhận",
+        "app/db/database.py",
+        "    return [tb if tb.get(\"reference_code\") in cua_minh else _rut_gon_ten(tb) for tb in ds]",
+        "    return ds",
+        ["tests.test_thong_bao"],
+    ),
+    (
+        "thông báo: yêu cầu hỗ trợ lại rơi vào nhánh lịch hẹn",
+        "app/api/appointments.py",
+        '    elif notification.get("reference_type") == "support_request":',
+        '    elif notification.get("reference_type") == "__khong_khop__":',
+        ["tests.test_thong_bao"],
+    ),
+    # --- Trình độ ở hồ sơ tuyển dụng đi theo hồ sơ năng lực (12/10) ---
+    (
+        "trình độ: hồ sơ tuyển dụng lại đứng yên ở bản chụp ngày đăng ký",
+        "app/db/candidate_profiles.py",
+        "        await _dong_bo_trinh_do(ket_qua, history)",
+        "        pass",
+        ["tests.test_dong_bo_trinh_do"],
+    ),
+    (
+        "trình độ: sửa cả hồ sơ tuyển dụng đã đóng",
+        "app/db/candidate_profiles.py",
+        '            {"profile_code": moi["code"], "is_active": True},',
+        '            {"profile_code": moi["code"]},',
+        ["tests.test_dong_bo_trinh_do"],
+    ),
+    # --- Màn đề xuất của khách và tiến độ học (12/10) ---
+    (
+        "đề xuất: giữ giá trị nhân viên mà không cần lý do",
+        "../admin-frontend/components/admin/DeXuatVaHocTap.tsx",
+        "    if (ly.length < 3) {",
+        "    if (ly.length < 0) {",
+        ["admin"],
+    ),
+    (
+        "tiến độ học: đang học vẫn gửi kết quả chương trình",
+        "../admin-frontend/components/admin/DeXuatVaHocTap.tsx",
+        '        ket_qua: trangThai === "da_hoan_thanh" ? ketQua : null,',
+        "        ket_qua: ketQua,",
+        ["admin"],
+    ),
+    (
+        "tiến độ học: không gửi phiên bản hồ sơ (mất khóa lạc quan)",
+        "../admin-frontend/components/admin/DeXuatVaHocTap.tsx",
+        "        expected_version: profile.version,\n",
+        "",
+        ["admin"],
+    ),
+    (
+        "đề xuất: đề xuất đã xử lý vẫn hiện là chờ",
+        "../admin-frontend/components/admin/DeXuatVaHocTap.tsx",
+        "c.kind === DE_XUAT && c.trang_thai === CHO",
+        "c.kind === DE_XUAT",
+        ["admin"],
+    ),
 ]
 
 #: Bộ đo nào phải xanh ở lần chạy đối chứng. Mọi mục tiêu xuất hiện trong
@@ -946,7 +1005,8 @@ DOI_CHUNG = (
     "tests.test_de_xuat_nhan_va_vung", "tests.test_phien_tai_khoan_cu", "tests.test_hang_doi_du",
     "tests.test_e2e_tra_ve_hang_doi", "tests.test_tu_van_mo_rong", "tests.test_hau_kiem_co_nhan",
     "tests.test_ho_tro_chuyen_tra", "tests.test_bang_doi_chieu", "tests.test_ngan_sach_mo_hinh", "tests.test_quyen_va_xac_minh",
-    "tests.test_registrations", "tests.test_bo_cham_tu_van", "tests.test_job_order_import", "tests.test_consultation_eligibility", "tests.test_chi_tieu",
+    "tests.test_registrations", "tests.test_bo_cham_tu_van", "tests.test_job_order_import", "tests.test_consultation_eligibility", "tests.test_chi_tieu", "tests.test_thong_bao",
+    "tests.test_dong_bo_trinh_do",
     "xuyen_suot", "e2e", "hanh_trinh",
 )
 

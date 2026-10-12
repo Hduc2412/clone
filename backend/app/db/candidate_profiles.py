@@ -17,6 +17,7 @@ nguyện vọng không bao giờ loại được ai — kể cả khi có ngư�
 **Mỗi trường mang nguồn của nó.** Thứ ứng viên tự xác nhận không bị bản đọc CV
 ghi đè. Nhờ vậy đọc CV lần hai không xóa mất thứ ứng viên đã sửa tay.
 """
+import logging
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -27,6 +28,9 @@ from app.matching.catalog import SOURCE_PRIORITY
 
 
 COLLECTION = "candidate_profiles"
+HO_SO_TUYEN_DUNG = "recruitment_applications"
+
+logger = logging.getLogger(__name__)
 
 # Giữ tối đa năm bản trước. Đủ để lần lại một chuỗi sửa gần đây mà không làm bản
 # ghi phình vô hạn theo mỗi lần ứng viên gõ lại một ô.
@@ -755,7 +759,7 @@ async def apply_changes(
     if so_dien_thoai:
         changes["phone_normalized"] = _chi_so(so_dien_thoai)
 
-    return await get_db()[COLLECTION].find_one_and_update(
+    ket_qua = await get_db()[COLLECTION].find_one_and_update(
         {"session_id": session_id, "version": expected_version},
         {
             "$set": changes,
@@ -765,6 +769,40 @@ async def apply_changes(
         return_document=ReturnDocument.AFTER,
         projection={"_id": 0},
     )
+    if ket_qua is not None and fields is not None:
+        await _dong_bo_trinh_do(ket_qua, history)
+    return ket_qua
+
+
+def _trinh_do(ho_so: dict[str, Any] | None) -> Any:
+    return (((ho_so or {}).get("fields") or {}).get("japanese_level") or {}).get("value")
+
+
+async def _dong_bo_trinh_do(moi: dict[str, Any], truoc: dict[str, Any] | None) -> None:
+    """Trình độ hồ sơ đổi → đổi theo ở hồ sơ tuyển dụng **đang mở** gắn với nó (12/10).
+
+    `recruitment_applications.japanese_level` là bản chụp lúc đăng ký, để hàng đợi và
+    danh sách hiện được mà không phải tra hồ sơ. Trước 12/10 không ai cập nhật nó:
+    buổi sơ tuyển chốt N3 có căn cứ vào hồ sơ, hàng đợi vẫn ghi "N4" của ngày đăng ký —
+    hai màn hình nói hai điều khác nhau về cùng một người. Đặt ở cửa ghi này vì mọi
+    đường sửa hồ sơ (sơ tuyển, nhân viên, khách, đọc CV, trợ lý) đều đi qua đây.
+
+    Hồ sơ đã đóng (`is_active` False) giữ nguyên: đó là sự thật lúc đóng. Lỗi ở đây
+    chỉ ghi log — hồ sơ năng lực đã lưu, không được biến lần lưu ấy thành lỗi 500.
+    """
+    gia_tri = _trinh_do(moi)
+    if gia_tri == _trinh_do(truoc) or not moi.get("code"):
+        return
+    from app.matching import catalog
+
+    nhan = catalog.JAPANESE_LEVEL_LABELS.get(gia_tri) if gia_tri else None
+    try:
+        await get_db()[HO_SO_TUYEN_DUNG].update_many(
+            {"profile_code": moi["code"], "is_active": True},
+            {"$set": {"japanese_level": nhan, "updated_at": now()}},
+        )
+    except Exception:
+        logger.exception("Không đồng bộ được trình độ sang hồ sơ tuyển dụng của %s", moi["code"])
 
 
 async def set_assignment(code: str, assigned_to: str | None) -> dict[str, Any] | None:

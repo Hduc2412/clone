@@ -459,3 +459,92 @@ dòng/lần** (mã, chữ trên màn nhập Excel, `Tailieu/DonHang/HUONG_DAN.md
 Ước tính trước khi đo là ~8 giây — thực đo chậm hơn (11,5 s). Bảng xem trước hiện mọi dòng (4 cột); **chưa** thử tải file
 2.000 dòng lên màn quản trị trên trình duyệt.
 
+## 11. Việc còn lại sau khi đẩy `87e1e04` (12/10)
+
+Năm việc rà ra sau lần đẩy trước. Mọi kiểm có ghi dữ liệu chạy trên `xkld_kiem_thu_0710`, chốt trước khi ghi (tên database
+của tiến trình + tiêu đề DH-0001 có "[KIỂM THỬ]"); tài khoản tạm và dữ liệu sinh ra đều đã xoá/trả lại.
+
+### 11.1 Thông báo theo phạm vi người xem
+
+Trước đó mọi nhân viên đều thấy **toàn bộ** thông báo của hệ thống. Kiểm ra năm lỗi:
+
+| Lỗi | Hậu quả | Sửa |
+|---|---|---|
+| Đếm chưa đọc tính trên cả hệ thống | consultant thấy số của người khác trên chuông | `GET /notifications/unread-count` đếm theo phạm vi |
+| API trả họ tên đầy đủ ở việc chưa ai nhận / của người khác | lộ tên khách cho người không phụ trách | ngoài phạm vi của mình chỉ còn chữ viết tắt (`ban_toi_thieu`) |
+| Thông báo yêu cầu hỗ trợ rơi vào nhánh lịch hẹn khi bấm "đã đọc" | không đánh dấu đọc được | thêm nhánh `support_request`; người khác phụ trách → 403 |
+| consultant thấy "Bạn được giao…" của người khác (thấy trên trình duyệt) | hiểu nhầm là việc của mình | thông báo bàn giao chỉ hiện cho đúng người được giao |
+| Đánh dấu đã đọc xong, số trên chuông 30 giây sau mới đổi | tưởng bấm không ăn | trang thông báo phát sự kiện, khung quản trị tải lại số ngay |
+
+Phạm vi consultant: lịch hẹn của mình; hồ sơ và yêu cầu hỗ trợ của mình hoặc chưa ai nhận; thông báo về đơn chỉ quản lý thấy.
+Thêm trang `/admin/notifications` (chỉ chưa đọc / xem cả đã đọc, đánh dấu từng mục, đánh dấu tất cả).
+
+Kiểm sống (máy chủ thử, 2 tài khoản tạm): consultant 92 → **53** sau khi lọc thông báo bàn giao; manager 162 = cả hệ thống;
+TB-1…TB-5 đúng 5/5 (TB-5 lần đầu báo LỖI vì **công thức kiểm của tôi** — một mã yêu cầu có 2 thông báo; đo trực tiếp thì
+đúng). Trả lại 162 thông báo chưa đọc như cũ. Ảnh `27_…`. Kiểm tự động: 8 ca backend, 5 ca quản trị; 2 đột biến bị bắt 2/2.
+
+Kèm: chữ viết tắt trên thẻ (website `OrderAdvicePanel`, khung quản trị) chỉ lấy từ chữ cái — "Nguyễn Thị Hoa (tạm)" từng ra
+"N(", nay "TH"; chuỗi không có chữ cái ra "?".
+
+### 11.2 Phông tự phục vụ
+
+Rủi ro ghi ở Phase 4 (dựng cần mạng tới Google) đã gỡ: bỏ `next/font/google` ở cả hai app; 24 tệp `.woff2` (544 KB, Be Vietnam
+Pro + Gelasio, có bộ tiếng Việt) nằm trong `public/fonts` kèm giấy phép OFL; `app/phong-chu.css` khai `@font-face`. Trình duyệt
+nạp phông từ chính máy chủ, **0** yêu cầu tới Google (ảnh `28_…`). Trong `.next` vẫn còn chuỗi `fonts.googleapis.com` — đó là
+mã của Next.js, không phải yêu cầu của ứng dụng. **Chưa** thử dựng khi tắt hẳn mạng.
+
+### 11.3 Màn "đề xuất của khách" và "tiến độ học"
+
+API có từ 08/10 nhưng chưa màn hình nào dùng: ô nhân viên đã đối chứng có căn cứ thì khách sửa thành **đề xuất chờ nhân viên**;
+trước 12/10 đề xuất ấy chỉ hiện ở danh sách mâu thuẫn chung, kể cả khi đã xử lý, và in "undefined" vì đề xuất không có trích dẫn.
+Nay khối "Khách đề xuất sửa — chờ bạn xem" ở cột phải hồ sơ ứng viên:
+
+- "Giữ giá trị nhân viên" — bắt ghi lý do ≥ 3 ký tự; "Sửa theo khách" — mở biểu mẫu sửa.
+- Khách sửa ô nhân viên nhập **chưa** xác minh thì đã áp dụng — chỉ hiện một dòng để biết.
+- Ghi tiến độ học: đang học / tạm dừng / đã hoàn thành; hoàn thành ghi "Hoàn thành chương trình … — chưa xác minh chứng chỉ",
+  **không** đổi trình độ dùng để đối chiếu.
+
+Kiểm trình duyệt (bản dựng thật, consultant tạm được giao đúng hồ sơ UV-F21497 trên database thử; đề xuất N4 → N3 dựng bằng
+đúng hai hàm đường thật dùng — `danh_dau_xac_thuc` và `o_bi_giu` + `ghi_de_xuat`):
+
+| Bước | Kết quả |
+|---|---|
+| Bấm "Giữ" khi chưa ghi lý do | hiện lời nhắc, không gọi API (ảnh `29_…`) |
+| Ghi lý do, bấm "Giữ" | "Đã giữ giá trị nhân viên và đóng đề xuất.", khối đề xuất biến mất |
+| Hoàn thành chương trình, kết quả N3 | "Hoàn thành chương trình N3 tại trung tâm — chưa xác minh chứng chỉ"; trình độ vẫn N4; phiên bản 1 → 2 (ảnh `30_…`) |
+
+Ba điều thấy khi kiểm:
+
+1. **Bố cục (đã sửa):** ô lý do và hai nút xếp ngang trong cột hẹp → ô lý do còn "Lý do gi". Nay ô lý do một dòng, nút xuống dưới.
+2. **Công cụ, không phải lỗi:** điền ô bằng `fill` của công cụ trình duyệt thì chữ hiện trong ô nhưng React không nhận (giá trị
+   trong React vẫn rỗng) → bấm "Giữ" vẫn báo thiếu lý do. Gõ phím thật (`type`) thì nhận đúng. Tôi đã tưởng là lỗi của mã và sửa,
+   rồi kiểm lại trên bản dựng cũ bằng gõ phím thật thấy chạy đúng — đã **bỏ** phần sửa ấy. Bài học: kiểm ô có điều khiển bằng
+   gõ phím thật.
+3. **Do cách dựng dữ liệu:** cột trái ghi trình độ "Ứng viên xác nhận" trong khi khối tiến độ ghi "nhân viên đã đối chứng" — vì
+   tôi chỉ gắn nhãn đối chứng mà giữ nguồn cũ. Đường sơ tuyển thật đổi nguồn thành `staff` nên không lệch như vậy.
+
+Trả lại: hồ sơ khớp bản gốc từng byte; xoá 2 nhật ký thao tác và tài khoản tạm. Kiểm tự động: 3 ca quản trị; 4 đột biến trong
+`dot_bien.py` bị bắt 4/4 (bỏ yêu cầu lý do, đang học vẫn gửi kết quả, không gửi phiên bản, lẫn đề xuất đã xử lý).
+
+### 11.4 Trình độ ở hồ sơ tuyển dụng đi theo hồ sơ năng lực
+
+`recruitment_applications.japanese_level` là bản chụp lúc đăng ký và **không ai cập nhật**: buổi sơ tuyển ghi trình độ mới vào
+hồ sơ năng lực, đổi trạng thái hồ sơ tuyển dụng, nhưng hàng đợi và danh sách hồ sơ tuyển dụng vẫn hiện trình độ ngày đăng ký —
+hai màn hình nói hai điều khác nhau về cùng một người.
+
+Sửa ở cửa ghi hồ sơ (`candidate_profiles.apply_changes`) — mọi đường sửa (sơ tuyển, nhân viên, khách, đọc CV, trợ lý) đều đi
+qua đây: trình độ đổi thì cập nhật nhãn ở các hồ sơ tuyển dụng **đang mở** gắn hồ sơ ấy. Hồ sơ đã đóng giữ nguyên (sự thật lúc
+đóng). Lỗi đồng bộ chỉ ghi log, không biến lần lưu hồ sơ thành lỗi 500.
+
+Kiểm sống (manager tạm, database thử): ghi sơ tuyển qua API thật cho HS-0F674B (giữ nguyên trạng thái để không động chỉ tiêu),
+tra cứu trực tuyến, N2 → hồ sơ năng lực N2, hồ sơ tuyển dụng **N4 → N2**, danh sách hiện N2. Trả lại hồ sơ năng lực, hồ sơ tuyển
+dụng (khớp bản gốc), xoá 1 sự kiện, 2 nhật ký, tài khoản tạm. Kiểm tự động: 6 ca; 2 đột biến bị bắt 2/2.
+
+### 11.5 Tổng kết kiểm thử (12/10)
+
+| Bộ | Kết quả |
+|---|---|
+| Backend | 1371/1371 |
+| Quản trị | 53/53, `tsc` sạch, dựng sạch |
+| Website | 85/85, `tsc` sạch, dựng sạch |
+| Database thật | 10 bảng `[342, 197, 85, 83, 294, 2, 679, 87, 224, 80]`, `storage/cv` 25 tệp — không đổi |
