@@ -43,8 +43,11 @@ function dung({ dapAn = { ok: true, status: 200, body: { xong: true } } } = {}) 
       status: dapAn.status,
       json: async () => {
         if (dapAn.khongDocDuoc) throw new SyntaxError("Unexpected token");
+        // Như trình duyệt: thân rỗng (204) mà gọi .json() là ném lỗi.
+        if (dapAn.body === undefined) throw new SyntaxError("Unexpected end of JSON input");
         return dapAn.body;
       },
+      text: async () => (dapAn.body === undefined ? "" : JSON.stringify(dapAn.body)),
     };
   };
 
@@ -222,6 +225,14 @@ test("khóa học: xóa gọi DELETE, đổi trạng thái gọi PATCH", async (
   await api.deleteCourse("KH-0002");
   assert.equal(goi[0].method, "DELETE");
   assert.match(goi[0].url, /\/khoa-hoc\/KH-0002$/);
+});
+
+test("xóa đơn nháp trả 204 không thân: không báo lỗi giả (12/10)", async () => {
+  // Kiểm trình duyệt 12/10: máy chủ đã xóa xong nhưng màn hình hiện
+  // "Failed to execute 'json' on 'Response': Unexpected end of JSON input".
+  const { api, goi } = dung({ dapAn: { ok: true, status: 204, body: undefined } });
+  assert.equal(await api.deleteJobOrder("DH-3022"), undefined);
+  assert.equal(goi[0].method, "DELETE");
 });
 
 test("mã có ký tự lạ vẫn được mã hóa trước khi ghép vào đường dẫn", async () => {

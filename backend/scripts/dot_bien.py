@@ -992,6 +992,56 @@ DOT_BIEN = [
         "c.kind === DE_XUAT",
         ["admin"],
     ),
+    # --- Kiểm theo vai trò trên trình duyệt (12/10) ---
+    (
+        "xóa đơn: đọc JSON từ phản hồi 204 (báo lỗi dù đã xóa)",
+        "../admin-frontend/lib/managementApi.ts",
+        "  if (response.status === 204) return undefined as T;\n  const text = await response.text();\n  return (text ? JSON.parse(text) : undefined) as T;",
+        "  return response.json();",
+        ["admin"],
+    ),
+    (
+        "chữ viết tắt: lại lấy cả ký tự không phải chữ cái",
+        "../admin-frontend/lib/chuVietTat.ts",
+        "    .filter((w) => w.length > 0 && w[0].toLowerCase() !== w[0].toUpperCase());",
+        "    .filter((w) => w.length > 0);",
+        ["admin"],
+    ),
+    (
+        "thanh bên: lịch chờ lại đếm cả hệ thống",
+        "../admin-frontend/components/admin/AdminShell.tsx",
+        "        .pendingAppointmentCount()\n        .then((data) => setLichCho(data.count))",
+        "        .overview()\n        .then((data) => setLichCho(data.appointments_pending))",
+        ["admin"],
+    ),
+    (
+        "trang chỉ quản lý: consultant gõ thẳng địa chỉ vẫn thấy trang",
+        "../admin-frontend/components/admin/AdminShell.tsx",
+        'user.role === "consultant" && CHI_QUAN_LY.some(',
+        'false && CHI_QUAN_LY.some(',
+        ["admin"],
+    ),
+    (
+        "nhật ký thao tác: mất nhãn của hành động hỗ trợ",
+        "../admin-frontend/app/admin/audit-logs/page.tsx",
+        '  "support.released": "Trả yêu cầu hỗ trợ về hàng đợi",\n',
+        "",
+        ["admin"],
+    ),
+    (
+        "đếm lịch chờ: consultant lại đếm lịch của mọi người",
+        "app/api/appointments.py",
+        '    nguoi = current_user["email"] if current_user["role"] == "consultant" else None',
+        "    nguoi = None",
+        ["tests.test_dem_lich_cho"],
+    ),
+    (
+        "gửi nhân viên: không điền sẵn họ tên từ hồ sơ",
+        "../frontend/components/candidate/SupportRequestForm.tsx",
+        '  const tenSan = String(hoSo?.fields?.full_name?.value ?? "");',
+        '  const tenSan = "";',
+        ["frontend"],
+    ),
 ]
 
 #: Bộ đo nào phải xanh ở lần chạy đối chứng. Mọi mục tiêu xuất hiện trong
@@ -1006,7 +1056,7 @@ DOI_CHUNG = (
     "tests.test_e2e_tra_ve_hang_doi", "tests.test_tu_van_mo_rong", "tests.test_hau_kiem_co_nhan",
     "tests.test_ho_tro_chuyen_tra", "tests.test_bang_doi_chieu", "tests.test_ngan_sach_mo_hinh", "tests.test_quyen_va_xac_minh",
     "tests.test_registrations", "tests.test_bo_cham_tu_van", "tests.test_job_order_import", "tests.test_consultation_eligibility", "tests.test_chi_tieu", "tests.test_thong_bao",
-    "tests.test_dong_bo_trinh_do",
+    "tests.test_dong_bo_trinh_do", "tests.test_dem_lich_cho",
     "xuyen_suot", "e2e", "hanh_trinh",
 )
 

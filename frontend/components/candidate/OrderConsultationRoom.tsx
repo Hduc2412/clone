@@ -238,7 +238,7 @@ export default function OrderConsultationRoom({
           <XacNhanTruoc orderCode={orderCode} onAskStaff={() => setLoaiHoTro("nhan_tin")} />
           {sessionId && <AdvisorChat sessionId={sessionId} orderCode={orderCode} />}
           {loaiHoTro && sessionId && (
-            <SupportRequestForm sessionId={sessionId} orderCode={orderCode} loaiMacDinh={loaiHoTro} />
+            <SupportRequestForm sessionId={sessionId} orderCode={orderCode} loaiMacDinh={loaiHoTro} hoSo={hoSo} />
           )}
         </>
       )}
@@ -276,6 +276,7 @@ export default function OrderConsultationRoom({
               // chính thứ khách đã đọc, thay vì tự dựng lại rồi đoán xem khách
               // đang hiểu thế nào.
               loaiMacDinh={loaiHoTro}
+              hoSo={hoSo}
             />
           )}
           <p className="text-sm text-slate-600">

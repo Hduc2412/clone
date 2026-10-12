@@ -82,8 +82,9 @@ export default function CvUpload({
             Gửi CV để bắt đầu tư vấn
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Nhận file PDF, Word hoặc ảnh chụp. Hệ thống đọc thông tin trong CV
-            để trợ lý tư vấn cho bạn — bạn vẫn kiểm tra và sửa được trước khi đối chiếu.
+            Hệ thống đọc được CV có chữ (PDF, Word). Ảnh chụp hoặc bản scan vẫn gửi được
+            nhưng chưa đọc được chữ — khi đó bạn khai nhanh bằng biểu mẫu. Bạn vẫn kiểm tra
+            và sửa được trước khi đối chiếu.
           </p>
         </div>
         <div>

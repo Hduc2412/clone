@@ -42,15 +42,26 @@ function diQua(node, lam) {
   node.forEachChild((con) => diQua(con, lam));
 }
 
-/** Tên biến mà `useState` gán cho giá trị lấy từ một khóa của overview. */
-function bienGanVoi(khoa) {
+/**
+ * Tên biến mà `useState` gán cho giá trị trả về của `managementApi.<hamApi>()`.
+ *
+ * Từ 12/10 cả hai số đều đọc khóa `count` (lịch chờ theo phạm vi, thông báo theo phạm
+ * vi) nên không phân biệt được bằng tên khóa nữa — phân biệt bằng HÀM API trong chuỗi
+ * `managementApi.<hamApi>().then((data) => setX(data.count))`.
+ */
+function bienNhanTu(hamApi) {
   let setter = null;
   diQua(CAY, (n) => {
-    if (!ts.isCallExpression(n) || n.arguments.length !== 1) return;
-    const arg = n.arguments[0];
-    if (!ts.isPropertyAccessExpression(arg)) return;
-    if (arg.name.text !== khoa) return;
-    if (ts.isIdentifier(n.expression)) setter = n.expression.text;
+    if (!ts.isCallExpression(n) || !ts.isPropertyAccessExpression(n.expression)) return;
+    if (n.expression.name.text !== "then") return;
+    const goi = n.expression.expression;
+    if (!ts.isCallExpression(goi) || !ts.isPropertyAccessExpression(goi.expression)) return;
+    if (goi.expression.name.text !== hamApi || goi.expression.expression.getText() !== "managementApi") return;
+    diQua(n.arguments[0], (m) => {
+      if (ts.isCallExpression(m) && ts.isIdentifier(m.expression) && /^set[A-Z]/.test(m.expression.text)) {
+        setter = m.expression.text;
+      }
+    });
   });
   if (!setter) return null;
   let bien = null;
@@ -115,17 +126,20 @@ function hrefChuoiCuaCacLink() {
   return ra;
 }
 
-test("hai con số là hai biến khác nhau, lấy từ hai khóa khác nhau", () => {
-  const bienLich = bienGanVoi("appointments_pending");
-  const bienThongBao = bienGanVoi("count");
-  assert.ok(bienLich, "không thấy biến nào nhận giá trị appointments_pending");
-  assert.ok(bienThongBao, "không thấy biến nào nhận giá trị count (số thông báo theo phạm vi, 12/10)");
+test("hai con số là hai biến khác nhau, lấy từ hai đường API khác nhau", () => {
+  // Lịch chờ đọc `pendingAppointmentCount` (theo phạm vi, 12/10) — trước đó đọc
+  // `appointments_pending` của trang tổng quan, tức cả hệ thống: consultant thấy
+  // "Lịch hẹn 34" mà mở danh sách thì 0 lịch.
+  const bienLich = bienNhanTu("pendingAppointmentCount");
+  const bienThongBao = bienNhanTu("notificationCount");
+  assert.ok(bienLich, "không thấy biến nào nhận giá trị từ pendingAppointmentCount()");
+  assert.ok(bienThongBao, "không thấy biến nào nhận giá trị từ notificationCount()");
   assert.notEqual(bienLich, bienThongBao, "hai con số phải là hai biến khác nhau");
 });
 
 test("badge cạnh mục Lịch hẹn đọc số lịch đang chờ, không đọc số thông báo", () => {
-  const bienLich = bienGanVoi("appointments_pending");
-  const bienThongBao = bienGanVoi("count");
+  const bienLich = bienNhanTu("pendingAppointmentCount");
+  const bienThongBao = bienNhanTu("notificationCount");
   const trongBadge = bienCanhBadgeTheoSoSanh("/admin/appointments");
   assert.ok(trongBadge, "không tìm thấy badge nào canh mục /admin/appointments");
   assert.ok(
@@ -136,6 +150,10 @@ test("badge cạnh mục Lịch hẹn đọc số lịch đang chờ, không đ�
     !trongBadge.has(bienThongBao),
     `badge của mục Lịch hẹn KHÔNG được đọc '${bienThongBao}' (số thông báo chưa đọc)`,
   );
+});
+
+test("thanh bên không còn đọc số lịch chờ của cả hệ thống", () => {
+  assert.equal(bienNhanTu("overview"), null, "AdminShell lại lấy số từ trang tổng quan (cả hệ thống)");
 });
 
 test("badge Thông báo ở đầu trang không trỏ sang màn hình lịch hẹn", () => {

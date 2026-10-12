@@ -17,6 +17,35 @@ const labels: Record<string, string> = {
   "appointment.rescheduled": "Đổi lịch hẹn",
   "application.created": "Tạo hồ sơ tuyển dụng",
   "application.updated": "Cập nhật hồ sơ tuyển dụng",
+  // Các hành động thêm sau (12/10). Trước đó màn này hiện nguyên mã máy như
+  // "support.released", và bộ lọc không chọn được chúng (kiểm trình duyệt 12/10).
+  // `tests/nhanNhatKy.test.cjs` dò mọi `audit_action(...)` ở backend: thiếu nhãn là đỏ.
+  "application.accepted": "Nhận hồ sơ đăng ký",
+  "application.handover": "Chuyển giao hồ sơ đăng ký",
+  "application.released": "Trả hồ sơ về hàng đợi",
+  "application.so_tuyen": "Ghi kết quả sơ tuyển",
+  "candidate_account.granted": "Cấp tài khoản cho khách",
+  "candidate_profile.updated": "Sửa hồ sơ ứng viên",
+  "candidate_profile.assigned": "Phân công hồ sơ ứng viên",
+  "candidate_profile.hoc_tap": "Ghi tiến độ học",
+  "candidate_profile.de_xuat_giu_nguyen": "Giữ giá trị nhân viên (đề xuất của khách)",
+  "support.claimed": "Nhận yêu cầu hỗ trợ",
+  "support.replied": "Trả lời yêu cầu hỗ trợ",
+  "support.handover": "Chuyển yêu cầu hỗ trợ",
+  "support.released": "Trả yêu cầu hỗ trợ về hàng đợi",
+  "job_order.created": "Tạo đơn tuyển dụng",
+  "job_order.updated": "Sửa đơn tuyển dụng",
+  "job_order.status_changed": "Đổi trạng thái đơn",
+  "job_order.published_changed": "Bật/tắt công khai đơn",
+  "job_order.imported": "Nhập đơn từ Excel",
+  "job_order.deleted": "Xóa đơn nháp",
+  "course.created": "Thêm khóa học",
+  "course.updated": "Sửa khóa học",
+  "course.deleted": "Xóa khóa học",
+  "document.download": "Tải CV của ứng viên",
+  "recommendation.rerun": "Chạy lại đối chiếu",
+  "password.reset": "Đặt lại mật khẩu",
+  "staff_score.adjusted": "Điều chỉnh điểm nhân viên",
 };
 
 export default function AuditLogsPage() {

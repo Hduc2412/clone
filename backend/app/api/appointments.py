@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError
 from app.db.database import (
     REFERENCE_APPLICATION,
     assign_appointment,
+    count_appointments,
     find_appointment_conflict,
     get_appointment_by_code,
     get_appointment_stats,
@@ -128,6 +129,18 @@ async def get_appointments(
         assigned_to=effective_assigned_to,
         limit=limit,
     )
+
+
+@appointment_router.get("/pending-count")
+async def get_pending_appointment_count(current_user=Depends(get_current_user)):
+    """Số lịch chờ xác nhận cho ô số trên thanh bên — theo PHẠM VI người xem (12/10).
+
+    Trước đó thanh bên lấy `appointments_pending` của trang tổng quan, tức cả hệ thống:
+    consultant thấy "Lịch hẹn 34" nhưng mở danh sách thì 0 lịch, vì danh sách chỉ hiện
+    lịch giao cho chính họ (kiểm trình duyệt 12/10). Cùng luật với `get_appointments`.
+    """
+    nguoi = current_user["email"] if current_user["role"] == "consultant" else None
+    return {"count": await count_appointments(status="pending", assigned_to=nguoi)}
 
 
 @appointment_router.get("/stats")

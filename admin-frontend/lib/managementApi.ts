@@ -676,7 +676,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const payload = await response.json().catch(() => null);
     throw new Error(detailMessage(payload, "Không thể kết nối hệ thống."));
   }
-  return response.json();
+  // 204 không có thân (xóa đơn nháp). Đọc JSON ở đây ném "Unexpected end of JSON input"
+  // dù máy chủ đã xóa xong — màn hình báo lỗi, người dùng tưởng chưa xóa (kiểm 12/10).
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 /**
@@ -703,6 +707,8 @@ async function requestForm<T>(path: string, body: FormData): Promise<T> {
 
 export const managementApi = {
   overview: () => request<Overview>("/management/overview"),
+  /** Số lịch chờ xác nhận theo phạm vi người xem — cho ô số trên thanh bên (12/10). */
+  pendingAppointmentCount: () => request<{ count: number }>("/appointments/pending-count"),
   appointments: (filters?: {
     status?: string;
     dateFrom?: string;

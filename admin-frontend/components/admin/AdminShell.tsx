@@ -7,6 +7,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { managementApi } from "@/lib/managementApi";
 import { AuthUser, loadCurrentUser, logout } from "@/lib/auth";
 import { SU_KIEN_THONG_BAO } from "@/lib/thongBao";
+import { chuVietTat } from "@/lib/chuVietTat";
 
 const navigation = [
   { href: "/admin", label: "Tổng quan", icon: "▦" },
@@ -29,6 +30,11 @@ const navigation = [
   { href: "/admin/users", label: "Người dùng", icon: "♧" },
   { href: "/admin/audit-logs", label: "Nhật ký hệ thống", icon: "≡" },
 ];
+
+/** Trang chỉ Admin/Manager dùng. Một danh sách cho cả thanh bên lẫn việc chặn khi gõ
+ *  thẳng địa chỉ (12/10): trước đó consultant mở `/admin/users` vẫn thấy khung trang và
+ *  nút "Thêm người dùng" — máy chủ vẫn từ chối, nhưng trang không nên hiện ra. */
+const CHI_QUAN_LY = ["/admin/users", "/admin/audit-logs"];
 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -55,9 +61,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     const load = () => {
+      // Lịch chờ theo PHẠM VI người xem (12/10): số của trang tổng quan là cả hệ thống,
+      // consultant thấy "34" mà mở danh sách thì 0 lịch.
       managementApi
-        .overview()
-        .then((data) => setLichCho(data.appointments_pending))
+        .pendingAppointmentCount()
+        .then((data) => setLichCho(data.count))
         .catch(() => setLichCho(0));
       // Số thông báo theo PHẠM VI người xem (12/10). Trước đó lấy tổng của cả hệ thống
       // từ trang tổng quan: consultant thấy cả việc của người khác, và con số chỉ tăng.
@@ -122,7 +130,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             bấm được trên máy tính xách tay thường. */}
         <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
           {navigation
-            .filter((item) => !["/admin/users", "/admin/audit-logs"].includes(item.href) || user.role !== "consultant")
+            .filter((item) => !CHI_QUAN_LY.includes(item.href) || user.role !== "consultant")
             .map((item) => {
             const active =
               item.href === "/admin"
@@ -157,16 +165,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9e6db] text-sm text-[#776f57]"
               style={{ fontFamily: "var(--font-serif, Georgia), Georgia, serif" }}
             >
-              {/* Chỉ lấy tiếng bắt đầu bằng chữ cái: tên "… (tạm)" từng ra "C(". */}
-              {user.full_name
-                .split(/\s+/)
-                // Chữ cái là ký tự có hai dạng hoa/thường khác nhau — gồm cả "Đ", "Ư";
-                // không dùng `\p{L}` vì cấu hình biên dịch đang nhắm ES5.
-                .filter((w) => w.length > 0 && w[0].toLowerCase() !== w[0].toUpperCase())
-                .slice(-2)
-                .map((w) => w[0])
-                .join("")
-                .toUpperCase()}
+              {chuVietTat(user.full_name)}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-slate-900">{user.full_name}</p>
@@ -208,7 +207,15 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             )}
           </Link>
         </header>
-        <main className="p-4 md:p-8">{children}</main>
+        <main className="p-4 md:p-8">
+          {user.role === "consultant" && CHI_QUAN_LY.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ? (
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
+              Trang này chỉ dành cho Admin và Manager.
+            </p>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );

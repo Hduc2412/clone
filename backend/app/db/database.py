@@ -484,6 +484,14 @@ async def create_appointment(appointment: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in document.items() if key != "_id"}
 
 
+async def count_appointments(*, status: str, assigned_to: str | None = None) -> int:
+    """Đếm lịch theo trạng thái, cùng luật lọc người phụ trách với `list_appointments` (12/10)."""
+    query: dict[str, Any] = {"status": status}
+    if assigned_to:
+        query["assigned_to"] = assigned_to.strip().lower()
+    return await get_db().consultation_appointments.count_documents(query)
+
+
 async def list_appointments(
     status: str | None = None,
     date_from: str | None = None,

@@ -26,6 +26,15 @@ const leadStatuses = [
   ["cancelled", "Đã hủy"],
 ];
 
+/** Nhãn nguồn khách (12/10): cột "Nguồn" từng hiện nguyên mã `self_registration`. */
+const NGUON_KHACH: Record<string, string> = {
+  manual: "Nhân viên nhập",
+  website: "Website",
+  facebook: "Facebook",
+  referral: "Giới thiệu",
+  self_registration: "Khách tự đăng ký đơn",
+};
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<ManagedLead[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -75,7 +84,7 @@ export default function LeadsPage() {
       <PageHeader
         eyebrow="Quy trình tuyển dụng"
         title="Khách hàng và lead"
-        description="Quản lý hồ sơ do nhân viên tạo. Chatbot đặt lịch không tự động tạo lead."
+        description="Khách do nhân viên nhập và khách tự đăng ký đơn trên website. Chatbot đặt lịch không tự động tạo khách."
         action={
           <button
             onClick={() => setShowForm((value) => !value)}
@@ -105,10 +114,12 @@ export default function LeadsPage() {
               name="source"
               className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none"
             >
-              <option value="manual">Nhân viên nhập</option>
-              <option value="website">Website</option>
-              <option value="facebook">Facebook</option>
-              <option value="referral">Giới thiệu</option>
+              {/* `self_registration` chỉ do luồng đăng ký đơn sinh ra, nhân viên không chọn. */}
+              {Object.entries(NGUON_KHACH)
+                .filter(([ma]) => ma !== "self_registration")
+                .map(([ma, nhan]) => (
+                  <option key={ma} value={ma}>{nhan}</option>
+                ))}
             </select>
           </label>
           <Field
@@ -162,7 +173,7 @@ export default function LeadsPage() {
                         {lead.phone}
                       </a>
                     </td>
-                    <td className="px-5 py-4 text-slate-500">{lead.source}</td>
+                    <td className="px-5 py-4 text-slate-500">{NGUON_KHACH[lead.source] || lead.source}</td>
                     <td className="px-5 py-4 text-slate-500">
                       {lead.assigned_to || "Chưa phân công"}
                     </td>

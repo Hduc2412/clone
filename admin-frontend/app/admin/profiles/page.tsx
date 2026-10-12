@@ -127,8 +127,8 @@ export default function CandidateProfilesPage() {
         <p className="text-sm text-slate-400">Đang tải…</p>
       ) : profiles.length === 0 ? (
         <EmptyState
-          title="Chưa có hồ sơ nào"
-          description="Hồ sơ xuất hiện ở đây khi ứng viên gửi CV trong khung chat hoặc tự khai thông tin trên web."
+          title="Chưa có hồ sơ nào trong phạm vi bạn được xem"
+          description="Tư vấn viên chỉ thấy hồ sơ mình đang phụ trách (nhận từ hàng đợi hoặc được giao). Hồ sơ mới xuất hiện khi ứng viên gửi CV hoặc tự khai trên web."
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

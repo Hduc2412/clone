@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { managementApi, StaffUser } from "@/lib/managementApi";
+import { chuVietTat } from "@/lib/chuVietTat";
 import {
   EmptyState,
   ErrorBanner,
@@ -148,12 +149,7 @@ export default function UsersPage() {
             >
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
-                  {user.full_name
-                    .split(" ")
-                    .slice(-2)
-                    .map((word) => word[0])
-                    .join("")
-                    .toUpperCase()}
+                  {chuVietTat(user.full_name)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{user.full_name}</p>

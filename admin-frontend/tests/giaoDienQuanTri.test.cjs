@@ -91,3 +91,14 @@ function kiemPhongTuPhucVu(GOC) {
 test("phông tự phục vụ: không tải từ Google lúc build, đủ tệp, có bộ tiếng Việt", () => {
   kiemPhongTuPhucVu(GOC);
 });
+
+// 12/10: consultant gõ thẳng /admin/users vẫn thấy khung trang. Một danh sách
+// `CHI_QUAN_LY` phải canh CẢ thanh bên lẫn nội dung `<main>`.
+test("trang chỉ dành cho quản lý: cùng một danh sách canh thanh bên và nội dung", () => {
+  const nguon = fs.readFileSync(path.join(GOC, "components", "admin", "AdminShell.tsx"), "utf8");
+  assert.match(nguon, /const CHI_QUAN_LY = \[[^\]]*"\/admin\/users"[^\]]*"\/admin\/audit-logs"/);
+  assert.match(nguon, /\.filter\(\(item\) => !CHI_QUAN_LY\.includes\(item\.href\)/);
+  const main = nguon.slice(nguon.indexOf("<main"), nguon.indexOf("</main>"));
+  assert.match(main, /CHI_QUAN_LY\.some/, "nội dung trang không bị chặn khi gõ thẳng địa chỉ");
+  assert.match(main, /user\.role === "consultant"/);
+});

@@ -24,6 +24,7 @@
 import { FormEvent, useState } from "react";
 import { COMPANY } from "@/content/site";
 import {
+  type CandidateProfile,
   type SupportKind,
   sendSupportRequest,
 } from "@/lib/candidateApi";
@@ -54,12 +55,18 @@ export default function SupportRequestForm({
   orderCode,
   loaiMacDinh = "nhan_tin",
   onDone,
+  hoSo,
 }: {
   sessionId: string;
   orderCode?: string;
   loaiMacDinh?: SupportKind;
   onDone?: (code: string) => void;
+  /** Hồ sơ khách vừa khai: điền sẵn họ tên và số điện thoại (12/10) — trước đó khách
+   *  vừa khai xong lại phải gõ lại hai ô này. Vẫn sửa được trước khi gửi. */
+  hoSo?: CandidateProfile | null;
 }) {
+  const tenSan = String(hoSo?.fields?.full_name?.value ?? "");
+  const soSan = String(hoSo?.fields?.phone?.value ?? "");
   // Không nhận `adviceBlock` nữa. Máy chủ tự dựng lại khối kết quả đối chiếu từ
   // nhật ký giới thiệu — trình duyệt không còn là nguồn của thứ nhân viên đọc.
   // Chỉ cần `orderCode` là máy chủ tra ra đúng khối khách đã nhìn thấy.
@@ -190,13 +197,14 @@ export default function SupportRequestForm({
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-medium text-slate-700">
           Họ và tên
-          <input required name="full_name" maxLength={100} className={O_NHAP} />
+          <input required name="full_name" maxLength={100} defaultValue={tenSan} className={O_NHAP} />
         </label>
         <label className="block text-sm font-medium text-slate-700">
           Số điện thoại
           <input
             required
             name="phone"
+            defaultValue={soSan}
             inputMode="tel"
             placeholder="09xx xxx xxx"
             className={O_NHAP}

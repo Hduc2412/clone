@@ -190,7 +190,7 @@ export default function ApplicationsPage() {
       {soTuyenCode && <SoTuyenForm code={soTuyenCode} onSubmit={ghiSoTuyen} onCancel={() => setSoTuyenCode(null)} />}
 
       {!loading && applications.length === 0 ? (
-        <EmptyState title="Chưa có hồ sơ tuyển dụng" description="Tạo hồ sơ từ một khách hàng đã được xác nhận đủ nhu cầu tham gia." />
+        <EmptyState title="Chưa có hồ sơ tuyển dụng trong phạm vi bạn được xem" description="Tư vấn viên chỉ thấy hồ sơ mình phụ trách — nhận việc ở Hàng đợi hồ sơ. Nhân viên cũng tạo được hồ sơ từ một khách hàng đã xác nhận nhu cầu." />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
