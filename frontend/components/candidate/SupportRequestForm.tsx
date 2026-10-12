@@ -47,7 +47,7 @@ const LOAI: { ma: SupportKind; nhan: string; goi_y: string }[] = [
 ];
 
 const O_NHAP =
-  "mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-[#cb1d1e]";
+  "mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-brand-600";
 
 export default function SupportRequestForm({
   sessionId,
@@ -68,6 +68,8 @@ export default function SupportRequestForm({
   const [gio, setGio] = useState("");
   const [hinhThuc, setHinhThuc] = useState<"truc_tiep" | "truc_tuyen">("truc_tuyen");
   const [dangGui, setDangGui] = useState(false);
+  // Đồng ý bàn giao hồ sơ và CV: khách tự tích, không tích sẵn (08/10).
+  const [dongY, setDongY] = useState(false);
   const [loi, setLoi] = useState("");
   const [maDaGui, setMaDaGui] = useState("");
   const [maLichHen, setMaLichHen] = useState("");
@@ -86,6 +88,7 @@ export default function SupportRequestForm({
         full_name: String(form.get("full_name") || ""),
         phone: String(form.get("phone") || ""),
         job_order_code: orderCode,
+        dong_y_ban_giao: dongY,
         // Chỉ gửi khung giờ với loại "xin gặp mặt", và chỉ khi khách điền đủ
         // cả ngày lẫn giờ. Gửi một nửa thì máy chủ từ chối cả yêu cầu — xem
         // `SupportRequestBody._ngay_va_gio_di_cung_nhau`.
@@ -151,8 +154,8 @@ export default function SupportRequestForm({
             aria-pressed={kind === l.ma}
             className={`rounded-full px-4 py-2 text-sm font-medium ring-1 transition ${
               kind === l.ma
-                ? "bg-[#cb1d1e] text-white ring-[#cb1d1e]"
-                : "bg-white text-slate-700 ring-slate-300 hover:ring-[#cb1d1e]"
+                ? "bg-brand-600 text-white ring-brand-600"
+                : "bg-white text-slate-700 ring-slate-300 hover:ring-brand-600"
             }`}
           >
             {l.nhan}
@@ -250,7 +253,7 @@ export default function SupportRequestForm({
                 aria-pressed={hinhThuc === ma}
                 className={`rounded-full px-4 py-2 text-sm font-medium ring-1 transition ${
                   hinhThuc === ma
-                    ? "bg-[#cb1d1e] text-white ring-[#cb1d1e]"
+                    ? "bg-brand-600 text-white ring-brand-600"
                     : "bg-white text-slate-700 ring-slate-300"
                 }`}
               >
@@ -272,9 +275,21 @@ export default function SupportRequestForm({
         <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{loi}</p>
       )}
 
+      <label className="mt-5 flex items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+        <input
+          type="checkbox"
+          checked={dongY}
+          onChange={(e) => setDongY(e.target.checked)}
+          className="mt-1 h-5 w-5 shrink-0"
+        />
+        <span>
+          Cho nhân viên nhận yêu cầu này xem hồ sơ và CV tôi đã gửi. Không tích thì nhân
+          viên chỉ đọc bản tóm tắt bàn giao.
+        </span>
+      </label>
       <button
         disabled={dangGui}
-        className="mt-5 w-full rounded-xl bg-[#cb1d1e] px-4 py-3 font-semibold text-white disabled:opacity-60 sm:w-auto sm:px-8"
+        className="mt-5 w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-60 sm:w-auto sm:px-8"
       >
         {dangGui ? "Đang gửi…" : "Gửi cho nhân viên"}
       </button>
@@ -284,7 +299,7 @@ export default function SupportRequestForm({
         Xin vui lòng liên hệ với nhân viên trong khoảng thời gian từ{" "}
         <strong>{COMPANY.contactHours}</strong>, thứ Hai đến thứ Bảy. Cần gấp thì
         bạn gọi hotline{" "}
-        <a href={COMPANY.hotlineHref} className="font-semibold text-[#cb1d1e]">
+        <a href={COMPANY.hotlineHref} className="font-semibold text-brand-600">
           {COMPANY.hotline}
         </a>{" "}
         nhé.

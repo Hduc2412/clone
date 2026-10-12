@@ -53,6 +53,9 @@ function load(file, api, { strict = false } = {}) {
   };
   const context = { exports: {}, Error, window: { scrollTo() {} }, require(name) {
     if (modules[name]) return modules[name];
+    if (name === './BuocTuVan') {
+      return { __esModule: true, default: component('BuocTuVan'), buocHienTai: () => 0 };
+    }
     // Không dựng các component con; giữ node để kiểm đúng prop/callback nối luồng.
     if (name === 'next/link' || name.startsWith('@/components/') || name === './AdvisorChat') {
       return { __esModule: true, default: component(name.split('/').at(-1)) };
@@ -483,4 +486,59 @@ test('vừa đăng ký xong rồi khai lại: thông báo "đã gửi đăng ký
   nutTen(render(), 'Xác nhận hồ sơ').props.onClick();
   await h.flush();
   assert.doesNotMatch(text(render()), /Đã gửi đăng ký đơn/);
+});
+
+// --- Ba trang của bước khai hồ sơ (bản thiết kế 08/10) ------------------------
+//
+// Khách bấm mới sang trang. Trang không xem thì ẩn chứ không gỡ, để khung trợ lý ở
+// trang làm rõ không bị dựng lại (gọi lại lượt mở đầu) mỗi lần khách quay lại.
+
+const trangDangXem = tree => nodes(tree).filter(n => n.type === 'section' && n.props['aria-label'] && n.props.hidden === false);
+
+test('ba trang: đọc xong CV KHÔNG tự sang trang; khách bấm mới sang, chưa đủ thông tin thì không sang trang xác nhận', async () => {
+  const { h, render } = luong({ ensureSessionId: async () => 's' });
+  render(); await h.flush();
+  let cay = render();
+  assert.deepEqual(trangDangXem(cay).map(n => n.props['aria-label']), ['Gửi CV của bạn']);
+
+  nodes(cay).find(n => n.type?.displayName === 'CvUpload').props.onProfileRead({ fields: {}, preferences: {}, status: 'draft', version: 1 });
+  cay = render();
+  assert.deepEqual(trangDangXem(cay).map(n => n.props['aria-label']), ['Gửi CV của bạn'], 'tự trượt sang trang khác khi khách chưa bấm');
+  // Khung trợ lý đã dựng (ẩn) ngay khi có hồ sơ — đúng một lần, không phụ thuộc trang.
+  assert.equal(nodes(cay).filter(n => n.type?.displayName === 'AdvisorChat').length, 1);
+
+  nutTen(cay, 'Tiếp: làm rõ thông tin').props.onClick();
+  cay = render();
+  assert.deepEqual(trangDangXem(cay).map(n => n.props['aria-label']), ['Làm rõ thông tin']);
+
+  // Chưa có họ tên và trình độ: không sang trang xác nhận, mở biểu mẫu kèm lỗi.
+  nutTen(cay, 'Tiếp: xem lại và xác nhận').props.onClick();
+  cay = render();
+  assert.deepEqual(trangDangXem(cay).map(n => n.props['aria-label']), ['Làm rõ thông tin']);
+  assert.equal(find(cay, 'details').props.open, true);
+});
+
+test('trang xác nhận đọc lại đúng thứ sẽ lưu; mục bỏ trống ghi "Chưa cung cấp"', async () => {
+  const hoSo = {
+    code: 'UV-1', status: 'draft', version: 1, labels: {}, preferences: {},
+    fields: { full_name: { value: 'Ca Hai' }, japanese_level: { value: 'N4' } },
+    trang_thai_tieng_nhat: { chuong_trinh: { nhan: 'Hoàn thành chương trình N4 tại trung tâm — chưa xác minh chứng chỉ' } },
+  };
+  const { h, render } = luong({
+    ensureSessionId: async () => 's', fetchProfile: async () => hoSo,
+    fetchProfileMeta: async () => ({ japanese_levels: [{ code: 'N4', label: 'N4' }] }),
+  });
+  render(); await h.flush();
+  let cay = render();
+  // Hồ sơ chưa xác nhận từ lần trước: vào thẳng trang làm rõ.
+  assert.deepEqual(trangDangXem(cay).map(n => n.props['aria-label']), ['Làm rõ thông tin']);
+  nutTen(cay, 'Tiếp: xem lại và xác nhận').props.onClick();
+  cay = render();
+  const trang = trangDangXem(cay);
+  assert.deepEqual(trang.map(n => n.props['aria-label']), ['Xem lại và xác nhận']);
+  const chu = text(trang[0]);
+  assert.match(chu, /Họ tên Ca Hai/);
+  assert.match(chu, /Kinh nghiệm Chưa cung cấp/);
+  assert.match(chu, /chưa xác minh chứng chỉ/);
+  assert.ok(nutTen(trang[0], 'Xác nhận hồ sơ và xem đơn phù hợp'));
 });

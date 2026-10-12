@@ -68,7 +68,7 @@ export default function UsersPage() {
         action={
           <button
             onClick={() => setShowForm((value) => !value)}
-            className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+            className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
           >
             {showForm ? "Đóng biểu mẫu" : "Thêm người dùng"}
           </button>
@@ -91,7 +91,7 @@ export default function UsersPage() {
             <input
               required
               name="full_name"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-brand-400"
               placeholder="Nguyễn Văn Tư Vấn"
             />
           </label>
@@ -101,7 +101,7 @@ export default function UsersPage() {
               required
               type="email"
               name="email"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-brand-400"
               placeholder="nhanvien@company.vn"
             />
           </label>
@@ -124,11 +124,11 @@ export default function UsersPage() {
               type="password"
               name="password"
               autoComplete="new-password"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-brand-400"
               placeholder="Tối thiểu 8 ký tự"
             />
           </label>
-          <button className="rounded-xl bg-[#171b22] px-4 py-2.5 text-sm font-medium text-white md:col-span-3">
+          <button className="rounded-xl bg-ink-800 px-4 py-2.5 text-sm font-medium text-white md:col-span-3">
             Lưu người dùng
           </button>
         </form>
@@ -169,7 +169,7 @@ export default function UsersPage() {
                 </span>
                 <button
                   onClick={() => toggleStatus(user)}
-                  className="text-xs font-semibold text-[#cb1d1e]"
+                  className="text-xs font-semibold text-brand-600"
                 >
                   {user.status === "active" ? "Khóa tài khoản" : "Mở lại"}
                 </button>

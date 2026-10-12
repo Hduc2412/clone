@@ -71,7 +71,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   if (checkingAuth || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#171b22] text-sm text-slate-300">
+      <div className="flex min-h-screen items-center justify-center bg-kem text-sm text-slate-500">
         Đang kiểm tra phiên đăng nhập...
       </div>
     );
@@ -84,7 +84,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+    <div className="min-h-screen bg-kem text-slate-900">
       {open && (
         <button
           aria-label="Đóng menu"
@@ -93,18 +93,28 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-[#171b22] text-white transition-transform duration-200 lg:translate-x-0 ${
+        // Thanh bên sáng theo bản thiết kế 08/10 ("Không gian làm việc"), thay nền tối.
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-kem-dam text-slate-800 transition-transform duration-200 lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="border-b border-white/10 px-6 py-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-red-400">
-            DC Kaigo
-          </p>
-          <h1 className="mt-2 text-xl font-semibold">Trung tâm quản lý</h1>
-          <p className="mt-1 text-xs text-slate-400">Điều dưỡng Nhật Bản</p>
+        <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5">
+          <span
+            aria-hidden
+            className="grid h-10 w-10 shrink-0 place-items-center bg-brand-600 text-sm font-semibold text-white"
+            style={{ borderRadius: "50% 50% 5px 50%", fontFamily: "var(--font-serif, Georgia), Georgia, serif" }}
+          >
+            DC
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Không gian làm việc</p>
+            <h1 className="mt-0.5 text-base font-semibold text-slate-900">Trung tâm quản lý</h1>
+          </div>
         </div>
-        <nav className="flex-1 space-y-1 px-4 py-6">
+        {/* `min-h-0 overflow-y-auto`: 16 mục cao hơn màn hình ≤ ~900px. Trước 12/10 thanh
+            này không cuộn được, khối tài khoản bị đẩy khỏi màn hình và nút "Thoát" không
+            bấm được trên máy tính xách tay thường. */}
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
           {navigation
             .filter((item) => !["/admin/users", "/admin/audit-logs"].includes(item.href) || user.role !== "consultant")
             .map((item) => {
@@ -117,16 +127,17 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                   active
-                    ? "bg-[#cb1d1e] font-medium text-white shadow-lg shadow-red-950/30"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    ? "bg-reu-100 font-semibold text-slate-900"
+                    : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
                 }`}
               >
-                <span className="w-5 text-center text-lg">{item.icon}</span>
+                <span aria-hidden className="w-5 text-center text-base text-slate-500">{item.icon}</span>
                 {item.label}
                 {item.href === "/admin/appointments" && lichCho > 0 && (
-                  <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[#cb1d1e]">
+                  <span className="ml-auto rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold text-white">
                     {lichCho}
                   </span>
                 )}
@@ -134,22 +145,34 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="border-t border-white/10 p-4">
-          <div className="flex items-center gap-3 rounded-xl bg-white/5 p-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20 text-sm font-bold text-red-300">
-              {user.full_name.split(" ").slice(-2).map((word) => word[0]).join("").toUpperCase()}
+        <div className="border-t border-slate-200 p-4">
+          <div className="flex items-center gap-3 rounded-xl bg-white/70 p-3">
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9e6db] text-sm text-[#776f57]"
+              style={{ fontFamily: "var(--font-serif, Georgia), Georgia, serif" }}
+            >
+              {/* Chỉ lấy tiếng bắt đầu bằng chữ cái: tên "… (tạm)" từng ra "C(". */}
+              {user.full_name
+                .split(/\s+/)
+                // Chữ cái là ký tự có hai dạng hoa/thường khác nhau — gồm cả "Đ", "Ư";
+                // không dùng `\p{L}` vì cấu hình biên dịch đang nhắm ES5.
+                .filter((w) => w.length > 0 && w[0].toLowerCase() !== w[0].toUpperCase())
+                .slice(-2)
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{user.full_name}</p>
-              <p className="text-xs capitalize text-slate-400">{user.role}</p>
+              <p className="truncate text-sm font-medium text-slate-900">{user.full_name}</p>
+              <p className="text-xs capitalize text-slate-500">{user.role}</p>
             </div>
-            <button onClick={handleLogout} className="ml-auto text-xs text-red-300">Thoát</button>
+            <button onClick={handleLogout} className="ml-auto rounded-md px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50">Thoát</button>
           </div>
         </div>
       </aside>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-8">
+        <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-slate-200 bg-[#fbfaf7]/95 px-4 backdrop-blur md:px-8">
           <button
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:hidden"
             onClick={() => setOpen(true)}
@@ -178,11 +201,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             */}
           <Link
             href="/admin/queue"
-            className="relative rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm hover:border-red-200"
+            className="relative rounded-md border border-[#bbc7bd] bg-white px-3 py-2 text-sm font-medium text-slate-800 hover:bg-reu-50"
           >
             Thông báo
             {unread > 0 && (
-              <span className="ml-2 rounded-full bg-[#cb1d1e] px-2 py-0.5 text-xs font-semibold text-white">
+              <span className="ml-2 rounded-full bg-brand-600 px-2 py-0.5 text-xs font-semibold text-white">
                 {unread}
               </span>
             )}

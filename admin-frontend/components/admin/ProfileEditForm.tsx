@@ -28,7 +28,7 @@ import {
  */
 
 const INPUT =
-  "mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400";
+  "mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400";
 
 function text(form: FormData, name: string): string | null {
   const value = String(form.get(name) ?? "").trim();
@@ -315,7 +315,7 @@ export default function ProfileEditForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-[#cb1d1e] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
         >
           {saving ? "Đang lưu…" : "Lưu thay đổi"}
         </button>

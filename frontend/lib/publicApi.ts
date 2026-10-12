@@ -54,6 +54,8 @@ export interface PublicJobOrder {
   region_group: string | null;
   city: string | null;
   quota: number;
+  /** Chỉ tiêu còn trống — máy chủ tính, không gửi số đã tuyển thô (12/10). */
+  con_lai?: number;
   deadline: string;
   requirements: JobOrderRequirements;
   reference: JobOrderReference;

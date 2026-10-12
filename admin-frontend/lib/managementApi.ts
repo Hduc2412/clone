@@ -72,6 +72,12 @@ export interface Notification {
   appointment_time: string;
   is_read: boolean;
   created_at: string;
+  /** Có từ khi thông báo dùng chung nhiều nghiệp vụ; thông báo lịch hẹn cũ có thể thiếu. */
+  type?: string;
+  title?: string;
+  reference_type?: string;
+  reference_code?: string;
+  detail?: Record<string, unknown>;
 }
 
 export interface ManagedLead {
@@ -140,6 +146,9 @@ export interface CourseMeta {
 }
 
 export interface RecruitmentApplication {
+  /** Có khi nhân viên thường đọc hàng đợi: bản tối thiểu, chưa có họ tên/SĐT (08/10). */
+  ban_toi_thieu?: boolean;
+  ten_viet_tat?: string;
   application_code: string;
   lead_code: string;
   customer_name: string;
@@ -247,7 +256,10 @@ export interface JobOrder {
   requirements: JobOrderRequirements;
   reference: JobOrderReference;
   description: string | null;
-  internal_note: string | null;
+  /** Chỉ Admin/Manager nhận được trường này từ máy chủ (08/10). */
+  internal_note?: string | null;
+  /** Thông tin cho tư vấn viên — mọi nhân viên đọc, không ra công khai. */
+  consultant_note?: string | null;
   status: string;
   published: boolean;
   labels: JobOrderLabels;
@@ -377,6 +389,9 @@ export interface CandidateDocument {
 }
 
 export interface QueuedRegistration {
+  /** Nhân viên thường xem hàng đợi: bản tối thiểu, chưa có họ tên/SĐT/phiếu (08/10). */
+  ban_toi_thieu?: boolean;
+  ten_viet_tat?: string;
   application_code: string;
   lead_code: string;
   customer_name: string;
@@ -409,6 +424,14 @@ export interface QueuedRegistration {
  * khỏe. Đó là quyết định có chủ ý, xem `app/consultation/eligibility.py`.
  */
 export interface SupportRequest {
+  /** Bản tối thiểu của việc chưa nhận — số điện thoại, lời nhắn, bàn giao mở sau khi nhận. */
+  ban_toi_thieu?: boolean;
+  ten_viet_tat?: string;
+  co_lich_hen?: boolean;
+  /** Khách tích "đồng ý cho nhân viên nhận yêu cầu xem hồ sơ và CV" (08/10). */
+  dong_y_ban_giao?: boolean;
+  /** Có khi bạn đang giữ yêu cầu và khách đã đồng ý bàn giao. */
+  profile_code?: string | null;
   code: string;
   kind: "nhan_tin" | "hoc_tap" | "gap_mat";
   status: "cho_xu_ly" | "dang_xu_ly" | "da_xong" | "da_huy";
@@ -925,7 +948,8 @@ export const managementApi = {
 
   // --- Hàng đợi đăng ký sơ bộ ---
   registrationQueue: () =>
-    request<{ items: QueuedRegistration[]; count: number }>("/registrations/queue"),
+    // `total` là tổng số đang chờ; `count` < `total` nghĩa là danh sách bị cắt.
+    request<{ items: QueuedRegistration[]; count: number; total: number }>("/registrations/queue"),
   /** Hồ sơ đang có người phụ trách, của mọi nhân viên. Chỉ Admin/Manager. */
   assignedRegistrations: () =>
     request<{ items: QueuedRegistration[]; count: number }>("/registrations/assigned").then(
@@ -1102,7 +1126,7 @@ export const managementApi = {
     if (params.status) query.set("status", params.status);
     if (params.kind) query.set("kind", params.kind);
     const duoi = query.toString();
-    return request<{ items: SupportRequest[]; count: number }>(
+    return request<{ items: SupportRequest[]; count: number; total?: number }>(
       `/ho-tro${duoi ? `?${duoi}` : ""}`,
     );
   },
@@ -1111,6 +1135,18 @@ export const managementApi = {
   claimSupportRequest: (code: string) =>
     request<SupportRequest>(`/ho-tro/${encodeURIComponent(code)}/nhan`, {
       method: "POST",
+    }),
+  /** Giao yêu cầu đang xử lý cho người khác. Chỉ Admin/Manager; bắt buộc lý do. */
+  handoverSupportRequest: (code: string, assignedTo: string, note: string) =>
+    request<SupportRequest>(`/ho-tro/${encodeURIComponent(code)}/chuyen`, {
+      method: "POST",
+      body: JSON.stringify({ assigned_to: assignedTo, note }),
+    }),
+  /** Trả yêu cầu về hàng đợi. Người đang giữ hoặc Admin/Manager; bắt buộc lý do. */
+  releaseSupportRequest: (code: string, note: string) =>
+    request<SupportRequest>(`/ho-tro/${encodeURIComponent(code)}/tra-ve`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
     }),
   replySupportRequest: (code: string, reply: string) =>
     request<SupportRequest>(`/ho-tro/${encodeURIComponent(code)}/tra-loi`, {

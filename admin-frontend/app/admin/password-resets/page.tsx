@@ -140,7 +140,7 @@ export default function PasswordResetsPage() {
                         ? "Chỉ Quản lý và Quản trị viên đặt lại mật khẩu cho nhân viên"
                         : undefined
                     }
-                    className="rounded-xl bg-[#cb1d1e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {busy === item.code ? "Đang đặt lại…" : "Đặt lại mật khẩu"}
                   </button>

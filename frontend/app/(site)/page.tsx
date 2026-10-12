@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AnimatedBackground from "@/components/site/AnimatedBackground";
-import PhotoBackdrop from "@/components/site/PhotoBackdrop";
+import HomeHero from "@/components/site/HomeHero";
 import JobOrderCard from "@/components/site/JobOrderCard";
 import {
   Accordion,
@@ -22,48 +22,37 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* --- Mở đầu --- */}
-      <section className="home-hero relative isolate overflow-hidden">
-        <PhotoBackdrop variant="hero" />
-        <Container className="pointer-events-none relative py-16 md:py-24">
-          <div className="pointer-events-auto max-w-2xl">
-            <Badge tone="brand">Chương trình điều dưỡng và hộ lý Nhật Bản</Badge>
-            <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-slate-900 md:text-5xl">
-              Cùng bạn chuẩn bị{" "}
-              <span className="text-brand-700">hành trình đến Nhật Bản</span>
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-              Tìm hiểu công việc điều dưỡng, hộ lý phù hợp với bạn. Bắt đầu từ
-              một câu hỏi, hoặc gửi hồ sơ để xem những đơn tuyển dụng đáng cân nhắc.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button href="/chat" size="lg">
-                Trò chuyện để được tư vấn
-              </Button>
-              <Button href="/don-hang" variant="outline" size="lg">
-                Xem đơn hàng đang tuyển
-              </Button>
-            </div>
-            <p className="mt-5 text-sm text-slate-500">
-              Hoặc gọi{" "}
-              <a
-                href={COMPANY.hotlineHref}
-                className="font-semibold text-brand-700 hover:underline"
-              >
-                {COMPANY.hotline}
-              </a>{" "}
-              trong giờ làm việc.
-            </p>
-          </div>
+      {/* --- Mở đầu: theo bản thiết kế "Hành trình Nhật Bản" (08/10) --- */}
+      <HomeHero />
 
-          <div className="pointer-events-auto mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {HERO_STATS.map((stat) => (
-              <Stat key={stat.label} {...stat} />
-            ))}
-          </div>
-          <p className="mb-8 mt-4 max-w-3xl text-xs leading-5 text-slate-600">{REFERENCE_NOTE}</p>
-        </Container>
-      </section>
+      {/* --- Ba bước --- */}
+      <Container className="border-b border-slate-200">
+        <ol className="grid gap-6 py-8 md:grid-cols-3 md:gap-0">
+          {[
+            ["01", "Chia sẻ hồ sơ", "Gửi CV hoặc tự điền thông tin"],
+            ["02", "Hiểu mức độ phù hợp", "Đối chiếu từng tiêu chí của đơn"],
+            ["03", "Chọn bước tiếp theo", "Tư vấn, chuẩn bị hoặc gặp nhân viên"],
+          ].map(([so, ten, mo_ta], i) => (
+            <li key={so} className={`flex gap-5 md:px-8 ${i ? "md:border-l md:border-slate-200" : "md:pl-0"}`}>
+              <span aria-hidden className="chu-nhan text-4xl text-[#9b7a52]">{so}</span>
+              <span>
+                <span className="block font-medium text-slate-900">{ten}</span>
+                <span className="block text-sm text-slate-500">{mo_ta}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </Container>
+
+      {/* --- Số liệu tham khảo --- */}
+      <Container className="py-10">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {HERO_STATS.map((stat) => (
+            <Stat key={stat.label} {...stat} />
+          ))}
+        </div>
+        <p className="mt-4 max-w-3xl text-xs leading-5 text-slate-600">{REFERENCE_NOTE}</p>
+      </Container>
 
       {/* --- Ba diện chương trình --- */}
       <Section>

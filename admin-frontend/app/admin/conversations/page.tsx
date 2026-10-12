@@ -93,7 +93,7 @@ export default function ConversationsPage() {
             </div>
           </div>
 
-          <div className="flex min-h-[620px] flex-col bg-[#f8f9fb]">
+          <div className="flex min-h-[620px] flex-col bg-kem">
             {!selected ? (
               <div className="m-auto max-w-sm px-6 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
@@ -123,7 +123,7 @@ export default function ConversationsPage() {
                         <div
                           className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
                             user
-                              ? "bg-[#cb1d1e] text-white"
+                              ? "bg-brand-600 text-white"
                               : "border border-slate-200 bg-white text-slate-700"
                           }`}
                         >

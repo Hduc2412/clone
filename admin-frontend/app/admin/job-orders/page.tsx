@@ -74,7 +74,7 @@ export default function JobOrdersPage() {
               </Link>
               <Link
                 href="/admin/job-orders/new"
-                className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+                className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
               >
                 Thêm đơn
               </Link>
@@ -142,7 +142,7 @@ export default function JobOrdersPage() {
                     <td className="px-5 py-4">
                       <Link
                         href={`/admin/job-orders/${order.code}`}
-                        className="font-medium text-slate-900 hover:text-[#cb1d1e]"
+                        className="font-medium text-slate-900 hover:text-brand-600"
                       >
                         {order.title}
                       </Link>

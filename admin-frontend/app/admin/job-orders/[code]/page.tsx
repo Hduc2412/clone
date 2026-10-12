@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorBanner, PageHeader } from "@/components/admin/AdminUI";
 import JobOrderForm from "@/components/admin/JobOrderForm";
+import JobOrderSummary from "@/components/admin/JobOrderSummary";
 import {
   JobOrderStatusBadge,
   PublicVisibilityBadge,
@@ -140,7 +141,7 @@ export default function JobOrderDetailPage() {
                     `Đã chuyển đơn sang ${statusLabel(next)}.`,
                   )
                 }
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-red-200 disabled:opacity-50"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-brand-200 disabled:opacity-50"
               >
                 {statusLabel(next)}
               </button>
@@ -155,7 +156,7 @@ export default function JobOrderDetailPage() {
                     : "Đã bật hiển thị công khai.",
                 )
               }
-              className="rounded-xl bg-[#171b22] px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+              className="rounded-xl bg-ink-800 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
             >
               {order.published ? "Tắt công khai" : "Bật công khai"}
             </button>
@@ -171,6 +172,32 @@ export default function JobOrderDetailPage() {
           </div>
         )}
       </section>
+
+      {/* Ghi chú đọc được, tách theo phạm vi (quyết định 08/10). Biểu mẫu bên dưới chỉ
+          hiện cho Admin/Manager, nên consultant chỉ đọc được thông tin tư vấn ở đây.
+          `internal_note` chỉ có trong phản hồi khi người xem là Admin/Manager — máy chủ
+          đã lọc, ở đây không tự quyết ai được xem. */}
+      <section className="mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Thông tin cho tư vấn viên</h3>
+          <p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">
+            {order.consultant_note?.trim() || <span className="text-slate-400">Chưa có.</span>}
+          </p>
+        </div>
+        {(canManage || order.internal_note !== undefined) && (
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Ghi chú nội bộ</h3>
+            <p className="mt-0.5 text-xs text-slate-500">Chỉ Admin/Manager đọc được.</p>
+            <p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">
+              {order.internal_note?.trim() || <span className="text-slate-400">Chưa có.</span>}
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* Biểu mẫu sửa chỉ dành cho Admin/Manager; người còn lại đọc nội dung đơn ở đây.
+          Chờ biết vai trò rồi mới vẽ, để Admin không thấy chớp một bản chỉ đọc. */}
+      {role && !canManage && <JobOrderSummary order={order} />}
 
       {order.status === "closed" && (
         <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">

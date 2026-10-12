@@ -80,7 +80,7 @@ export default function RecommendationLogDetailPage() {
               type="button"
               onClick={rerun}
               disabled={rerunning}
-              className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+              className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
             >
               {rerunning ? "Đang chạy…" : "Chạy lại trên dữ liệu hôm nay"}
             </button>
@@ -144,7 +144,7 @@ export default function RecommendationLogDetailPage() {
         <button
           type="button"
           onClick={() => setShowRejected((value) => !value)}
-          className="text-xs font-medium text-slate-500 hover:text-[#cb1d1e]"
+          className="text-xs font-medium text-slate-500 hover:text-brand-600"
         >
           {showRejected ? "Thu gọn" : "Xem lý do từng đơn"}
         </button>

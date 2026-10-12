@@ -58,9 +58,18 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#171b22] px-4">
-      <section className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl md:p-9">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#cb1d1e]">DC Kaigo</p>
+    <main className="flex min-h-screen items-center justify-center bg-kem px-4">
+      <section className="w-full max-w-md rounded-[10px] border border-slate-200 bg-white p-7 md:p-9">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className="grid h-10 w-10 place-items-center bg-brand-600 text-sm font-semibold text-white"
+            style={{ borderRadius: "50% 50% 5px 50%", fontFamily: "var(--font-serif, Georgia), Georgia, serif" }}
+          >
+            DC
+          </span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Không gian làm việc · DC Kaigo</p>
+        </div>
         <h1 className="mt-3 text-2xl font-semibold text-slate-900">Đăng nhập hệ thống quản lý</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Dành cho Admin, Manager và nhân viên tư vấn.</p>
         {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
@@ -72,12 +81,12 @@ export default function LoginPage() {
               chưa gửi mã tự động, nên bạn báo trực tiếp cho họ sau khi gửi.
             </p>
             <label className="block text-sm font-medium text-slate-700">Email
-              <input required type="email" name="email" autoComplete="username" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-red-400" />
+              <input required type="email" name="email" autoComplete="username" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-400" />
             </label>
             <label className="block text-sm font-medium text-slate-700">Lời nhắn <span className="text-xs font-normal text-slate-400">(không bắt buộc)</span>
-              <textarea name="note" rows={2} maxLength={300} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-red-400" />
+              <textarea name="note" rows={2} maxLength={300} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-400" />
             </label>
-            <button disabled={loading} className="w-full rounded-xl bg-[#cb1d1e] px-4 py-3 font-semibold text-white disabled:opacity-60">
+            <button disabled={loading} className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
               {loading ? "Đang gửi..." : "Gửi yêu cầu"}
             </button>
             <button type="button" onClick={() => { setForgot(false); setError(""); }} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600">
@@ -87,15 +96,15 @@ export default function LoginPage() {
         ) : (
         <form onSubmit={submit} className="mt-6 space-y-4">
           <label className="block text-sm font-medium text-slate-700">Email
-            <input required type="email" name="email" autoComplete="username" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-red-400" />
+            <input required type="email" name="email" autoComplete="username" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-400" />
           </label>
           <label className="block text-sm font-medium text-slate-700">Mật khẩu
-            <input required minLength={8} type="password" name="password" autoComplete="current-password" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-red-400" />
+            <input required minLength={8} type="password" name="password" autoComplete="current-password" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-400" />
           </label>
-          <button disabled={loading} className="w-full rounded-xl bg-[#cb1d1e] px-4 py-3 font-semibold text-white disabled:opacity-60">
+          <button disabled={loading} className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
-          <button type="button" onClick={() => { setForgot(true); setError(""); setNotice(""); }} className="w-full text-sm font-medium text-[#cb1d1e] hover:underline">
+          <button type="button" onClick={() => { setForgot(true); setError(""); setNotice(""); }} className="w-full text-sm font-medium text-brand-600 hover:underline">
             Quên mật khẩu?
           </button>
         </form>

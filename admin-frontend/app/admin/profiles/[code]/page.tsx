@@ -228,7 +228,7 @@ export default function CandidateProfileDetailPage({
                   setNotice("");
                   setActionError("");
                 }}
-                className="rounded-xl bg-[#cb1d1e] px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
               >
                 Sửa hồ sơ
               </button>
@@ -367,7 +367,7 @@ export default function CandidateProfileDetailPage({
                   <select
                     value={profile.assigned_to ?? ""}
                     onChange={(event) => assign(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm normal-case tracking-normal text-slate-700 outline-none focus:border-red-400"
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm normal-case tracking-normal text-slate-700 outline-none focus:border-brand-400"
                   >
                     <option value="">Chưa giao</option>
                     {assignees.map((staff) => (
@@ -422,7 +422,7 @@ export default function CandidateProfileDetailPage({
                 )}
                 <Link
                   href={`/admin/recommendation-logs/${encodeURIComponent(log.code)}`}
-                  className="mt-1 inline-block text-xs font-medium text-[#cb1d1e] hover:underline"
+                  className="mt-1 inline-block text-xs font-medium text-brand-600 hover:underline"
                 >
                   Xem bảng từng tiêu chí, kể cả đơn bị loại →
                 </Link>
@@ -480,7 +480,7 @@ export default function CandidateProfileDetailPage({
                     )}
                     <a
                       href={managementApi.documentOriginalUrl(document.code)}
-                      className="mt-2 inline-block text-xs font-medium text-[#cb1d1e] hover:underline"
+                      className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline"
                     >
                       Tải bản gốc ↓
                     </a>

@@ -12,6 +12,7 @@ import {
   Overview,
 } from "@/lib/managementApi";
 import { EmptyState, ErrorBanner, PageHeader } from "@/components/admin/AdminUI";
+import DonCanXuLy from "@/components/admin/DonCanXuLy";
 
 /**
  * Trung tâm điều hành.
@@ -39,18 +40,23 @@ const EMPTY_OVERVIEW: Overview = {
   staff_active: 0,
 };
 
-/** Đơn sắp hết hạn trong bao nhiêu ngày thì coi là cần để mắt. */
-const SAP_HET_HAN_NGAY = 14;
+/** Đơn sắp hết hạn trong bao nhiêu ngày thì coi là cần để mắt (14 → 10 ngày, 12/10). */
+const SAP_HET_HAN_NGAY = 10;
 
 export default function AdminDashboard() {
   const [overview, setOverview] = useState(EMPTY_OVERVIEW);
   const [orders, setOrders] = useState<JobOrder[]>([]);
   const [queue, setQueue] = useState<QueuedRegistration[]>([]);
+  // Tổng số đang chờ theo máy chủ, không phải số phần tử trả về: hàng đợi cắt theo
+  // giới hạn, và thẻ "Hồ sơ chờ nhận" từng đếm phần đã cắt — 72 khách chờ, thẻ ghi 50.
+  const [tongCho, setTongCho] = useState(0);
   const [profiles, setProfiles] = useState<CandidateProfile[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [scores, setScores] = useState<ScoreTotal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Tăng lên để nạp lại sau khi gỡ đơn ở khối "Đơn cần xử lý".
+  const [lanNap, setLanNap] = useState(0);
 
   useEffect(() => {
     // Mỗi nguồn hỏng riêng lẻ không được làm trắng cả trang: quản lý vẫn cần
@@ -60,7 +66,7 @@ export default function AdminDashboard() {
     Promise.all([
       an(managementApi.overview(), EMPTY_OVERVIEW),
       an(managementApi.jobOrders(), [] as JobOrder[]),
-      an(managementApi.registrationQueue(), { items: [], count: 0 }),
+      an(managementApi.registrationQueue(), { items: [], count: 0, total: 0 }),
       an(managementApi.candidateProfiles(), [] as CandidateProfile[]),
       an(managementApi.appointments(), [] as Appointment[]),
       an(managementApi.scoreboard(), { items: [] as ScoreTotal[], rules: [] }),
@@ -69,13 +75,14 @@ export default function AdminDashboard() {
         setOverview(ov);
         setOrders(don);
         setQueue(hangDoi.items);
+        setTongCho(hangDoi.total ?? hangDoi.items.length);
         setProfiles(hoSo);
         setAppointments(lich);
         setScores(bangDiem.items);
       })
       .catch((reason) => setError(reason.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [lanNap]);
 
   const homNay = new Date().toISOString().slice(0, 10);
 
@@ -91,7 +98,7 @@ export default function AdminDashboard() {
   });
   const donQuaHan = orders.filter((o) => o.status === "open" && o.deadline < homNay);
 
-  const chuaAiNhan = queue.filter((r) => !r.assigned_to).length;
+  const chuaAiNhan = Math.max(tongCho, queue.filter((r) => !r.assigned_to).length);
   const hoSoDaXacNhan = profiles.filter((p) => p.status === "confirmed").length;
   const lichChoXuLy = appointments.filter((a) => a.status === "pending").length;
 
@@ -104,7 +111,7 @@ export default function AdminDashboard() {
           queue.length > chuaAiNhan
             ? `${queue.length - chuaAiNhan} hồ sơ đã có người phụ trách`
             : "Chưa ai nhận hồ sơ nào",
-        mau: chuaAiNhan > 0 ? "bg-red-50 text-[#b51718]" : "bg-slate-100 text-slate-500",
+        mau: chuaAiNhan > 0 ? "bg-red-50 text-brand-700" : "bg-slate-100 text-slate-500",
         icon: "▤",
         toi: "/admin/queue",
         gap: chuaAiNhan > 0,
@@ -161,8 +168,9 @@ export default function AdminDashboard() {
   return (
     <>
       <PageHeader
-        eyebrow="Trung tâm điều hành"
-        title="Tổng quan hôm nay"
+        eyebrow="Tiếp nối hành trình tư vấn"
+        title="Đúng thông tin."
+        accent="Đúng bước tiếp theo."
         description="Bốn con số đầu là việc cần làm ngay. Bấm vào con số để đi thẳng tới màn hình xử lý."
       />
       {error && <ErrorBanner message={error} />}
@@ -172,14 +180,14 @@ export default function AdminDashboard() {
           <Link
             key={t.nhan}
             href={t.toi}
-            className={`rounded-2xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md ${
+            className={`rounded-[10px] border bg-white p-5 transition-colors hover:border-[#bbc7bd] ${
               t.gap ? "border-red-200" : "border-slate-200"
             }`}
           >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-slate-500">{t.nhan}</p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight">
+                <p className="so-lon mt-3 text-4xl text-slate-900">
                   {loading ? "—" : t.so}
                 </p>
               </div>
@@ -194,6 +202,8 @@ export default function AdminDashboard() {
         ))}
       </section>
 
+      <DonCanXuLy orders={orders} homNay={homNay} onDaDoi={() => setLanNap((n) => n + 1)} />
+
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_1fr]">
         <Khung
           tieuDe="Hồ sơ chờ nhận xử lý"
@@ -207,7 +217,7 @@ export default function AdminDashboard() {
         >
           {queue.slice(0, 6).map((r) => (
             <div key={r.application_code} className="flex flex-wrap items-center gap-3 px-5 py-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-sm font-semibold text-[#cb1d1e]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-sm font-semibold text-brand-600">
                 {(r.customer_name ?? "?").slice(0, 1).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -221,7 +231,7 @@ export default function AdminDashboard() {
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium ${
                   r.assigned_to
                     ? "bg-slate-100 text-slate-600"
-                    : "bg-red-50 text-[#b51718]"
+                    : "bg-red-50 text-brand-700"
                 }`}
               >
                 {r.assigned_to ?? "Chưa ai nhận"}
@@ -291,7 +301,7 @@ function Khung({
           <h3 className="font-semibold">{tieuDe}</h3>
           <p className="mt-1 text-xs text-slate-400">{phu}</p>
         </div>
-        <Link href={toi} className="shrink-0 text-sm font-medium text-[#cb1d1e]">
+        <Link href={toi} className="shrink-0 text-sm font-medium text-brand-600">
           Xem tất cả
         </Link>
       </div>
@@ -310,7 +320,7 @@ function Dong({ nhan, gia_tri, toi }: { nhan: string; gia_tri: number; toi: stri
   return (
     <div className="flex items-center justify-between">
       <dt>
-        <Link href={toi} className="text-slate-600 hover:text-[#cb1d1e]">
+        <Link href={toi} className="text-slate-600 hover:text-brand-600">
           {nhan}
         </Link>
       </dt>

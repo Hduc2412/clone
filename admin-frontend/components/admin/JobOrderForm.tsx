@@ -71,6 +71,7 @@ export function buildJobOrderPayload(form: FormData, includeStatus: boolean): Pa
     },
     description: text(form.get("description")),
     internal_note: text(form.get("internal_note")),
+    consultant_note: text(form.get("consultant_note")),
   };
   if (includeStatus) {
     payload.status = text(form.get("status")) || "draft";
@@ -292,7 +293,23 @@ export default function JobOrderForm({
         title="Nội bộ"
         description="Phần này không bao giờ hiển thị cho khách, kể cả trên trang chi tiết đơn hàng."
       >
-        <Field label="Ghi chú nội bộ" className="md:col-span-3">
+        <Field
+          label="Thông tin cho tư vấn viên"
+          hint="Mọi nhân viên tư vấn đọc được. Không hiển thị cho khách, không đưa vào trợ lý AI phía khách."
+          className="md:col-span-3"
+        >
+          <textarea
+            name="consultant_note"
+            rows={3}
+            defaultValue={initial?.consultant_note ?? ""}
+            className={INPUT}
+          />
+        </Field>
+        <Field
+          label="Ghi chú nội bộ"
+          hint="Chỉ Admin/Manager đọc được."
+          className="md:col-span-3"
+        >
           <textarea
             name="internal_note"
             rows={3}
@@ -322,7 +339,7 @@ export default function JobOrderForm({
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-xl bg-[#cb1d1e] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >
           {submitting ? "Đang lưu..." : mode === "create" ? "Tạo đơn tuyển dụng" : "Lưu thay đổi"}
         </button>
@@ -332,7 +349,7 @@ export default function JobOrderForm({
 }
 
 const INPUT =
-  "mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400";
+  "mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400";
 
 function regionLabel(meta: JobOrderMeta, code: string): string {
   return meta.regions.find((item) => item.code === code)?.label ?? code;
@@ -378,7 +395,7 @@ function Field({
   return (
     <label className={`block text-sm font-medium text-slate-600 ${className ?? ""}`}>
       {label}
-      {required && <span className="ml-1 text-[#cb1d1e]">*</span>}
+      {required && <span className="ml-1 text-brand-600">*</span>}
       {children}
       {hint && <p className="mt-1 text-xs font-normal text-slate-400">{hint}</p>}
     </label>

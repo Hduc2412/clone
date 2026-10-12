@@ -1,28 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import BangDoiChieu from "@/components/candidate/BangDoiChieu";
 import { Badge, Button, Card } from "@/components/ui/primitives";
 import { MatchItem } from "@/lib/candidateApi";
 import { daysUntil, formatDate } from "@/lib/format";
 
-const RESULT_STYLE: Record<string, string> = {
-  DAT: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  KHONG_DAT: "bg-brand-50 text-brand-700 ring-brand-200",
-  CHUA_RO: "bg-amber-50 text-amber-700 ring-amber-200",
-};
-
-const RESULT_LABEL: Record<string, string> = {
-  DAT: "Đạt",
-  KHONG_DAT: "Chưa đạt",
-  CHUA_RO: "Chưa rõ",
-};
-
 /**
  * Một đơn trong danh sách gợi ý.
  *
- * Bảng tiêu chí mở được chứ không ẩn đi: ứng viên có quyền biết vì sao đơn này
- * được giới thiệu cho mình. Nhưng mặc định thu gọn, vì mười một dòng tiêu chí
- * hiện cùng lúc cho năm đơn thì không ai đọc.
+ * Bảng đối chiếu (✓ ở tiêu chí đạt, xem `BangDoiChieu`) mở được chứ không ẩn đi:
+ * ứng viên có quyền biết vì sao đơn này được giới thiệu cho mình. Nhưng mặc định
+ * thu gọn, vì mười một dòng tiêu chí hiện cùng lúc cho năm đơn thì không ai đọc —
+ * muốn xem kỹ một đơn thì vào phòng tư vấn riêng của đơn đó, ở đấy bảng hiện sẵn.
  *
  * ## Đăng ký phải qua hai lần bấm
  *
@@ -50,6 +41,13 @@ export default function MatchCard({
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const remaining = daysUntil(item.deadline);
+  // "Còn thiếu: Khu vực: khu vực Hyogo, mong muốn Kantō" từng hiện ở đây — nhưng đó
+  // là nguyện vọng KHÔNG KHỚP, không phải thông tin còn thiếu (08/10). Thẻ trong danh
+  // sách đều đã đạt điều kiện bắt buộc, nên chỗ khác biệt chỉ có thể là nguyện vọng.
+  const khacNguyenVong = item.soft_rows
+    .filter((r) => r.points === 0 && r.outcome !== undefined && r.outcome !== "unknown")
+    .map((r) => `${r.label}: đơn ${r.requirement_text}, bạn ${r.candidate_text}`);
+  const khongDat = item.hard_rows.filter((r) => r.result === "KHONG_DAT");
 
   return (
     <Card className="overflow-hidden">
@@ -98,7 +96,7 @@ export default function MatchCard({
           ) : (
             <>
               <p className="text-3xl font-semibold text-ink-900">{item.score}</p>
-              <p className="text-xs text-slate-500">trên 100 điểm phù hợp</p>
+              <p className="text-xs text-slate-500">/100 khớp nguyện vọng</p>
             </>
           )}
         </div>
@@ -107,9 +105,14 @@ export default function MatchCard({
       <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4">
         <p className="text-sm leading-6 text-slate-700">{item.explanation_text}</p>
 
-        {item.gaps.length > 0 && (
+        {khongDat.length > 0 && (
           <p className="mt-2.5 text-sm text-amber-800">
-            <span className="font-medium">Còn thiếu:</span> {item.gaps.join(" · ")}
+            <span className="font-medium">Chưa đạt:</span> {khongDat.map((r) => r.label).join(" · ")}
+          </p>
+        )}
+        {khacNguyenVong.length > 0 && (
+          <p className="mt-2.5 text-sm text-slate-600">
+            <span className="font-medium">Khác nguyện vọng của bạn:</span> {khacNguyenVong.join(" · ")}
           </p>
         )}
 
@@ -120,8 +123,15 @@ export default function MatchCard({
             aria-expanded={open}
             className="min-h-[44px] text-sm font-medium text-brand-600 hover:text-brand-700"
           >
-            {open ? "Thu gọn bảng tiêu chí" : "Xem từng tiêu chí đạt hay chưa"}
+            {open ? "Thu gọn bảng đối chiếu" : "Xem bảng đối chiếu"}
           </button>
+
+          <Link
+            href={`/tu-van/don/${item.code}`}
+            className="flex min-h-[44px] items-center text-sm font-medium text-slate-600 hover:text-brand-700"
+          >
+            Tư vấn riêng đơn này
+          </Link>
 
           {onRegister && item.eligible && !registered && !confirming && (
             <Button
@@ -147,9 +157,9 @@ export default function MatchCard({
               chiếu này. Nhân viên gọi lại trong giờ làm việc để trao đổi các bước
               tiếp theo. Đây chưa phải là ký hợp đồng hay đóng bất kỳ khoản nào.
             </p>
-            {item.gaps.length > 0 && (
-              <p className="mt-2 text-sm text-amber-800">
-                Nhân viên sẽ hỏi thêm về: {item.gaps.join(" · ")}
+            {khacNguyenVong.length > 0 && (
+              <p className="mt-2 text-sm text-slate-600">
+                Đơn này khác nguyện vọng bạn đã nêu ở: {khacNguyenVong.join(" · ")}
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
@@ -174,56 +184,14 @@ export default function MatchCard({
       </div>
 
       {open && (
-        <div className="overflow-x-auto border-t border-slate-100">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-white text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-5 py-2.5 font-medium">Tiêu chí</th>
-                <th className="px-5 py-2.5 font-medium">Đơn yêu cầu</th>
-                <th className="px-5 py-2.5 font-medium">Hồ sơ của bạn</th>
-                <th className="px-5 py-2.5 font-medium">Kết quả</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {item.hard_rows.map((row) => (
-                <tr key={row.key}>
-                  <td className="px-5 py-2.5 text-slate-500">
-                    <span className="mr-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase">
-                      bắt buộc
-                    </span>
-                    {row.label}
-                  </td>
-                  <td className="px-5 py-2.5 text-slate-700">{row.requirement_text}</td>
-                  <td className="px-5 py-2.5 text-slate-700">{row.candidate_text}</td>
-                  <td className="px-5 py-2.5">
-                    <span
-                      className={`rounded-lg px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                        RESULT_STYLE[row.result] ?? ""
-                      }`}
-                    >
-                      {RESULT_LABEL[row.result] ?? row.result}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {item.soft_rows.map((row) => (
-                <tr key={row.key} className="bg-slate-50/50">
-                  <td className="px-5 py-2.5 text-slate-500">
-                    <span className="mr-1.5 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] uppercase text-sky-600">
-                      nguyện vọng
-                    </span>
-                    {row.label}
-                  </td>
-                  <td className="px-5 py-2.5 text-slate-700">{row.requirement_text}</td>
-                  <td className="px-5 py-2.5 text-slate-700">{row.candidate_text}</td>
-                  <td className="px-5 py-2.5 text-slate-600">
-                    +{row.points}
-                    <span className="text-xs text-slate-400"> / {row.max_points}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="border-t border-slate-100 px-5 py-4">
+          <BangDoiChieu
+            rows={item.hard_rows}
+            softRows={item.soft_rows}
+            eligible={item.eligible}
+            score={item.score}
+            scoreRanked={item.score_ranked}
+          />
         </div>
       )}
     </Card>

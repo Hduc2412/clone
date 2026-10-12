@@ -22,13 +22,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import CvUpload from "@/components/candidate/CvUpload";
-import OrderAdvicePanel from "@/components/candidate/OrderAdvicePanel";
+import OrderAdvicePanel, { XacNhanTruoc } from "@/components/candidate/OrderAdvicePanel";
 import AdvisorChat from "@/components/candidate/AdvisorChat";
+import BuocTuVan, { buocHienTai } from "@/components/candidate/BuocTuVan";
 import SupportRequestForm from "@/components/candidate/SupportRequestForm";
 import { COMPANY } from "@/content/site";
 import type { SupportKind } from "@/lib/candidateApi";
 import {
   ApiError,
+  MA_CHUA_XAC_NHAN,
+  type CandidateProfile,
   type OrderAdvice,
   ensureSessionId,
   fetchOrderAdvice,
@@ -36,7 +39,7 @@ import {
   registerForOrder,
 } from "@/lib/candidateApi";
 
-type TrangThai = "dang-mo" | "chua-co-ho-so" | "co-ket-qua" | "khong-mo-duoc";
+type TrangThai = "dang-mo" | "chua-co-ho-so" | "chua-xac-nhan" | "co-ket-qua" | "khong-mo-duoc";
 
 export default function OrderConsultationRoom({
   orderCode,
@@ -46,6 +49,9 @@ export default function OrderConsultationRoom({
   const [trangThai, setTrangThai] = useState<TrangThai>("dang-mo");
   const [sessionId, setSessionId] = useState("");
   const [advice, setAdvice] = useState<OrderAdvice | null>(null);
+  // Hồ sơ cho thẻ cột phải. Đọc cùng lúc với kết quả đối chiếu để thẻ và bảng nói
+  // về cùng một phiên bản hồ sơ.
+  const [hoSo, setHoSo] = useState<CandidateProfile | null>(null);
   const [loi, setLoi] = useState("");
   const [dangGui, setDangGui] = useState(false);
   const [daDangKy, setDaDangKy] = useState("");
@@ -63,6 +69,12 @@ export default function OrderConsultationRoom({
         // một thông báo đỏ ngay khi vừa mở trang.
         if (reason instanceof ApiError && reason.status === 404) {
           setTrangThai("chua-co-ho-so");
+          return;
+        }
+        // Hồ sơ chưa xác nhận: máy chủ không trả bảng hay kết luận (08/10) — mời
+        // xác nhận, không hiện như một lỗi.
+        if (reason instanceof ApiError && reason.code === MA_CHUA_XAC_NHAN) {
+          setTrangThai("chua-xac-nhan");
           return;
         }
         setLoi(reason instanceof Error ? reason.message : "Chưa đối chiếu được.");
@@ -88,6 +100,7 @@ export default function OrderConsultationRoom({
         const ho_so = await fetchProfile(phien);
         if (huy) return;
         if (ho_so) {
+          setHoSo(ho_so);
           await doiChieu(phien);
           return;
         }
@@ -101,9 +114,30 @@ export default function OrderConsultationRoom({
     };
   }, [doiChieu]);
 
-  const sauKhiDocCv = async () => {
+  const sauKhiDocCv = async (ho_so?: CandidateProfile) => {
+    if (ho_so) setHoSo(ho_so);
     if (sessionId) await doiChieu(sessionId);
   };
+
+  // Khách xác nhận một thông tin mới trong khung hỏi thêm: đọc lại hồ sơ rồi đối
+  // chiếu lại — bảng và thẻ hồ sơ không được nói theo bản cũ.
+  const lamMoi = async () => {
+    if (!sessionId) return;
+    try {
+      setHoSo(await fetchProfile(sessionId));
+    } catch {
+      /* Thẻ hồ sơ giữ bản cũ; bảng vẫn đối chiếu lại bên dưới. */
+    }
+    await doiChieu(sessionId);
+  };
+
+  const buoc = daDangKy
+    ? 5
+    : buocHienTai({
+        coHoSo: trangThai !== "chua-co-ho-so",
+        daXacNhan: trangThai === "co-ket-qua",
+        coKetQua: trangThai === "co-ket-qua",
+      });
 
   const dangKy = async () => {
     if (!sessionId || !advice) return;
@@ -137,6 +171,8 @@ export default function OrderConsultationRoom({
 
   if (daDangKy) {
     return (
+      <div className="space-y-6">
+      <BuocTuVan hienTai={buoc} />
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
         <h2 className="font-semibold text-slate-900">Đã gửi hồ sơ đăng ký</h2>
         <p className="mt-2 text-sm leading-6 text-slate-700">
@@ -146,16 +182,20 @@ export default function OrderConsultationRoom({
         </p>
         <Link
           href="/ho-so-cua-toi"
-          className="mt-4 inline-block rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-semibold text-white"
+          className="mt-4 inline-block rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white"
         >
           Theo dõi hồ sơ của tôi
         </Link>
+      </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      <div className="border-b border-slate-200 pb-5">
+        <BuocTuVan hienTai={buoc} />
+      </div>
       {loi && (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
           {loi}
@@ -184,7 +224,7 @@ export default function OrderConsultationRoom({
             Không sẵn tệp CV?{" "}
             <Link
               href={`/tu-van?don=${orderCode}`}
-              className="font-semibold text-[#cb1d1e] hover:underline"
+              className="font-semibold text-brand-600 hover:underline"
             >
               Khai nhanh vài mục bằng biểu mẫu
             </Link>{" "}
@@ -193,22 +233,40 @@ export default function OrderConsultationRoom({
         </div>
       )}
 
+      {trangThai === "chua-xac-nhan" && (
+        <>
+          <XacNhanTruoc orderCode={orderCode} onAskStaff={() => setLoaiHoTro("nhan_tin")} />
+          {sessionId && <AdvisorChat sessionId={sessionId} orderCode={orderCode} />}
+          {loaiHoTro && sessionId && (
+            <SupportRequestForm sessionId={sessionId} orderCode={orderCode} loaiMacDinh={loaiHoTro} />
+          )}
+        </>
+      )}
+
       {trangThai === "co-ket-qua" && advice && (
         <>
           <OrderAdvicePanel
             advice={advice}
+            profile={hoSo}
+            // Vòng "Hỏi thêm" của sơ đồ nằm ngay trong thẻ tư vấn, dưới đoạn phân
+            // tích: phần lớn câu hỏi phát sinh từ chính thứ vừa đọc — vì sao chưa
+            // đạt, học bao lâu thì đủ, tổng tiền là bao nhiêu.
+            chat={
+              sessionId ? (
+                <AdvisorChat
+                  sessionId={sessionId}
+                  orderCode={advice.order_code}
+                  onProfileChanged={lamMoi}
+                  nhung
+                />
+              ) : null
+            }
             registering={dangGui}
             onRegister={dangKy}
             onAskStaff={() => setLoaiHoTro("nhan_tin")}
             onAskLearning={() => setLoaiHoTro("hoc_tap")}
           />
 
-          {/* Vòng "Hỏi thêm" của sơ đồ. Đặt ngay dưới kết quả đối chiếu, vì phần
-              lớn câu hỏi phát sinh từ chính thứ vừa đọc: vì sao chưa đạt, học
-              bao lâu thì đủ, tổng tiền là bao nhiêu. */}
-          {sessionId && (
-            <AdvisorChat sessionId={sessionId} orderCode={advice.order_code} />
-          )}
 
           {loaiHoTro && sessionId && (
             <SupportRequestForm
@@ -222,7 +280,7 @@ export default function OrderConsultationRoom({
           )}
           <p className="text-sm text-slate-600">
             Muốn xem những đơn khác phù hợp với hồ sơ này?{" "}
-            <Link href="/tu-van" className="font-semibold text-[#cb1d1e] hover:underline">
+            <Link href="/tu-van" className="font-semibold text-brand-600 hover:underline">
               Xem toàn bộ đơn phù hợp
             </Link>
           </p>

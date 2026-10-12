@@ -266,7 +266,7 @@ export default function StaffScoresPage() {
                               </label>
                               <button
                                 type="submit"
-                                className="rounded-xl bg-[#cb1d1e] px-4 py-2 text-sm font-medium text-white hover:bg-[#a81718]"
+                                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
                               >
                                 Ghi vào sổ
                               </button>

@@ -95,7 +95,11 @@ export default async function JobOrderDetailPage({
       label: "Xuất cảnh dự kiến",
       value: order.reference.departure_expected || "Chưa xác định",
     },
-    { label: "Số lượng tuyển", value: `${order.quota} người` },
+    {
+      label: "Chỉ tiêu",
+      // Cùng con số khung chat nói (12/10). Bản máy chủ cũ chưa gửi `con_lai` thì chỉ nêu tổng.
+      value: order.con_lai != null ? `Còn ${order.con_lai}/${order.quota} người` : `${order.quota} người`,
+    },
     {
       label: "Nơi làm việc",
       value: `${order.city ? `${order.city}, ` : ""}${order.prefecture}`,

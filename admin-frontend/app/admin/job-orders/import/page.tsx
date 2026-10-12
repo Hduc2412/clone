@@ -97,12 +97,12 @@ export default function ImportJobOrdersPage() {
         />
         <label
           htmlFor="job-order-file"
-          className="inline-block cursor-pointer rounded-xl bg-[#cb1d1e] px-5 py-2.5 text-sm font-medium text-white"
+          className="inline-block cursor-pointer rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white"
         >
           Chọn file Excel
         </label>
         <p className="mt-3 text-sm text-slate-500">
-          {file ? file.name : "Chỉ nhận định dạng .xlsx, tối đa 5MB và 500 dòng."}
+          {file ? file.name : "Chỉ nhận định dạng .xlsx, tối đa 5MB và 2.000 dòng mỗi lần."}
         </p>
         {busy && <p className="mt-2 text-sm text-slate-400">Đang xử lý...</p>}
       </section>
@@ -142,7 +142,7 @@ export default function ImportJobOrdersPage() {
               <button
                 disabled={!ready || busy}
                 onClick={commit}
-                className="ml-auto rounded-xl bg-[#cb1d1e] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+                className="ml-auto rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-40"
               >
                 {ready
                   ? `Xác nhận ghi ${summary.total} dòng`

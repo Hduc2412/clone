@@ -118,7 +118,7 @@ export default function RecommendationLogsPage() {
                     <td className="px-5 py-4">
                       <Link
                         href={`/admin/recommendation-logs/${log.code}`}
-                        className="font-medium text-slate-900 hover:text-[#cb1d1e]"
+                        className="font-medium text-slate-900 hover:text-brand-600"
                       >
                         {log.code}
                       </Link>

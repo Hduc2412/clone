@@ -24,7 +24,15 @@ export interface ProfileCell<T = unknown> {
   evidence: string | null;
 }
 
+/** Mục khách vừa sửa mà nhân viên đã ghi trước đó: chưa đổi, đã gửi nhân viên xem lại. */
+export interface DeXuatChoNhanVien {
+  field: string;
+  gia_tri_nhan_vien: unknown;
+  gia_tri_de_xuat: unknown;
+}
+
 export interface CandidateProfile {
+  de_xuat_cho_nhan_vien?: DeXuatChoNhanVien[];
   code: string;
   session_id: string;
   status: string;
@@ -34,6 +42,16 @@ export interface CandidateProfile {
   labels: Record<string, string | null>;
   missing_required: string[];
   confirmed_at: string | null;
+  /** Trình độ đang có kèm căn cứ, việc đang học và chương trình đã hoàn thành — máy chủ ghép nhãn. */
+  trang_thai_tieng_nhat?: TrangThaiTiengNhat;
+}
+
+export interface TrangThaiTiengNhat {
+  muc: string | null;
+  ma: string | null;
+  nhan: string | null;
+  dang_hoc?: { nhan: string } | null;
+  chuong_trinh?: { nhan: string } | null;
 }
 
 export interface CatalogOption {
@@ -71,6 +89,11 @@ export interface SoftRow {
   candidate_text: string;
   points: number;
   max_points: number;
+  /** `unknown` khi chưa đánh giá được — không phải điểm mạnh. */
+  outcome?: string;
+  /** Vì sao `unknown`: `khach_chua_neu` và/hoặc `don_chua_cong_bo`. Nhật ký cũ có thể thiếu. */
+  unknown_reasons?: string[];
+  missing_field?: string | null;
 }
 
 export interface MatchItem {
@@ -188,14 +211,20 @@ export interface MyRegistration {
 export class ApiError extends Error {
   status: number;
   missing: string[];
+  /** Mã ổn định của máy chủ, ví dụ `ho_so_chua_xac_nhan`. Dựa vào mã, không dựa vào câu chữ. */
+  code: string | null;
 
-  constructor(status: number, message: string, missing: string[] = []) {
+  constructor(status: number, message: string, missing: string[] = [], code: string | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.missing = missing;
+    this.code = code;
   }
 }
+
+/** Mã máy chủ trả khi một đường tư vấn gặp hồ sơ chưa được khách xác nhận. */
+export const MA_CHUA_XAC_NHAN = "ho_so_chua_xac_nhan";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
@@ -225,6 +254,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       response.status,
       detail.message ?? "Hồ sơ còn thiếu thông tin.",
       detail.missing ?? [],
+      typeof detail.code === "string" ? detail.code : null,
     );
   }
   throw new ApiError(
@@ -449,6 +479,10 @@ export interface OrderAdvice {
   blockers: CriterionRow[];
   unknowns: CriterionRow[];
   strengths: CriterionRow[];
+  /** Mọi tiêu chí bắt buộc theo đúng thứ tự engine chấm — nguồn của bảng đối chiếu. */
+  rows?: CriterionRow[];
+  /** Các dòng nguyện vọng đã chấm; rỗng khi đơn chưa đạt (không chấm điểm đơn đã trượt). */
+  soft_rows?: SoftRow[];
   questions: string[];
   learning: LearningPath | null;
   /** Vì sao không có lộ trình học. Rỗng khi có, hoặc khi không cần. */
@@ -509,6 +543,11 @@ export interface SupportRequestInput {
   appointment_date?: string;
   appointment_time?: string;
   meeting_kind?: "truc_tiep" | "truc_tuyen";
+  /**
+   * Khách đồng ý cho nhân viên nhận yêu cầu xem hồ sơ và CV (08/10). Mặc định không:
+   * không tích thì nhân viên chỉ đọc bản bàn giao.
+   */
+  dong_y_ban_giao?: boolean;
 
   // KHÔNG có `advice_block`, và đó là chủ ý.
   //

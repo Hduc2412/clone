@@ -63,6 +63,8 @@ interface AdvisorChatProps {
   orderCode?: string;
   moc?: "sau_cv" | "sau_matching";
   onProfileChanged?: () => void | Promise<void>;
+  /** Nằm trong một thẻ khác (phòng tư vấn hai cột): bỏ khung riêng, giữ nguyên nội dung. */
+  nhung?: boolean;
 }
 
 function isAgentReply(turn: AdvisorTurn | AgentReply): turn is AgentReply {
@@ -84,6 +86,7 @@ function AdvisorConversation({
   orderCode,
   moc = "sau_cv",
   onProfileChanged,
+  nhung = false,
 }: AdvisorChatProps) {
   const [trangThai, setTrangThai] = useState<AgentState | null>(null);
   const [luot, setLuot] = useState<AdvisorTurn[]>([]);
@@ -237,12 +240,12 @@ function AdvisorConversation({
 
   return (
     <section
-      className="rounded-2xl border border-slate-200 bg-white p-5"
+      className={nhung ? "" : "rounded-2xl border border-slate-200 bg-white p-5"}
       aria-label={orderCode ? `Phòng tư vấn đơn ${orderCode}` : "Phòng tư vấn hồ sơ"}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold text-slate-900">
-          {orderCode ? `Tư vấn đơn ${orderCode}` : "Tư vấn theo hồ sơ của bạn"}
+          {nhung && orderCode ? "Hỏi thêm về đơn này" : orderCode ? `Tư vấn đơn ${orderCode}` : "Tư vấn theo hồ sơ của bạn"}
         </h3>
         {trangThai && (
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
@@ -325,7 +328,7 @@ function AdvisorConversation({
                   type="button"
                   onClick={() => void xacNhan(muc)}
                   disabled={dangLuu !== null}
-                  className="rounded-lg bg-[#cb1d1e] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {dangLuu === muc.field ? "Đang lưu…" : "Đúng, lưu lại"}
                 </button>
@@ -358,7 +361,7 @@ function AdvisorConversation({
                 key={cau}
                 type="button"
                 onClick={() => setNoiDung(cau)}
-                className="rounded-full border border-slate-300 px-3.5 py-1.5 text-left text-sm text-slate-700 hover:border-[#cb1d1e] hover:text-[#cb1d1e]"
+                className="rounded-full border border-slate-300 px-3.5 py-1.5 text-left text-sm text-slate-700 hover:border-brand-600 hover:text-brand-600"
               >
                 {cau}
               </button>
@@ -413,11 +416,11 @@ function AdvisorConversation({
           maxLength={500}
           placeholder={orderCode ? "Bạn muốn hỏi gì về đơn này?" : "Bạn muốn hỏi gì về hồ sơ của mình?"}
           aria-label={orderCode ? "Câu hỏi về đơn này" : "Câu hỏi về hồ sơ"}
-          className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-[#cb1d1e]"
+          className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-brand-600"
         />
         <button
           disabled={dangHoi || !noiDung.trim()}
-          className="rounded-xl bg-[#cb1d1e] px-5 py-3 font-semibold text-white disabled:opacity-50"
+          className="rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
         >
           {dangHoi ? "Đang hỏi…" : "Hỏi"}
         </button>
@@ -447,7 +450,7 @@ function GoiY({
           key={cau}
           type="button"
           onClick={() => onChon(cau)}
-          className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm text-slate-700 hover:border-[#cb1d1e] hover:text-[#cb1d1e]"
+          className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm text-slate-700 hover:border-brand-600 hover:text-brand-600"
         >
           {cau}
         </button>

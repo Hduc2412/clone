@@ -24,12 +24,16 @@
  * chối phải kể lại từ đầu.
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorBanner, PageHeader } from "@/components/admin/AdminUI";
 import { loadCurrentUser } from "@/lib/auth";
-import { SupportRequest, managementApi } from "@/lib/managementApi";
+import { StaffUser, SupportRequest, managementApi } from "@/lib/managementApi";
 
-type Tab = "cho" | "cua-toi";
+// "dang-xu-ly" chỉ dành cho quản lý: yêu cầu đang có người giữ, của mọi nhân viên —
+// để chuyển cho người khác khi người giữ nghỉ, bận hay nhận nhầm. Cùng lý do với tab
+// "Đang có người phụ trách" ở hàng đợi hồ sơ đăng ký.
+type Tab = "cho" | "cua-toi" | "dang-xu-ly";
 
 const NHAN_LOAI: Record<SupportRequest["kind"], string> = {
   gap_mat: "Xin gặp mặt",
@@ -70,16 +74,29 @@ export default function SupportQueuePage() {
   const [ban, setBan] = useState<string | null>(null);
   const [loi, setLoi] = useState("");
   const [nhan, setNhan] = useState("");
+  // Tổng số đang chờ theo máy chủ — cùng lý do như hàng đợi hồ sơ: danh sách bị cắt
+  // theo giới hạn thì phải nói ra, không giấu những người vừa gửi yêu cầu.
+  const [tongCho, setTongCho] = useState<number | null>(null);
+  const [laQuanLy, setLaQuanLy] = useState(false);
+  const [nhanVien, setNhanVien] = useState<StaffUser[]>([]);
 
   const tai = useCallback(() => {
     setDangTai(true);
     setLoi("");
+    setTongCho(null);
     const doi =
       tab === "cho"
         ? managementApi.supportQueue({ status: "cho_xu_ly", kind: loai || undefined })
-        : managementApi.mySupportRequests();
+        : tab === "dang-xu-ly"
+          ? managementApi.supportQueue({ status: "dang_xu_ly", kind: loai || undefined })
+          : managementApi.mySupportRequests();
     doi
-      .then((payload) => setItems(payload.items))
+      .then((payload) => {
+        setItems(payload.items);
+        if (tab === "cho") {
+          setTongCho((payload as { total?: number }).total ?? payload.count);
+        }
+      })
       .catch((ly_do) => setLoi(ly_do.message))
       .finally(() => setDangTai(false));
   }, [tab, loai]);
@@ -88,9 +105,54 @@ export default function SupportQueuePage() {
 
   useEffect(() => {
     loadCurrentUser()
-      .then((user) => setToi(user.email))
+      .then(async (user) => {
+        setToi(user.email);
+        const quanLy = user.role === "admin" || user.role === "manager";
+        setLaQuanLy(quanLy);
+        if (!quanLy) return;
+        const ds = await managementApi.users();
+        setNhanVien(ds.filter((nguoi) => nguoi.status === "active"));
+      })
       .catch(() => undefined);
   }, []);
+
+  // Chuyển và trả về đều có thể va với một thao tác khác của người khác, nên kết
+  // thúc bằng một lần tải lại — kể cả khi hỏng. Cùng cách với hàng đợi hồ sơ.
+  const doiNguoiGiu = async (code: string, viec: () => Promise<unknown>, xong: string) => {
+    setBan(code);
+    setLoi("");
+    setNhan("");
+    try {
+      await viec();
+      setNhan(xong);
+    } catch (ly_do) {
+      setLoi((ly_do as Error).message);
+    } finally {
+      setBan(null);
+      tai();
+    }
+  };
+
+  const chuyenCho = (code: string, nguoi: string) => {
+    if (!nguoi) return;
+    const lyDo = window.prompt(`Lý do chuyển yêu cầu ${code} cho ${nguoi}?`);
+    if (!lyDo) return;
+    void doiNguoiGiu(
+      code,
+      () => managementApi.handoverSupportRequest(code, nguoi, lyDo),
+      `Đã chuyển ${code} cho ${nguoi}.`,
+    );
+  };
+
+  const traVe = (code: string) => {
+    const lyDo = window.prompt(`Lý do trả yêu cầu ${code} về hàng đợi?`);
+    if (!lyDo) return;
+    void doiNguoiGiu(
+      code,
+      () => managementApi.releaseSupportRequest(code, lyDo),
+      `Đã trả ${code} về hàng đợi.`,
+    );
+  };
 
   const nhanXuLy = async (code: string) => {
     setBan(code);
@@ -150,6 +212,7 @@ export default function SupportQueuePage() {
             [
               ["cho", "Chờ xử lý"],
               ["cua-toi", "Tôi đang xử lý"],
+              ...(laQuanLy ? ([["dang-xu-ly", "Đang có người xử lý"]] as const) : []),
             ] as const
           ).map(([gia_tri, chu]) => (
             <button
@@ -167,7 +230,7 @@ export default function SupportQueuePage() {
           ))}
         </div>
 
-        {tab === "cho" && (
+        {tab !== "cua-toi" && (
           <select
             value={loai}
             onChange={(e) => setLoai(e.target.value)}
@@ -191,13 +254,29 @@ export default function SupportQueuePage() {
 
       {dangTai && <p className="text-sm text-slate-500">Đang tải…</p>}
 
+      {!dangTai && tab === "cho" && tongCho !== null && tongCho > items.length && (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Đang hiện {items.length} trên {tongCho} yêu cầu chờ. Danh sách xếp người chờ lâu nhất lên
+          đầu, nên {tongCho - items.length} yêu cầu gửi gần đây nằm ở phần chưa hiện — nhận bớt rồi
+          bấm Tải lại.
+        </p>
+      )}
+
       {!dangTai && items.length === 0 && (
         <EmptyState
-          title={tab === "cho" ? "Không có yêu cầu nào đang chờ" : "Bạn chưa nhận yêu cầu nào"}
+          title={
+            tab === "cho"
+              ? "Không có yêu cầu nào đang chờ"
+              : tab === "dang-xu-ly"
+                ? "Không có yêu cầu nào đang được xử lý"
+                : "Bạn chưa nhận yêu cầu nào"
+          }
           description={
             tab === "cho"
               ? "Khách gửi yêu cầu từ trang tư vấn sẽ hiện ở đây."
-              : 'Sang tab "Chờ xử lý" để nhận một yêu cầu.'
+              : tab === "dang-xu-ly"
+                ? "Yêu cầu đã có nhân viên nhận sẽ nằm ở đây, để quản lý chuyển cho người khác khi cần."
+                : 'Sang tab "Chờ xử lý" để nhận một yêu cầu.'
           }
         />
       )}
@@ -232,15 +311,23 @@ export default function SupportQueuePage() {
                     )}
                   </div>
                   <h3 className="mt-1.5 text-base font-bold text-slate-900">
-                    {item.full_name}
+                    {item.full_name ?? item.ten_viet_tat}
                   </h3>
                   <p className="text-sm text-slate-600">
-                    <a
-                      href={`tel:${item.phone}`}
-                      className="font-medium text-brand-600 hover:underline"
-                    >
-                      {item.phone}
-                    </a>
+                    {/* Việc chưa nhận: nhân viên thường chỉ có bản tối thiểu (08/10).
+                        Số điện thoại, lời nhắn và bản bàn giao mở sau khi bấm nhận. */}
+                    {item.phone ? (
+                      <a
+                        href={`tel:${item.phone}`}
+                        className="font-medium text-brand-600 hover:underline"
+                      >
+                        {item.phone}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500">
+                        Nhận xử lý để xem số điện thoại{item.co_lich_hen ? " và lịch hẹn" : ""}{" "}
+                      </span>
+                    )}
                     {item.job_order_code && (
                       <span className="ml-2 text-slate-500">
                         · đang xem đơn{" "}
@@ -261,28 +348,81 @@ export default function SupportQueuePage() {
                       {ban === item.code ? "Đang nhận…" : "Nhận xử lý"}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMoCode(mo ? null : item.code);
-                      setTraLoi("");
-                    }}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    {mo ? "Thu gọn" : "Xem chi tiết"}
-                  </button>
+                  {item.assigned_to && item.status === "dang_xu_ly" && laQuanLy && (
+                    <select
+                      defaultValue=""
+                      disabled={ban === item.code}
+                      onChange={(e) => chuyenCho(item.code, e.target.value)}
+                      className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-700"
+                    >
+                      <option value="">Chuyển cho…</option>
+                      {nhanVien
+                        .filter((nguoi) => nguoi.email !== item.assigned_to)
+                        .map((nguoi) => (
+                          <option key={nguoi.email} value={nguoi.email}>
+                            {nguoi.full_name} ({nguoi.email})
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                  {item.assigned_to &&
+                    item.status === "dang_xu_ly" &&
+                    (item.assigned_to === toi || laQuanLy) && (
+                      <button
+                        type="button"
+                        disabled={ban === item.code}
+                        onClick={() => traVe(item.code)}
+                        className="rounded-lg border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                      >
+                        Trả về hàng đợi
+                      </button>
+                    )}
+                  {!item.ban_toi_thieu && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoCode(mo ? null : item.code);
+                        setTraLoi("");
+                      }}
+                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      {mo ? "Thu gọn" : "Xem chi tiết"}
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
-                {item.message}
-              </p>
+              {item.message ? (
+                <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
+                  {item.message}
+                </p>
+              ) : item.ban_toi_thieu ? (
+                <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                  Lời nhắn và bản bàn giao hiện sau khi bạn nhận xử lý — để hai người
+                  không cùng mở hồ sơ của một khách.
+                </p>
+              ) : null}
 
               {item.assigned_to && (
                 <p className="mt-2 text-xs text-slate-500">
                   Người phụ trách: {item.assigned_to}
                   {cuaToi && " (bạn)"}
                 </p>
+              )}
+              {/* Hồ sơ và CV gắn với chính yêu cầu này: chỉ khi khách đồng ý bàn giao. */}
+              {cuaToi && item.status === "dang_xu_ly" && (
+                item.profile_code ? (
+                  <Link
+                    href={`/admin/profiles/${item.profile_code}`}
+                    className="mt-2 inline-block text-sm font-medium text-brand-600 hover:underline"
+                  >
+                    Xem hồ sơ và CV của khách →
+                  </Link>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Khách chưa đồng ý cho xem hồ sơ và CV — dùng bản bàn giao bên dưới.
+                  </p>
+                )
               )}
 
               {mo && (

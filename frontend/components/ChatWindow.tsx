@@ -20,7 +20,7 @@ export default function ChatWindow({ onExpand }: ChatWindowProps) {
     <div className="flex flex-col h-full">
       <div
         className="flex items-center justify-between px-4 py-3 text-white"
-        style={{ backgroundColor: "#cb1d1e" }}
+        style={{ backgroundColor: "#aa4339" }}
       >
         {/* Nói rõ khung này làm gì, ngay trên tiêu đề.
           *
@@ -95,7 +95,7 @@ export default function ChatWindow({ onExpand }: ChatWindowProps) {
           disabled={loading || !input.trim()}
           aria-label="Gửi câu hỏi"
           className="w-9 h-9 rounded-full text-white flex items-center justify-center disabled:opacity-50"
-          style={{ backgroundColor: "#cb1d1e" }}
+          style={{ backgroundColor: "#aa4339" }}
         >
           ➤
         </button>

@@ -68,22 +68,26 @@ export function StatusBadge({ status }: { status: string }) {
 export function PageHeader({
   eyebrow,
   title,
+  accent,
   description,
   action,
 }: {
   eyebrow: string;
   title: string;
+  /** Dòng nhấn nghiêng sau tiêu đề (bản thiết kế 08/10) — chỉ dùng ở vài trang mở đầu. */
+  accent?: string;
   description: string;
   action?: ReactNode;
 }) {
   return (
     <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#cb1d1e]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
           {eyebrow}
         </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
           {title}
+          {accent && <span className="chu-nhan mt-1 block text-slate-800">{accent}</span>}
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
           {description}

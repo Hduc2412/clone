@@ -42,7 +42,9 @@ export default function JobOrderCard({ order }: { order: PublicJobOrder }) {
             {formatSalaryRange(order.reference.salary_min, order.reference.salary_max)}
           </span>
         </Row>
-        <Row label="Số lượng">{order.quota} người</Row>
+        <Row label="Chỉ tiêu">
+          {order.con_lai != null ? `Còn ${order.con_lai}/${order.quota}` : `${order.quota} người`}
+        </Row>
         <Row label="Tiếng Nhật">{order.labels.japanese_required}</Row>
         <Row label="Độ tuổi">
           {ageRangeText(order.requirements.age_min, order.requirements.age_max)}

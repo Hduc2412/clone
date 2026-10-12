@@ -113,7 +113,7 @@ export default function CandidateProfilesPage() {
                 </span>
                 <a
                   href={managementApi.documentOriginalUrl(document.code)}
-                  className="ml-auto font-medium text-[#cb1d1e] hover:underline"
+                  className="ml-auto font-medium text-brand-600 hover:underline"
                 >
                   Mở file ↓
                 </a>
@@ -150,7 +150,7 @@ export default function CandidateProfilesPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/profiles/${profile.code}`}
-                      className="font-medium text-[#cb1d1e] hover:underline"
+                      className="font-medium text-brand-600 hover:underline"
                     >
                       {profile.code}
                     </Link>

@@ -25,14 +25,20 @@ export default function SiteHeader() {
     <header
       className={`sticky top-0 z-40 border-b transition-colors ${
         scrolled
-          ? "border-slate-200 bg-white/90 backdrop-blur"
-          : "border-transparent bg-white/70 backdrop-blur"
+          ? "border-slate-200 bg-[#fbfaf7]/95 backdrop-blur"
+          : "border-transparent bg-[#fbfaf7]/80 backdrop-blur"
       }`}
     >
       <div className="mx-auto flex h-[72px] w-full max-w-container items-center gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
+          {/* Dấu "DC" kiểu triện — theo bản thiết kế 08/10. */}
+          <span
+            aria-hidden
+            className="relative flex h-10 w-10 items-center justify-center bg-brand-600 text-[17px] text-white"
+            style={{ borderRadius: "50% 50% 5px 50%", fontFamily: "var(--font-serif, Georgia), Georgia, serif", fontWeight: 600 }}
+          >
             DC
+            <span className="absolute -right-1.5 -top-1.5 text-[11px] text-brand-600">*</span>
           </span>
           <span className="leading-tight">
             <span className="block whitespace-nowrap text-sm font-bold text-slate-900">

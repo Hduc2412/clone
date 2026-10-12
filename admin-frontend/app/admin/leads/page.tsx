@@ -79,7 +79,7 @@ export default function LeadsPage() {
         action={
           <button
             onClick={() => setShowForm((value) => !value)}
-            className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+            className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
           >
             {showForm ? "Đóng biểu mẫu" : "Thêm khách hàng"}
           </button>
@@ -117,7 +117,7 @@ export default function LeadsPage() {
             placeholder="Chưa phân công"
             required={false}
           />
-          <button className="rounded-xl bg-[#171b22] px-4 py-2.5 text-sm font-medium text-white md:col-span-2 xl:col-span-4">
+          <button className="rounded-xl bg-ink-800 px-4 py-2.5 text-sm font-medium text-white md:col-span-2 xl:col-span-4">
             Lưu hồ sơ khách hàng
           </button>
         </form>
@@ -149,7 +149,7 @@ export default function LeadsPage() {
                     <td className="px-5 py-4">
                       <Link
                         href={`/admin/leads/${encodeURIComponent(lead.lead_code)}`}
-                        className="font-medium hover:text-[#cb1d1e] hover:underline"
+                        className="font-medium hover:text-brand-600 hover:underline"
                       >
                         {lead.customer_name}
                       </Link>
@@ -158,7 +158,7 @@ export default function LeadsPage() {
                       </p>
                     </td>
                     <td className="px-5 py-4">
-                      <a href={`tel:${lead.phone}`} className="font-medium text-[#cb1d1e]">
+                      <a href={`tel:${lead.phone}`} className="font-medium text-brand-600">
                         {lead.phone}
                       </a>
                     </td>
@@ -216,7 +216,7 @@ function Field({
         name={name}
         pattern={pattern}
         inputMode={inputMode}
-        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-brand-400"
         placeholder={placeholder}
       />
     </label>

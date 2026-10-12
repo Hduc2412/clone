@@ -191,7 +191,7 @@ export default function CoursesPage() {
           quanLy ? (
             <button
               onClick={() => (form ? setForm(null) : moTaoMoi())}
-              className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+              className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
             >
               {form ? "Đóng biểu mẫu" : "Thêm khóa"}
             </button>
@@ -226,7 +226,7 @@ export default function CoursesPage() {
                   value={form.code}
                   onChange={(e) => setForm({ ...form, code: e.target.value })}
                   placeholder="KH-0002"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-red-400"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-brand-400"
                 />
               </O>
             )}
@@ -237,7 +237,7 @@ export default function CoursesPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Học tiếng Nhật tại trung tâm"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-red-400"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-brand-400"
               />
             </O>
 
@@ -388,7 +388,7 @@ export default function CoursesPage() {
           <div className="mt-4 flex gap-2">
             <button
               type="submit"
-              className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+              className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
             >
               Lưu
             </button>
@@ -459,7 +459,7 @@ export default function CoursesPage() {
                     href={khoa.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-1 inline-block text-xs text-[#cb1d1e] hover:underline"
+                    className="mt-1 inline-block text-xs text-brand-600 hover:underline"
                   >
                     Nguồn →
                   </a>

@@ -15,25 +15,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // 08/10: đỏ trầm theo bản thiết kế "Hành trình Nhật Bản" (_design/nhat-ban-20261008),
+        // thay đỏ tươi #cb1d1e. Đổi ở đây là đổi cả trang — không còn mã màu rải rác.
         brand: {
-          50: "#fef2f2",
-          100: "#fde3e3",
-          200: "#fbcbcb",
-          300: "#f7a6a6",
-          400: "#ef7172",
-          500: "#e14344",
-          600: "#cb1d1e",
-          700: "#a81718",
-          800: "#8b1718",
-          900: "#741a1a",
+          50: "#fbf1ef",
+          100: "#f6e0dc",
+          200: "#ecc2bb",
+          300: "#dd9a8f",
+          400: "#c86e62",
+          500: "#b6544a",
+          600: "#aa4339",
+          700: "#90372f",
+          800: "#762e28",
+          900: "#5f2722",
         },
+        // Thang chữ và viền xanh rêu–ngà của cùng bản thiết kế. Ghi đè `slate` của
+        // Tailwind để mọi `text-slate-*` hiện có đổi theo một lần, giữ đúng thứ bậc
+        // đậm nhạt cũ. Màn quản trị dùng cấu hình riêng nên không đổi.
+        slate: {
+          50: "#f4f3ec",
+          100: "#ecebe3",
+          200: "#e2e6df",
+          300: "#c9d0c8",
+          400: "#8e9a95",
+          500: "#657570",
+          600: "#4f625d",
+          700: "#3c514c",
+          800: "#2b4440",
+          900: "#203c39",
+        },
+        reu: { 50: "#eaf0e8", 600: "#347361", 700: "#2a5d4f" },
+        kem: "#f7f6f0",
         // Xanh chàm dùng cho khối thông tin và nền tối, để trang không chỉ có
         // đỏ và trắng. Đỏ chỉ dành cho nút hành động và điểm nhấn.
         ink: {
-          50: "#f6f7f9",
-          700: "#2a3442",
-          800: "#1f2733",
-          900: "#171b22",
+          50: "#f4f3ec",
+          700: "#2b4440",
+          800: "#203c39",
+          900: "#18302d",
         },
       },
       fontFamily: {

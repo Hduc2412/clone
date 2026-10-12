@@ -50,7 +50,7 @@ export default function AuditLogsPage() {
         action={
           <button
             onClick={load}
-            className="rounded-xl bg-[#171b22] px-4 py-2.5 text-sm font-medium text-white"
+            className="rounded-xl bg-ink-800 px-4 py-2.5 text-sm font-medium text-white"
           >
             Làm mới
           </button>

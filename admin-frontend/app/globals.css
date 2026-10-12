@@ -9,9 +9,21 @@
 }
 
 body {
-  background: #f6f7f9;
-  color: #0f172a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f6f0;
+  color: #203c39;
+  /* Dự phòng trong `var()`: thiếu biến phông thì vẫn ra chữ không chân. */
+  font-family: var(--font-sans, system-ui), system-ui, "Segoe UI", sans-serif;
+}
+
+/* Dòng nhấn nghiêng có chân — chỉ cho vài chữ nhấn và số lớn, không cho thân chữ. */
+.chu-nhan {
+  font-family: var(--font-serif, Georgia), Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+}
+.so-lon {
+  font-family: var(--font-serif, Georgia), Georgia, "Times New Roman", serif;
+  font-variant-numeric: lining-nums;
 }
 
 button,

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdvisorChat from "./AdvisorChat";
+import BuocTuVan, { buocHienTai } from "./BuocTuVan";
 import CvUpload from "@/components/candidate/CvUpload";
 import MatchCard from "@/components/candidate/MatchCard";
 import {
@@ -37,6 +38,28 @@ import {
 } from "@/lib/candidateApi";
 
 type Step = "form" | "results";
+
+/**
+ * Ba trang của bước khai hồ sơ (bản thiết kế 08/10): gửi CV → làm rõ → xác nhận.
+ *
+ * **Khách bấm mới sang trang** — không tự trượt theo đồng hồ hay theo lúc máy đọc
+ * xong CV. Người đang đọc lại thông tin máy hiểu về mình mà trang tự chạy đi là mất
+ * chỗ đang đọc. Cả ba trang luôn được dựng, chỉ ẩn trang không xem: quay lại trang
+ * làm rõ thì khung trợ lý còn nguyên lịch sử, không gọi lại lượt mở đầu.
+ */
+const TRANG = ["gui-cv", "lam-ro", "xac-nhan"] as const;
+type Trang = (typeof TRANG)[number];
+const TIEU_DE_TRANG: Record<Trang, string> = {
+  "gui-cv": "Gửi CV của bạn",
+  "lam-ro": "Làm rõ thông tin",
+  "xac-nhan": "Xem lại và xác nhận",
+};
+
+const NHAN_MUC: Record<string, string> = {
+  full_name: "Họ tên", birth_year: "Năm sinh", gender: "Giới tính",
+  education_level: "Bằng cấp", major: "Chuyên ngành", japanese_level: "Tiếng Nhật",
+  experience_years: "Kinh nghiệm", care_experience: "Kinh nghiệm chăm sóc",
+};
 
 interface FormState {
   full_name: string;
@@ -95,7 +118,12 @@ function fromProfile(profile: CandidateProfile): FormState {
   };
 }
 
-export default function ConsultationFlow() {
+export default function ConsultationFlow({
+  donDangXem = null,
+}: {
+  /** Đơn khách vừa xem trước khi vào đây (`/tu-van?don=`), nếu có. */
+  donDangXem?: { code: string; title: string } | null;
+} = {}) {
   // Mã phiên nay do máy chủ cấp kèm cookie đã ký, nên lần vẽ đầu tiên chưa
   // có. Giữ trong state để phần gửi CV không vẽ ra với mã rỗng.
   const [sessionId, setSessionId] = useState("");
@@ -108,10 +136,26 @@ export default function ConsultationFlow() {
   const [booting, setBooting] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Mục nhân viên đã ghi mà khách vừa sửa: máy chủ giữ giá trị cũ và gửi đề xuất
+  // cho nhân viên (08/10). Nói ra, để khách không tưởng mình đã sửa được.
+  const [deXuat, setDeXuat] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [registrations, setRegistrations] = useState<MyRegistration[]>([]);
   const [justRegistered, setJustRegistered] = useState<RegistrationResult | null>(null);
   const [registering, setRegistering] = useState<string | null>(null);
+  const [trang, setTrang] = useState<Trang>("gui-cv");
+  // Sang trang thì đưa tiêu điểm tới tiêu đề trang mới — người dùng bàn phím và
+  // trình đọc màn hình biết ngay nội dung đã đổi, không phải dò lại từ đầu.
+  const tieuDe = useRef<Record<string, HTMLHeadingElement | null>>({});
+  const daSangTrang = useRef(false);
+  useEffect(() => {
+    if (!daSangTrang.current) return;
+    if (step === "form") tieuDe.current[trang]?.focus();
+  }, [trang, step]);
+  const sangTrang = (moi: Trang) => {
+    daSangTrang.current = true;
+    setTrang(moi);
+  };
 
 /** Mã phiên rỗng thì dừng ngay, với một câu nói đúng chuyện gì đang xảy ra.
  *
@@ -138,6 +182,13 @@ function khong_nhan_phien(reason: unknown): boolean {
   const status = (reason as { status?: number })?.status;
   return status === 401 || status === 403;
 }
+
+  const moSua = () => {
+    daSangTrang.current = true;
+    setStep("form");
+    setShowProfileForm(true);
+    setTrang("lam-ro");
+  };
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -182,6 +233,7 @@ function khong_nhan_phien(reason: unknown): boolean {
         if (existing) {
           setProfile(existing);
           setForm(fromProfile(existing));
+          setTrang("lam-ro");
           if (existing.status === "confirmed") {
             const matches = await fetchMatches(sessionId);
             if (!alive) return;
@@ -263,7 +315,10 @@ function khong_nhan_phien(reason: unknown): boolean {
       }
     }
     setErrors(found);
-    if (Object.keys(found).length > 0) setShowProfileForm(true);
+    if (Object.keys(found).length > 0) {
+      setShowProfileForm(true);
+      setTrang("lam-ro");
+    }
     return Object.keys(found).length === 0;
   }, [form]);
 
@@ -301,6 +356,7 @@ function khong_nhan_phien(reason: unknown): boolean {
       let saved = currentProfile
         ? await updateProfile(sessionId, fields, preferences, currentProfile.version)
         : await createProfile(sessionId, fields, preferences);
+      setDeXuat((saved.de_xuat_cho_nhan_vien ?? []).map((d) => NHAN_MUC[d.field] ?? d.field));
       if (saved.status !== "confirmed") {
         saved = await confirmProfile(sessionId);
       }
@@ -313,6 +369,7 @@ function khong_nhan_phien(reason: unknown): boolean {
       setError(apiError.message);
       if (apiError.missing?.length) {
         setShowProfileForm(true);
+        setTrang("lam-ro");
         setErrors(
           Object.fromEntries(
             apiError.missing.map((key) => [key, "Mục này cần điền để đối chiếu."]),
@@ -350,6 +407,7 @@ function khong_nhan_phien(reason: unknown): boolean {
     setErrors({});
     setError("");
     setStep("form");
+    setTrang("gui-cv");
     setShowProfileForm(false);
     setRegistrations([]);
     setJustRegistered(null);
@@ -398,6 +456,7 @@ function khong_nhan_phien(reason: unknown): boolean {
   if (step === "results" && result) {
     return (
       <div className="space-y-6">
+        <BuocTuVan hienTai={buocHienTai({ coHoSo: true, daXacNhan: true, coKetQua: true })} />
         <Card className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -411,7 +470,7 @@ function khong_nhan_phien(reason: unknown): boolean {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setStep("form")}>
+              <Button variant="ghost" onClick={moSua}>
                 Sửa hồ sơ
               </Button>
               <Button variant="ghost" onClick={startOver}>
@@ -428,7 +487,32 @@ function khong_nhan_phien(reason: unknown): boolean {
               {error}
             </p>
           )}
+          {deXuat.length > 0 && (
+            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
+              {deXuat.join(", ")}: nhân viên đã ghi thông tin này sau khi làm việc với
+              bạn, nên hệ thống chưa đổi. Điều bạn vừa sửa đã được gửi để nhân viên xem
+              lại.
+            </p>
+          )}
         </Card>
+
+        {/* Khách đến từ một đơn cụ thể: đơn đó phải đọc được ngay, kể cả khi nó
+            KHÔNG nằm trong danh sách đủ điều kiện bên dưới — danh sách công khai
+            chỉ có đơn đạt, nên đơn trượt sẽ biến mất đúng lúc khách cần biết vì sao. */}
+        {donDangXem && (
+          <Card className="border-brand-200 bg-brand-50/50 p-5">
+            <p className="text-sm text-slate-700">
+              Đơn bạn vừa xem: <span className="font-semibold text-ink-900">{donDangXem.title}</span>{" "}
+              ({donDangXem.code})
+            </p>
+            <Link
+              href={`/tu-van/don/${donDangXem.code}`}
+              className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+            >
+              Xem bảng đối chiếu với đơn này
+            </Link>
+          </Card>
+        )}
 
         {justRegistered && (
           <Card className="border-emerald-200 bg-emerald-50 p-5">
@@ -469,18 +553,6 @@ function khong_nhan_phien(reason: unknown): boolean {
           </Card>
         )}
 
-        {/* Phòng tư vấn đặt NGAY TRÊN danh sách thẻ đơn, không ở cuối trang.
-            Danh sách thẻ đọc được, nhưng nó không trả lời câu người ta thật sự
-            đang hỏi: *tóm lại tôi có cơ hội không, và vướng ở đâu*. Đặt dưới
-            danh sách thì phải cuộn qua mười mấy thẻ mới thấy. */}
-        {sessionId && (
-          <AdvisorChat
-            sessionId={sessionId}
-            moc="sau_matching"
-            onProfileChanged={taiLaiKetQua}
-          />
-        )}
-
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-semibold text-ink-900">
             {result.eligible_count > 0
@@ -516,7 +588,7 @@ function khong_nhan_phien(reason: unknown): boolean {
               ))}
             </ul>
             <div className="mt-4">
-              <Button variant="secondary" onClick={() => setStep("form")}>
+              <Button variant="secondary" onClick={moSua}>
                 Bổ sung thông tin
               </Button>
             </div>
@@ -531,7 +603,7 @@ function khong_nhan_phien(reason: unknown): boolean {
               sắp mở.
             </p>
             <div className="mt-4 flex justify-center gap-2">
-              <Button onClick={() => setStep("form")}>Bổ sung hồ sơ</Button>
+              <Button onClick={moSua}>Bổ sung hồ sơ</Button>
               <Button variant="secondary" href="/lien-he">
                 Liên hệ tư vấn
               </Button>
@@ -552,6 +624,21 @@ function khong_nhan_phien(reason: unknown): boolean {
           </div>
         )}
 
+        {/* Trợ lý đứng SAU danh sách đơn (yêu cầu 08/10). Trước đó nó ở trên cùng
+            với lý do "trả lời ngay câu tôi có cơ hội không" — nhưng thế là để một
+            khung chat dài chiếm chỗ của bảng đối chiếu, thứ trả lời câu ấy bằng dữ
+            kiện. Giờ khách đọc kết quả trước, rồi mới hỏi thêm về điều vừa đọc. */}
+        {sessionId && (
+          <div>
+            <h2 className="mb-3 text-lg font-semibold text-ink-900">Phân tích và hỏi thêm</h2>
+            <AdvisorChat
+              sessionId={sessionId}
+              moc="sau_matching"
+              onProfileChanged={taiLaiKetQua}
+            />
+          </div>
+        )}
+
         <p className="rounded-xl bg-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">
           {result.disclaimer}
         </p>
@@ -559,53 +646,130 @@ function khong_nhan_phien(reason: unknown): boolean {
     );
   }
 
+  const soTrang = TRANG.indexOf(trang);
+  const tenMuc = (ds: { code: string; label: string }[] | undefined, code: string) =>
+    (ds ?? []).find((o) => o.code === code)?.label ?? code;
+  const xemLai: [string, string][] = [
+    ["Họ tên", form.full_name.trim()],
+    ["Năm sinh", form.birth_year],
+    ["Giới tính", form.gender ? tenMuc(meta.genders, form.gender) : ""],
+    ["Bằng cấp", form.education_level ? tenMuc(meta.education_levels, form.education_level) : ""],
+    ["Chuyên ngành", form.major.trim()],
+    ["Tiếng Nhật", form.japanese_level ? tenMuc(meta.japanese_levels, form.japanese_level) : ""],
+    ["Kinh nghiệm", form.experience_years ? `${form.experience_years} năm` : ""],
+    [
+      "Chăm sóc người bệnh",
+      form.care_experience === undefined ? "" : form.care_experience ? "Đã từng" : "Chưa từng",
+    ],
+    ["Số điện thoại", form.phone.trim()],
+    // Biểu mẫu chỉ có ô tỉnh; hồ sơ đọc từ CV/trò chuyện có thể chỉ ghi vùng. Không có
+    // tỉnh thì đọc lại vùng đã ghi, đừng báo "chưa cung cấp" cho thứ hồ sơ đang giữ.
+    [
+      "Nơi mong muốn",
+      form.desired_prefecture
+        ? tenMuc(meta.prefectures, form.desired_prefecture)
+        : profile?.labels?.desired_region_group
+          ? `Vùng ${profile.labels.desired_region_group}`
+          : "",
+    ],
+    ["Loại hình cơ sở", form.desired_employer_type ? tenMuc(meta.employer_types, form.desired_employer_type) : ""],
+    ["Lương mong muốn", form.salary_expectation_jpy ? `${Number(form.salary_expectation_jpy).toLocaleString("vi-VN")} ¥` : ""],
+    ["Chi phí có thể chuẩn bị", form.budget_vnd ? `${Number(form.budget_vnd).toLocaleString("vi-VN")} đ` : ""],
+  ];
+  const tienDo = profile?.trang_thai_tieng_nhat;
+
+  /** Tiêu đề trang: nhận tiêu điểm khi sang trang (tabIndex -1 — không vào vòng Tab). */
+  const tieuDeTrang = (ten: Trang) => (
+    <h2
+      ref={(el) => {
+        tieuDe.current[ten] = el;
+      }}
+      tabIndex={-1}
+      className="text-2xl font-semibold tracking-tight text-slate-900 outline-none"
+    >
+      {TIEU_DE_TRANG[ten]}
+    </h2>
+  );
+
   return (
     <Card className="p-5 sm:p-7">
-      <p className="text-sm text-slate-600">
-        Gửi CV để hệ thống đọc hồ sơ, sau đó trao đổi trực tiếp với trợ lý tư vấn.
-        Bạn kiểm tra và xác nhận thông tin trước khi đối chiếu đơn tuyển dụng.
-      </p>
+      <div className="mb-6 border-b border-slate-200 pb-5">
+        <BuocTuVan hienTai={soTrang} />
+      </div>
 
       {error && (
-        <p className="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
+        <p className="mb-5 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700" role="alert">
           {error}
         </p>
       )}
 
-      <div className="mt-6">
-        {/* `key` theo phiên: ô gửi CV giữ kết quả lần đọc trong trạng thái riêng
-            của nó, nên không dựng lại thì sau "Khai lại từ đầu" nó vẫn hiện "đã
-            đọc xong" của CV phiên trước. `AdvisorChat` đã có `key` như vậy. */}
-        <CvUpload
-          key={sessionId}
-          sessionId={sessionId}
-          onProfileRead={(read) => {
-            setProfile(read);
-            setForm(fromProfile(read));
-          }}
-        />
-      </div>
-
-      {/* Trợ lý lên tiếng ngay sau khi máy đọc xong CV, TRƯỚC bước xác nhận.
-          Đây là lúc ứng viên vừa gửi một tệp và đang chờ xem máy hiểu được gì.
-          Nói lại thứ đọc được là cách duy nhất để họ phát hiện máy đọc nhầm, và
-          hỏi một hai thứ còn thiếu lúc họ còn đang chú ý thì tỉ lệ được trả lời
-          cao hơn hẳn so với hỏi sau. */}
-      {profile && sessionId && (
+      {/* --- Trang 1: gửi CV --- */}
+      <section hidden={trang !== "gui-cv"} className={trang === "gui-cv" ? "trang-vao" : ""} aria-label={TIEU_DE_TRANG["gui-cv"]}>
+        {tieuDeTrang("gui-cv")}
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Gửi CV để hệ thống đọc hồ sơ, sau đó trao đổi với trợ lý để làm rõ. Bạn kiểm
+          tra và xác nhận thông tin trước khi đối chiếu đơn tuyển dụng.
+        </p>
         <div className="mt-6">
-          <AdvisorChat
+          {/* `key` theo phiên: ô gửi CV giữ kết quả lần đọc trong trạng thái riêng
+              của nó, nên không dựng lại thì sau "Khai lại từ đầu" nó vẫn hiện "đã
+              đọc xong" của CV phiên trước. `AdvisorChat` đã có `key` như vậy. */}
+          <CvUpload
+            key={sessionId}
             sessionId={sessionId}
-            moc="sau_cv"
-            onProfileChanged={async () => {
-              const moi = await fetchProfile(sessionId).catch(() => null);
-              if (moi) {
-                setProfile(moi);
-                setForm(fromProfile(moi));
-              }
+            onProfileRead={(read) => {
+              setProfile(read);
+              setForm(fromProfile(read));
             }}
           />
         </div>
-      )}
+        <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+          {profile && (
+            <Button size="lg" onClick={() => sangTrang("lam-ro")}>
+              Tiếp: làm rõ thông tin →
+            </Button>
+          )}
+          <Button
+            variant={profile ? "ghost" : "secondary"}
+            onClick={() => {
+              setShowProfileForm(true);
+              sangTrang("lam-ro");
+            }}
+          >
+            {profile ? "Sửa thông tin bằng biểu mẫu" : "Chưa có CV? Khai bằng biểu mẫu"}
+          </Button>
+        </div>
+      </section>
+
+      {/* --- Trang 2: làm rõ --- */}
+      <section hidden={trang !== "lam-ro"} className={trang === "lam-ro" ? "trang-vao" : ""} aria-label={TIEU_DE_TRANG["lam-ro"]}>
+        {tieuDeTrang("lam-ro")}
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {profile
+            ? "Trợ lý nói lại những gì máy đọc được và hỏi thêm vài mục còn thiếu. Thông tin chỉ được lưu khi bạn bấm xác nhận."
+            : "Khai vài mục chính — mục nào chưa rõ thì cứ bỏ trống, hệ thống không loại đơn vì thiếu thông tin."}
+        </p>
+
+        {/* Trợ lý lên tiếng ngay sau khi máy đọc xong CV, TRƯỚC bước xác nhận.
+            Đây là lúc ứng viên vừa gửi một tệp và đang chờ xem máy hiểu được gì.
+            Nói lại thứ đọc được là cách duy nhất để họ phát hiện máy đọc nhầm, và
+            hỏi một hai thứ còn thiếu lúc họ còn đang chú ý thì tỉ lệ được trả lời
+            cao hơn hẳn so với hỏi sau. */}
+        {profile && sessionId && (
+          <div className="mt-6">
+            <AdvisorChat
+              sessionId={sessionId}
+              moc="sau_cv"
+              onProfileChanged={async () => {
+                const moi = await fetchProfile(sessionId).catch(() => null);
+                if (moi) {
+                  setProfile(moi);
+                  setForm(fromProfile(moi));
+                }
+              }}
+            />
+          </div>
+        )}
 
       <details
         className="mt-6"
@@ -738,19 +902,64 @@ function khong_nhan_phien(reason: unknown): boolean {
 
       </details>
 
-      <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
-        <Button size="lg" onClick={submit} disabled={busy}>
-          {busy ? "Đang đối chiếu…" : "Xác nhận hồ sơ và xem đơn phù hợp"}
-        </Button>
-        {result && (
-          <Button variant="ghost" onClick={() => setStep("results")}>
-            Quay lại kết quả
+        <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+          <Button
+            size="lg"
+            onClick={() => {
+              if (validate()) sangTrang("xac-nhan");
+            }}
+          >
+            Tiếp: xem lại và xác nhận →
           </Button>
-        )}
-        <p className="text-xs text-slate-500">
+          <Button variant="ghost" onClick={() => sangTrang("gui-cv")}>
+            ← Quay lại gửi CV
+          </Button>
+        </div>
+      </section>
+
+      {/* --- Trang 3: xác nhận --- */}
+      <section hidden={trang !== "xac-nhan"} className={trang === "xac-nhan" ? "trang-vao" : ""} aria-label={TIEU_DE_TRANG["xac-nhan"]}>
+        {tieuDeTrang("xac-nhan")}
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Đây là thông tin sẽ được dùng để đối chiếu. Sai mục nào thì quay lại sửa trước
+          khi xác nhận — kết luận dựng trên thông tin sai không giúp gì cho bạn.
+        </p>
+        <dl className="mt-6 grid gap-x-6 gap-y-4 rounded-[10px] border border-slate-200 p-5 text-sm sm:grid-cols-2">
+          {xemLai.map(([ten, gt]) => (
+            <div key={ten}>
+              <dt className="text-xs text-slate-500">{ten}</dt>
+              <dd className={`mt-0.5 ${gt ? "text-slate-900" : "text-slate-400"}`}>{gt || "Chưa cung cấp"}</dd>
+              {ten === "Tiếng Nhật" && tienDo?.chuong_trinh && (
+                <dd className="mt-1 text-xs text-slate-600">{tienDo.chuong_trinh.nhan}</dd>
+              )}
+              {ten === "Tiếng Nhật" && tienDo?.dang_hoc && (
+                <dd className="mt-1 text-xs text-slate-600">{tienDo.dang_hoc.nhan}</dd>
+              )}
+            </div>
+          ))}
+        </dl>
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          Trình độ tiếng Nhật bạn khai là tự khai cho tới khi nhân viên đối chứng chứng chỉ
+          khi gặp bạn.
+        </p>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+          <Button size="lg" onClick={submit} disabled={busy}>
+            {busy ? "Đang đối chiếu…" : "Xác nhận hồ sơ và xem đơn phù hợp"}
+          </Button>
+          <Button variant="ghost" onClick={() => sangTrang("lam-ro")}>
+            ← Sửa thông tin
+          </Button>
+          {result && (
+            <Button variant="ghost" onClick={() => setStep("results")}>
+              Quay lại kết quả
+            </Button>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
           Thông tin chỉ dùng để tư vấn, không hiển thị công khai.
         </p>
-      </div>
+      </section>
     </Card>
   );
 }

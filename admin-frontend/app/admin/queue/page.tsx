@@ -36,13 +36,20 @@ export default function QueuePage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Tổng số đang chờ theo máy chủ. Khác `items.length` nghĩa là danh sách bị cắt —
+  // đo ngày 06/10: 72 khách chờ, màn hình hiện 50 mà không có dấu hiệu nào.
+  const [tongCho, setTongCho] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     setError("");
+    setTongCho(null);
     const fetching =
       tab === "queue"
-        ? managementApi.registrationQueue().then((payload) => payload.items)
+        ? managementApi.registrationQueue().then((payload) => {
+            setTongCho(payload.total ?? payload.count);
+            return payload.items;
+          })
         : tab === "all"
           ? managementApi.assignedRegistrations()
           : managementApi.myRegistrations();
@@ -187,13 +194,26 @@ export default function QueuePage() {
             type="button"
             onClick={() => setTab(key)}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${
-              tab === key ? "bg-[#cb1d1e] text-white" : "text-slate-600 hover:bg-slate-50"
+              tab === key ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-50"
             }`}
           >
             {label}
           </button>
         ))}
       </div>
+
+      {!loading && tab === "queue" && tongCho !== null && (
+        <p className="mb-4 text-sm text-slate-600">
+          <span className="font-semibold text-slate-800">{tongCho}</span> hồ sơ đang chờ
+          {tongCho > items.length && (
+            <span className="mt-2 block rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+              Đang hiện {items.length} trên {tongCho} hồ sơ chờ. Danh sách xếp người chờ lâu
+              nhất lên đầu, nên {tongCho - items.length} người vừa đăng ký gần đây nằm ở phần
+              chưa hiện — nhận bớt hồ sơ rồi bấm Tải lại.
+            </span>
+          )}
+        </p>
+      )}
 
       {loading ? (
         <p className="text-sm text-slate-400">Đang tải…</p>
@@ -224,23 +244,30 @@ export default function QueuePage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-base font-semibold text-slate-800">
-                    {item.customer_name}{" "}
-                    <span className="text-sm font-normal text-slate-400">
-                      · {item.phone}
-                    </span>
+                    {item.customer_name ?? item.ten_viet_tat}{" "}
+                    {item.phone && (
+                      <span className="text-sm font-normal text-slate-400">
+                        · {item.phone}
+                      </span>
+                    )}
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     Chọn đơn <span className="font-medium">{item.job_order_code}</span>
                     {item.job_order_title ? ` · ${item.job_order_title}` : ""}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {item.application_code} · hồ sơ{" "}
-                    <Link
-                      href={`/admin/profiles/${item.profile_code}`}
-                      className="text-[#cb1d1e] hover:underline"
-                    >
-                      {item.profile_code}
-                    </Link>
+                    {item.application_code}
+                    {item.profile_code && (
+                      <>
+                        {" "}· hồ sơ{" "}
+                        <Link
+                          href={`/admin/profiles/${item.profile_code}`}
+                          className="text-brand-600 hover:underline"
+                        >
+                          {item.profile_code}
+                        </Link>
+                      </>
+                    )}
                     {item.japanese_level ? ` · ${item.japanese_level}` : ""} · đăng ký{" "}
                     {waitedFor(item.created_at)}
                   </p>
@@ -259,20 +286,26 @@ export default function QueuePage() {
                   )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openReport(item.application_code)}
-                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    {openCode === item.application_code ? "Đóng phiếu" : "Xem phiếu"}
-                  </button>
+                  {/* Bản tối thiểu (nhân viên thường, việc chưa nhận): phiếu mở sau
+                      khi nhận — máy chủ trả 403 nếu bấm trước (08/10). */}
+                  {item.ban_toi_thieu ? (
+                    <span className="text-xs text-slate-500">Nhận xử lý để mở phiếu</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openReport(item.application_code)}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      {openCode === item.application_code ? "Đóng phiếu" : "Xem phiếu"}
+                    </button>
+                  )}
 
                   {tab === "queue" ? (
                     <button
                       type="button"
                       disabled={busy === item.application_code}
                       onClick={() => accept(item.application_code)}
-                      className="rounded-xl bg-[#cb1d1e] px-4 py-2 text-sm font-medium text-white hover:bg-[#a81718] disabled:opacity-60"
+                      className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                     >
                       {busy === item.application_code ? "Đang nhận…" : "Nhận xử lý"}
                     </button>

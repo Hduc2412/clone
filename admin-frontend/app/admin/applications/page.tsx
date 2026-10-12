@@ -144,7 +144,7 @@ export default function ApplicationsPage() {
         action={canManage ? (
           <button
             onClick={() => setShowForm((value) => !value)}
-            className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+            className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
           >
             {showForm ? "Đóng biểu mẫu" : "Tạo hồ sơ"}
           </button>
@@ -166,7 +166,7 @@ export default function ApplicationsPage() {
           <InputField name="japanese_level" label="Trình độ tiếng Nhật" placeholder="Chưa có, N5, N4..." />
           <InputField name="qualification" label="Trình độ/chứng chỉ" placeholder="Cao đẳng điều dưỡng..." />
           <InputField name="note" label="Ghi chú nội bộ" placeholder="Thông tin cần theo dõi" />
-          <button className="rounded-xl bg-[#171b22] px-4 py-2.5 text-sm font-medium text-white md:col-span-2 xl:col-span-3">Lưu hồ sơ tuyển dụng</button>
+          <button className="rounded-xl bg-ink-800 px-4 py-2.5 text-sm font-medium text-white md:col-span-2 xl:col-span-3">Lưu hồ sơ tuyển dụng</button>
         </form>
       )}
 
@@ -199,7 +199,7 @@ export default function ApplicationsPage() {
               <tbody className="divide-y divide-slate-100">
                 {applications.map((application) => (
                   <tr key={application.application_code} className="hover:bg-slate-50/70">
-                    <td className="px-5 py-4"><p className="font-medium">{application.customer_name}</p><a href={`tel:${application.phone}`} className="mt-1 block text-xs text-[#cb1d1e]">{application.phone}</a></td>
+                    <td className="px-5 py-4"><p className="font-medium">{application.customer_name}</p><a href={`tel:${application.phone}`} className="mt-1 block text-xs text-brand-600">{application.phone}</a></td>
                     <td className="px-5 py-4"><p className="font-medium">{application.application_code}</p><p className="mt-1 text-xs text-slate-400">{application.lead_code}</p></td>
                     <td className="px-5 py-4 text-slate-500"><p>{application.destination || "Chưa có địa điểm"}</p><p className="mt-1 text-xs">Tiếng Nhật: {application.japanese_level || "Chưa cập nhật"}</p></td>
                     <td className="px-5 py-4 text-slate-500">{application.assigned_to || "Chưa phân công"}</td>
@@ -216,7 +216,7 @@ export default function ApplicationsPage() {
 }
 
 function InputField({ name, label, placeholder }: { name: string; label: string; placeholder: string }) {
-  return <label className="text-sm font-medium text-slate-600">{label}<input name={name} placeholder={placeholder} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400" /></label>;
+  return <label className="text-sm font-medium text-slate-600">{label}<input name={name} placeholder={placeholder} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-brand-400" /></label>;
 }
 
 function SelectField({ name, label, required = false, children }: { name: string; label: string; required?: boolean; children: React.ReactNode }) {
@@ -292,7 +292,7 @@ function SoTuyenForm({
           name="note"
           rows={3}
           placeholder="Nói được câu chào và giới thiệu bản thân, phát âm rõ. Có bằng N4 gốc, số báo danh khớp khi tra trên trang JLPT."
-          className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-red-400"
+          className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-brand-400"
         />
       </label>
 
@@ -305,7 +305,7 @@ function SoTuyenForm({
       <div className="mt-4 flex gap-2">
         <button
           type="submit"
-          className="rounded-xl bg-[#cb1d1e] px-4 py-2.5 text-sm font-medium text-white"
+          className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
         >
           Lưu kết quả
         </button>

@@ -21,9 +21,11 @@ html {
 }
 
 body {
-  font-family: var(--font-sans), system-ui, "Segoe UI", sans-serif;
+  /* Giá trị dự phòng trong `var()`: thiếu biến phông (đã gặp với `.next` cũ 08/10)
+     thì vẫn ra chữ không chân, không rơi về Times. */
+  font-family: var(--font-sans, system-ui), system-ui, "Segoe UI", sans-serif;
   color: theme("colors.slate.800");
-  background: #fffdf9;
+  background: #f7f6f0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -161,5 +163,47 @@ svg {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dòng nhấn nghiêng có chân trong tiêu đề — theo bản thiết kế 08/10. Chỉ dùng cho
+   một vài chữ nhấn, không cho thân chữ. */
+.chu-nhan {
+  /* Gelasio (cùng số đo với Georgia, đủ chữ tiếng Việt) — xem `app/layout.tsx`. */
+  font-family: var(--font-serif, Georgia), Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Ảnh mở đầu trang chủ trôi rất chậm; có nút dừng (HomeHero). */
+@keyframes hero-troi {
+  from { transform: scale(1.06) translate3d(0, 0, 0); }
+  to   { transform: scale(1.12) translate3d(-1.5%, -1%, 0); }
+}
+.hero-anh {
+  animation: hero-troi 25s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-anh { animation: none; transform: scale(1.06); }
+}
+
+/* Sang trang trong bước khai hồ sơ (08/10): trượt ngắn, chỉ khi khách bấm. Tắt hẳn
+   khi hệ điều hành bật giảm chuyển động. */
+@keyframes trang-vao {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.trang-vao {
+  animation: trang-vao 0.28s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trang-vao {
+    animation: none;
   }
 }

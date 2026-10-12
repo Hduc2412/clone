@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import OrderConsultationRoom from "@/components/candidate/OrderConsultationRoom";
-import PhotoBackdrop from "@/components/site/PhotoBackdrop";
 import { fetchJobOrder } from "@/lib/publicApi";
 
 /**
@@ -39,28 +38,36 @@ export default async function Page({ params }: { params: { code: string } }) {
 
   return (
     <>
-      <section className="relative overflow-hidden">
-        <PhotoBackdrop variant="soft" />
-        <div className="relative mx-auto max-w-4xl px-4 py-12 md:px-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#cb1d1e]">
-            Phòng tư vấn theo đơn
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold leading-tight text-slate-900 md:text-4xl">
-            Bạn có hợp đơn này không
-          </h1>
-          <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-            {order.title} · {order.employer_name} · Mã đơn {order.code}
-          </p>
+      {/* Dải đầu theo bản thiết kế 08/10: ảnh Phú Sĩ mờ dưới lớp ngà, chữ đậm bên trái. */}
+      <section
+        className="relative border-b border-slate-200 bg-cover"
+        style={{
+          backgroundImage:
+            "linear-gradient(90deg, #efeee5 40%, rgba(239,238,229,.87)), url('/nen/fuji-binh-minh-nho.webp')",
+          backgroundPosition: "center 45%",
+        }}
+      >
+        <div className="relative mx-auto max-w-container px-4 py-7 sm:px-6 md:py-8">
           <Link
             href={`/don-hang/${order.code}`}
-            className="mt-4 inline-block text-sm font-medium text-[#cb1d1e] hover:underline"
+            className="text-sm font-medium text-slate-600 hover:text-brand-600"
           >
             ← Xem lại chi tiết đơn
           </Link>
+          <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-600 sm:text-[11px]">
+            Phòng tư vấn của bạn · Đơn {order.code}
+          </p>
+          <h1 className="mt-3 text-3xl font-medium leading-tight tracking-tight text-slate-900 md:text-[38px]">
+            Hiểu hồ sơ.{" "}
+            <span className="chu-nhan mt-1 block sm:mt-0 sm:inline">Chọn đúng hướng.</span>
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            {order.title} · {order.employer_name}
+          </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-4xl px-4 pb-20 md:px-6">
+      <section className="mx-auto max-w-container px-4 pb-20 pt-6 sm:px-6">
         <OrderConsultationRoom orderCode={order.code} />
       </section>
     </>

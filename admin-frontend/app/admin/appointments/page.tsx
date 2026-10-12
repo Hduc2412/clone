@@ -199,7 +199,7 @@ export default function AppointmentsPage() {
         title="Quản lý lịch hẹn"
         description="Lọc lịch, phân công nhân viên và theo dõi toàn bộ lịch sử xử lý từ một màn hình."
         action={
-          <button onClick={load} className="rounded-xl bg-[#171b22] px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
+          <button onClick={load} className="rounded-xl bg-ink-800 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
             Làm mới dữ liệu
           </button>
         }
@@ -225,22 +225,22 @@ export default function AppointmentsPage() {
       <section className="mb-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
         <label className="text-xs font-medium text-slate-500">
           Trạng thái
-          <select value={status} onChange={(event) => setStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400">
+          <select value={status} onChange={(event) => setStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400">
             {statusFilters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="text-xs font-medium text-slate-500">
           Từ ngày
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400" />
+          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400" />
         </label>
         <label className="text-xs font-medium text-slate-500">
           Đến ngày
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400" />
+          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400" />
         </label>
         {!isConsultant && (
           <label className="text-xs font-medium text-slate-500">
             Nhân viên phụ trách
-            <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400">
+            <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400">
               <option value="">Tất cả nhân viên</option>
               {assignees.map((user) => <option key={user.email} value={user.email}>{user.full_name}</option>)}
             </select>
@@ -259,7 +259,7 @@ export default function AppointmentsPage() {
               <article key={appointment.appointment_code} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
                   <div className="flex min-w-0 flex-1 gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 font-semibold text-[#cb1d1e]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 font-semibold text-brand-600">
                       {appointment.customer_name.slice(0, 1).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -274,7 +274,7 @@ export default function AppointmentsPage() {
                       </div>
                       <p className="mt-1 text-xs text-slate-400">{appointment.appointment_code}</p>
                       <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                        <a href={`tel:${appointment.phone}`} className="rounded-xl bg-slate-50 px-3 py-2.5 font-medium text-[#cb1d1e]">Gọi {appointment.phone}</a>
+                        <a href={`tel:${appointment.phone}`} className="rounded-xl bg-slate-50 px-3 py-2.5 font-medium text-brand-600">Gọi {appointment.phone}</a>
                         <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-slate-600">
                           {appointment.appointment_time} · {new Date(`${appointment.appointment_date}T00:00:00`).toLocaleDateString("vi-VN")}
                         </div>
@@ -288,12 +288,12 @@ export default function AppointmentsPage() {
                           <select
                             value={selectedAssignees[appointment.appointment_code] ?? appointment.assigned_to ?? ""}
                             onChange={(event) => setSelectedAssignees((current) => ({ ...current, [appointment.appointment_code]: event.target.value }))}
-                            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
+                            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400"
                           >
                             <option value="">Chọn nhân viên phụ trách</option>
                             {assignees.map((user) => <option key={user.email} value={user.email}>{user.full_name} · {user.role}</option>)}
                           </select>
-                          <button disabled={disabled || !(selectedAssignees[appointment.appointment_code] ?? appointment.assigned_to)} onClick={() => assign(appointment)} className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-[#cb1d1e] disabled:opacity-40">
+                          <button disabled={disabled || !(selectedAssignees[appointment.appointment_code] ?? appointment.assigned_to)} onClick={() => assign(appointment)} className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-brand-600 disabled:opacity-40">
                             Phân công
                           </button>
                         </div>
@@ -307,7 +307,7 @@ export default function AppointmentsPage() {
                       value={notes[appointment.appointment_code] ?? appointment.result_note ?? ""}
                       onChange={(event) => setNotes((current) => ({ ...current, [appointment.appointment_code]: event.target.value }))}
                       placeholder="Ví dụ: Khách đã nghe máy và đồng ý tư vấn"
-                      className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                      className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-red-100"
                     />
                     {!terminal && (
                       <div className="mt-3 grid grid-cols-[1fr_8rem_auto] gap-2">
@@ -317,14 +317,14 @@ export default function AppointmentsPage() {
                           min={new Date().toLocaleDateString("en-CA")}
                           value={scheduleDates[appointment.appointment_code] ?? appointment.appointment_date}
                           onChange={(event) => setScheduleDates((current) => ({ ...current, [appointment.appointment_code]: event.target.value }))}
-                          className="min-w-0 rounded-lg border border-slate-200 px-2 py-2 text-xs outline-none focus:border-red-400"
+                          className="min-w-0 rounded-lg border border-slate-200 px-2 py-2 text-xs outline-none focus:border-brand-400"
                         />
                         <input
                           aria-label={`Giờ hẹn mới cho ${appointment.customer_name}`}
                           type="time"
                           value={scheduleTimes[appointment.appointment_code] ?? appointment.appointment_time}
                           onChange={(event) => setScheduleTimes((current) => ({ ...current, [appointment.appointment_code]: event.target.value }))}
-                          className="min-w-0 rounded-lg border border-slate-200 px-2 py-2 text-xs outline-none focus:border-red-400"
+                          className="min-w-0 rounded-lg border border-slate-200 px-2 py-2 text-xs outline-none focus:border-brand-400"
                         />
                         <button
                           disabled={disabled}
@@ -336,7 +336,7 @@ export default function AppointmentsPage() {
                       </div>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {appointment.status === "pending" && <button disabled={disabled} onClick={() => update(appointment, "confirmed")} className="rounded-lg bg-[#cb1d1e] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Xác nhận nhận lịch</button>}
+                      {appointment.status === "pending" && <button disabled={disabled} onClick={() => update(appointment, "confirmed")} className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Xác nhận nhận lịch</button>}
                       {appointment.status === "confirmed" && <>
                         <button disabled={disabled} onClick={() => update(appointment, "completed")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Đã tư vấn</button>
                         <button disabled={disabled} onClick={() => update(appointment, "unreachable")} className="rounded-lg bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">Không nghe máy</button>
@@ -360,7 +360,7 @@ export default function AppointmentsPage() {
                       <ol className="mt-4 space-y-3 border-l-2 border-slate-100 pl-5">
                         {events[appointment.appointment_code].map((event, index) => (
                           <li key={`${event.created_at}-${index}`} className="relative rounded-xl bg-slate-50 px-4 py-3 text-sm">
-                            <span className="absolute -left-[1.65rem] top-4 h-3 w-3 rounded-full border-2 border-white bg-[#cb1d1e]" />
+                            <span className="absolute -left-[1.65rem] top-4 h-3 w-3 rounded-full border-2 border-white bg-brand-600" />
                             <div className="flex flex-wrap justify-between gap-2">
                               <p className="font-medium text-slate-700">{eventLabels[event.action] || event.action}</p>
                               <time className="text-xs text-slate-400">{new Date(event.created_at).toLocaleString("vi-VN")}</time>

@@ -21,7 +21,7 @@ export default function ChatMessage({
             ? "text-white"
             : "bg-white text-gray-800 border border-gray-200 shadow-sm"
         }`}
-        style={isUser ? { backgroundColor: "#cb1d1e" } : {}}
+        style={isUser ? { backgroundColor: "#aa4339" } : {}}
       >
         <ReactMarkdown>{message.content}</ReactMarkdown>
 

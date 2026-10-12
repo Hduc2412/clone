@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/admin/AdminUI";
 import { AuthUser, changePassword, loadCurrentUser } from "@/lib/auth";
 
 const INPUT =
-  "mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-red-400";
+  "mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-400";
 
 const MIN_LENGTH = 8;
 
@@ -113,7 +113,7 @@ export default function StaffChangePasswordPage() {
 
           <button
             disabled={submitting}
-            className="w-full rounded-xl bg-[#cb1d1e] px-4 py-3 font-semibold text-white disabled:opacity-60"
+            className="w-full rounded-xl bg-brand-600 px-4 py-3 font-semibold text-white disabled:opacity-60"
           >
             {submitting ? "Đang lưu…" : "Đặt mật khẩu mới"}
           </button>

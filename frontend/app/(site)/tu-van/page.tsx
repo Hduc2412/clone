@@ -55,13 +55,13 @@ export default async function ConsultPage({
             <p className="text-sm text-slate-600">
               Bạn vừa xem đơn{" "}
               <span className="font-semibold text-slate-900">{order.title}</span>{" "}
-              ({order.code}). Sau khi nhập hồ sơ, đơn này sẽ được đánh dấu trong
-              kết quả đối chiếu.
+              ({order.code}). Sau khi bạn xác nhận hồ sơ, bảng đối chiếu với riêng
+              đơn này hiện ngay trên kết quả — kể cả khi đơn chưa phù hợp.
             </p>
           </Card>
         )}
 
-        <ConsultationFlow />
+        <ConsultationFlow donDangXem={order ? { code: order.code, title: order.title } : null} />
       </Section>
 
       <section className="bg-slate-50">

@@ -18,7 +18,7 @@ export default function ChatPage() {
     <div className="flex flex-col h-screen bg-gray-50">
       <div
         className="flex items-center justify-between px-6 py-4 text-white shadow"
-        style={{ backgroundColor: "#cb1d1e" }}
+        style={{ backgroundColor: "#aa4339" }}
       >
         <div className="flex items-center gap-3">
           <button
@@ -72,7 +72,7 @@ export default function ChatPage() {
             disabled={loading || !input.trim()}
             aria-label="Gửi câu hỏi"
             className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-50 hover:opacity-90"
-            style={{ backgroundColor: "#cb1d1e" }}
+            style={{ backgroundColor: "#aa4339" }}
           >
             ➤
           </button>
