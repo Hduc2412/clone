@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorBanner, PageHeader } from "@/components/admin/AdminUI";
 import ProfileEditForm from "@/components/admin/ProfileEditForm";
+import DeXuatVaHocTap from "@/components/admin/DeXuatVaHocTap";
 import { AuthUser, loadCurrentUser } from "@/lib/auth";
 import {
   CandidateDocument,
@@ -259,9 +260,13 @@ export default function CandidateProfileDetailPage({
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-700">Hồ sơ tư vấn từ hội thoại</h3>
             <p className="my-3 text-xs text-slate-500">Các phát biểu gần đây được giữ nguyên văn, chưa thay thế thông tin khách đã xác nhận. Nguyện vọng có cấu trúc nằm trong phần bên dưới.</p>
-            {(profile.consultation_profile?.conflicts || []).map((item, index) => (
+            {/* Chỉ mâu thuẫn từ hội thoại (không có `kind`). Đề xuất khách sửa ô nhân viên đã
+                xác minh nằm ở khối "Khách đề xuất sửa" bên phải (12/10) — trước đó hiện ở đây cả
+                khi đã xử lý, và in "undefined" vì đề xuất không có `evidence`. */}
+            {(profile.consultation_profile?.conflicts || []).filter((item) => !item.kind).map((item, index) => (
               <p key={`conflict-${index}`} className="mb-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                Cần kiểm tra {FIELD_LABELS[item.field] || item.field}: {String(item.previous)} / {String(item.suggested)}. Khách nói: “{item.evidence}”
+                Cần kiểm tra {FIELD_LABELS[item.field] || item.field}: {String(item.previous)} / {String(item.suggested)}
+                {item.evidence ? `. Khách nói: “${item.evidence}”` : ""}
               </p>
             ))}
             {(profile.consultation_profile?.recent_messages || []).length === 0 ? (
@@ -331,6 +336,20 @@ export default function CandidateProfileDetailPage({
         </div>
 
         <div className="space-y-6">
+          <DeXuatVaHocTap
+            profile={profile}
+            meta={meta}
+            nhanTruong={FIELD_LABELS}
+            onDaDoi={(moi, thongBao) => {
+              setProfile(moi);
+              setNotice(thongBao);
+              setActionError("");
+            }}
+            onSuaTheoKhach={() => {
+              setEditing(true);
+              setNotice("Sửa ô ấy theo lời khách rồi lưu — đề xuất sẽ tự đóng.");
+            }}
+          />
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-3 text-sm font-semibold text-slate-700">Tình trạng</h3>
             <dl className="space-y-2 text-sm">
