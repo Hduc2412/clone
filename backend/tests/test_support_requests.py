@@ -179,9 +179,12 @@ class QuyenTraLoiTests(unittest.IsolatedAsyncioTestCase):
         ra = await self._tra_loi(giu=STAFF["email"], nguoi=QUAN_LY)
         self.assertEqual(ra["status"], store.STATUS_XONG)
 
-    async def test_chua_ai_nhan_thi_ai_tra_loi_cung_duoc(self):
-        ra = await self._tra_loi(giu=None, nguoi=KHAC)
-        self.assertEqual(ra["status"], store.STATUS_XONG)
+    async def test_chua_ai_nhan_thi_phai_nhan_truoc_moi_tra_loi(self):
+        """Quy tắc 08/10: nhân viên thường chưa nhận thì không đọc được lời nhắn,
+        nên cũng không trả lời được — trả lời một lời nhắn chưa đọc là trả lời mò."""
+        with self.assertRaises(HTTPException) as ctx:
+            await self._tra_loi(giu=None, nguoi=KHAC)
+        self.assertEqual(ctx.exception.status_code, 403)
 
 
 class KhachChiXemDuocPhanCuaMinhTests(unittest.IsolatedAsyncioTestCase):

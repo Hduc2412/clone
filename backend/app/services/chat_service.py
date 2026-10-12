@@ -70,6 +70,19 @@ async def process_message(user_query: str, session_id: str) -> dict:
     # vì đáp án nằm ở nửa kia. Việc dò tỉnh là tất định, không hỏi mô hình.
     job_block = await job_lookup.context_for(resolved_query)
 
+    # Tình trạng đơn khách nhắc mã, hoặc đơn khách đang xem (12/10): đơn đã đủ chỉ tiêu
+    # hay hết hạn thì bot nói được lý do, thay vì coi như đơn chưa từng có.
+    bo_nho = await _bo_nho(session_id)
+    try:
+        trang_thai_block = await job_lookup.trang_thai_cac_don(
+            resolved_query, ma_dang_xem=(bo_nho or {}).get("job_order_code")
+        )
+    except Exception:  # noqa: BLE001 — thiếu khối này thì trả lời như trước 12/10
+        logger.warning("Không tra được tình trạng đơn", exc_info=True)
+        trang_thai_block = ""
+    if trang_thai_block:
+        job_block = f"{trang_thai_block}\n\n{job_block}" if job_block else trang_thai_block
+
     # Hồ sơ của chính người đang nhắn.
     #
     # Trước 22/09/2026 luồng chat chưa bao giờ đọc hồ sơ, dù nó và trang tư vấn
@@ -91,9 +104,7 @@ async def process_message(user_query: str, session_id: str) -> dict:
     #
     # Khối này KHÔNG chứa câu trả lời nào của phía tư vấn, chỉ chứa chủ đề đã
     # bàn. Xem `app/memory/__init__.py`.
-    bo_nho_block = bo_nho_render.render(
-        await _bo_nho(session_id), cho=session_memory.BEN_CHAT
-    )
+    bo_nho_block = bo_nho_render.render(bo_nho, cho=session_memory.BEN_CHAT)
 
     if not hits and not job_block:
         answer = LEAD_NO_KNOWLEDGE if intent == "lead" else NO_KNOWLEDGE

@@ -50,9 +50,11 @@ class CustomerJourneyApiTests(unittest.IsolatedAsyncioTestCase):
                 new=AsyncMock(return_value=[{"application_code": "HS-001"}]),
             ),
             patch("app.api.customer_journey.get_customer_journey", new=aggregate),
+            # 08/10: hội thoại của nhân viên thường lọc theo liên kết rõ ràng.
+            patch("app.services.quyen_hoi_thoai.phien_duoc_xem", new=AsyncMock(return_value=set())),
         ):
             result = await customer_journey("LD-001", self.consultant)
-        self.assertEqual(result, {"lead": self.lead})
+        self.assertEqual(result, {"lead": self.lead, "conversations": []})
         aggregate.assert_awaited_once_with(
             self.lead, appointment_owner="consultant@example.com"
         )

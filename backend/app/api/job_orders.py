@@ -12,7 +12,10 @@ Hai router tách biệt vì hai nhóm người dùng khác nhau hoàn toàn:
 from datetime import date
 from typing import Any
 
+import logging
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pymongo.errors import DuplicateKeyError
 
@@ -31,6 +34,8 @@ XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 
 
 public_router = APIRouter(prefix="/public/job-orders", tags=["Đơn tuyển dụng (công khai)"])
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/job-orders",
     tags=["Đơn tuyển dụng"],
@@ -129,6 +134,7 @@ class JobOrderCreateRequest(BaseModel):
     reference: ReferencePayload = Field(default_factory=ReferencePayload)
     description: str | None = Field(default=None, max_length=4000)
     internal_note: str | None = Field(default=None, max_length=1000)
+    consultant_note: str | None = Field(default=None, max_length=1000)
     status: str = "draft"
     published: bool = False
 
@@ -222,6 +228,7 @@ class JobOrderUpdateRequest(BaseModel):
     reference: ReferenceUpdate | None = None
     description: str | None = Field(default=None, max_length=4000)
     internal_note: str | None = Field(default=None, max_length=1000)
+    consultant_note: str | None = Field(default=None, max_length=1000)
 
     @field_validator("employer_type", mode="before")
     @classmethod
@@ -375,6 +382,7 @@ async def job_orders(
     program: str | None = Query(default=None, max_length=40),
     japanese_required: str | None = Query(default=None, max_length=15),
     limit: int = Query(default=100, ge=1, le=500),
+    current_user=Depends(get_current_user),
 ):
     if status and catalog.normalize_job_order_status(status) is None:
         raise HTTPException(status_code=400, detail="Trạng thái đơn không hợp lệ.")
@@ -388,7 +396,7 @@ async def job_orders(
         japanese_required=catalog.normalize_japanese_level(japanese_required),
     )
     orders = await store.list_job_orders(query, limit=limit)
-    return [_decorate(order) for order in orders]
+    return [_decorate(store.ban_cho_nhan_vien(order, current_user)) for order in orders]
 
 
 @router.get("/meta")
@@ -436,7 +444,10 @@ async def import_job_orders(
         raise HTTPException(status_code=413, detail="File vượt quá 5MB.")
 
     try:
-        preview = job_order_import.parse_workbook(content)
+        # Đọc file ở luồng riêng (12/10): openpyxl chạy đồng bộ, một file nhiều dòng định
+        # dạng rỗng mất vài giây — đọc thẳng trên vòng sự kiện thì cả khung chat lẫn
+        # website của mọi người đứng theo. Đo: 200.000 dòng rỗng có tô màu ≈ 1,5 giây.
+        preview = await run_in_threadpool(job_order_import.parse_workbook, content)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -511,8 +522,9 @@ async def import_job_orders(
 
 
 @router.get("/{code}")
-async def job_order_detail(code: str):
-    return _decorate(await _load_or_404(code))
+async def job_order_detail(code: str, current_user=Depends(get_current_user)):
+    # `internal_note` chỉ Admin/Manager đọc (08/10); nhân viên tư vấn đọc `consultant_note`.
+    return _decorate(store.ban_cho_nhan_vien(await _load_or_404(code), current_user))
 
 
 @router.get("/{code}/events")
@@ -651,6 +663,14 @@ async def change_job_order_status(
             status_code=409,
             detail="Đơn vừa được người khác thay đổi. Vui lòng tải lại trang.",
         )
+    # Admin vừa xử lý đơn này (gỡ, đóng, mở lại) — tắt các thông báo đang chờ về nó.
+    # Việc phụ: hỏng thì ghi log, không làm hỏng thao tác đổi trạng thái đã thành công.
+    try:
+        from app.db.database import mark_notification_read
+
+        await mark_notification_read(code)
+    except Exception:  # noqa: BLE001
+        logger.warning("Không tắt được thông báo của đơn %s", code, exc_info=True)
     await store.record_event(
         code,
         "status_changed",

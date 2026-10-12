@@ -27,7 +27,10 @@ Dùng `job_orders.public_filter`: đã bật công khai, đang tuyển, còn h�
 nháp hoặc đã đóng không được lọt ra ngoài qua đường chat — cùng một quy tắc với
 trang danh mục trên website, và dùng chung đúng một hàm để hai nơi không lệch.
 """
+import re
 from typing import Any
+
+from app.core.timeutil import local_today_iso
 
 from app.db import job_orders as store
 from app.matching import catalog
@@ -115,7 +118,88 @@ def _mo_ta(order: dict[str, Any]) -> str:
         phan.append(f"tuổi {req['age_min']}–{req['age_max']}")
     if order.get("deadline"):
         phan.append(f"hạn nộp {order['deadline']}")
+    # Chỉ tiêu còn lại (12/10) — cùng con số trang chi tiết đơn trên website hiện.
+    if order.get("quota") and order.get("con_lai") is not None:
+        phan.append(f"còn {order['con_lai']}/{order['quota']} chỉ tiêu")
     return "  - " + " · ".join(phan)
+
+
+# --- Tình trạng một đơn khách nhắc tới (12/10) --------------------------------------
+#
+# Khách thấy một đơn hôm trước, hôm nay không thấy, hỏi bot. Trước 12/10 bot chỉ biết
+# đơn ĐANG hiện — đơn đã đủ chỉ tiêu hay hết hạn thì với bot như chưa từng có, và câu
+# trả lời thành "không có thông tin". Khối này nói đúng lý do. Đơn NHÁP không bao giờ
+# được nhắc: chưa từng mở thì cả tên cũng không lộ (`store.trang_thai_cho_khach`).
+
+_MA_DON = re.compile(r"\bDH[\s\-_]?(\d{4})\b", re.IGNORECASE)
+
+
+def ma_don_trong_cau(cau: str) -> list[str]:
+    """`DH-0003`, `dh 0003`, `DH0003` → `DH-0003`. Giữ thứ tự, bỏ trùng."""
+    ra: list[str] = []
+    for so in _MA_DON.findall(cau or ""):
+        ma = f"DH-{so}"
+        if ma not in ra:
+            ra.append(ma)
+    return ra
+
+
+def _ngay(iso: str | None) -> str:
+    if not iso or len(iso) < 10:
+        return iso or ""
+    y, m, d = iso[:10].split("-")
+    return f"{d}/{m}/{y}"
+
+
+def ly_do_khong_hien(don: dict[str, Any], hom_nay: str) -> str | None:
+    """Vì sao đơn không còn trên website; `None` nếu đơn đang hiện bình thường."""
+    trang_thai = don.get("status")
+    if trang_thai == "filled":
+        return "đã đủ chỉ tiêu, không nhận thêm hồ sơ"
+    if trang_thai == "expired":
+        return f"đã hết hạn nộp hồ sơ (hạn {_ngay(don.get('deadline'))})"
+    if trang_thai == "closed":
+        return "đã đóng, không nhận hồ sơ"
+    if trang_thai == "paused":
+        return "đang tạm dừng nhận hồ sơ"
+    if trang_thai == "open" and (don.get("deadline") or "") < hom_nay:
+        return f"đã hết hạn nộp hồ sơ (hạn {_ngay(don.get('deadline'))})"
+    if trang_thai == "open" and not don.get("published"):
+        return "hiện chưa nhận hồ sơ trên website"
+    return None
+
+
+def render_trang_thai(don_list: list[dict[str, Any]], hom_nay: str | None = None) -> str:
+    if not don_list:
+        return ""
+    hom_nay = hom_nay or local_today_iso()
+    dong = ["[Tình trạng các đơn khách nhắc tới — theo danh mục, mới nhất]"]
+    for don in don_list:
+        ten = f"{don.get('code')} · {don.get('title', '')}"
+        ly_do = ly_do_khong_hien(don, hom_nay)
+        if ly_do:
+            dong.append(f"  - {ten}: {ly_do}.")
+        else:
+            dong.append(
+                f"  - {ten}: đang tuyển, còn {don.get('con_lai')}/{don.get('quota')} chỉ tiêu, "
+                f"hạn nộp {_ngay(don.get('deadline'))}."
+            )
+    dong.append(
+        "(Đơn đã đủ chỉ tiêu hay hết hạn thì nói đúng lý do ấy và gợi ý khách xem các đơn đang tuyển "
+        "khác hoặc nhắn nhân viên. KHÔNG hứa đơn sẽ mở lại.)"
+    )
+    return "\n".join(dong)
+
+
+async def trang_thai_cac_don(cau: str, ma_dang_xem: str | None = None) -> str:
+    """Khối tình trạng cho các mã đơn trong câu, cộng đơn khách đang xem (nếu có)."""
+    ma = ma_don_trong_cau(cau)
+    if ma_dang_xem and ma_dang_xem not in ma:
+        ma.append(ma_dang_xem)
+    if not ma:
+        return ""
+    theo_ma = {d["code"]: d for d in await store.trang_thai_cho_khach(ma[:5])}
+    return render_trang_thai([theo_ma[m] for m in ma[:5] if m in theo_ma])
 
 
 def render_block(
@@ -123,6 +207,7 @@ def render_block(
     region: str | None,
     tai_tinh: list[dict[str, Any]],
     cung_vung: list[dict[str, Any]],
+    vua_ngung: list[dict[str, Any]] | None = None,
 ) -> str:
     """Khối chữ đưa vào ngữ cảnh. Sinh hoàn toàn bằng mã, không qua mô hình."""
     if not prefecture and not region:
@@ -151,6 +236,15 @@ def render_block(
     if not tai_tinh and not cung_vung:
         dong.append("Không có đơn nào đang tuyển ở khu vực này.")
 
+    # Đơn ở đây vừa thôi hiện trên website (12/10) — để "hôm trước tôi thấy có đơn" có câu trả lời.
+    if vua_ngung:
+        hom_nay = local_today_iso()
+        dong.append("Đơn ở khu vực này vừa ngừng nhận hồ sơ gần đây:")
+        dong.extend(
+            f"  - {d.get('code')} · {d.get('title', '')}: {ly_do_khong_hien(d, hom_nay) or 'không còn nhận hồ sơ'}"
+            for d in vua_ngung
+        )
+
     # Nói thẳng ràng buộc nghiệp vụ để mô hình không tự suy ra điều ngược lại.
     dong.append(
         "(Nơi làm việc do từng đơn hàng quy định, không phụ thuộc nơi học tiếng. "
@@ -165,4 +259,7 @@ async def context_for(query: str) -> str:
     if not prefecture and not region:
         return ""
     tai_tinh, cung_vung = await find_orders(prefecture, region)
-    return render_block(prefecture, region, tai_tinh, cung_vung)
+    vua_ngung = await store.vua_ngung_nhan(
+        prefecture=prefecture, region_group=None if prefecture else region
+    )
+    return render_block(prefecture, region, tai_tinh, cung_vung, vua_ngung)

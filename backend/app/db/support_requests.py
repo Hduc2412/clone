@@ -205,6 +205,20 @@ async def list_requests(
     return [document async for document in cursor]
 
 
+async def count_requests(
+    *, status: str | None = STATUS_CHO, kind: str | None = None, assigned_to: str | None = None
+) -> int:
+    """Tổng số yêu cầu khớp bộ lọc của hàng đợi — để biết danh sách có bị cắt không."""
+    query: dict[str, Any] = {}
+    if assigned_to is not None:
+        query["assigned_to"] = assigned_to
+    if status is not None:
+        query["status"] = status
+    if kind is not None:
+        query["kind"] = kind
+    return await get_db()[COLLECTION].count_documents(query)
+
+
 async def list_for_session(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
     """Yêu cầu của chính phiên này — để khách xem lại mình đã hỏi gì."""
     cursor = (
@@ -231,6 +245,43 @@ async def claim(code: str, *, email: str) -> dict[str, Any] | None:
                 "status": STATUS_DANG_XU_LY,
                 "updated_at": now(),
             }
+        },
+        projection=PROJECTION,
+        return_document=ReturnDocument.AFTER,
+    )
+
+
+async def chuyen_nguoi_xu_ly(
+    code: str, *, tu: str, den: str, boi: str, ly_do: str
+) -> dict[str, Any] | None:
+    """Giao yêu cầu đang xử lý cho người khác. `None` nếu nó vừa đổi trạng thái.
+
+    Khóa theo **người đang giữ** ngay trong câu cập nhật, cùng cách với hồ sơ đăng ký
+    (`registrations.handover`): hai lệnh chuyển sát nhau thì lệnh sau thấy người giữ
+    đã đổi và thất bại, không đè lên lệnh trước.
+    """
+    return await get_db()[COLLECTION].find_one_and_update(
+        {"code": code, "assigned_to": tu, "status": STATUS_DANG_XU_LY},
+        {
+            "$set": {"assigned_to": den, "updated_at": now()},
+            "$push": {"lich_su_phu_trach": {
+                "viec": "chuyen", "tu": tu, "den": den, "boi": boi, "ly_do": ly_do, "luc": now(),
+            }},
+        },
+        projection=PROJECTION,
+        return_document=ReturnDocument.AFTER,
+    )
+
+
+async def tra_ve_hang_doi(code: str, *, tu: str, boi: str, ly_do: str) -> dict[str, Any] | None:
+    """Trả yêu cầu đang xử lý về hàng đợi chờ. `None` nếu nó vừa đổi trạng thái."""
+    return await get_db()[COLLECTION].find_one_and_update(
+        {"code": code, "assigned_to": tu, "status": STATUS_DANG_XU_LY},
+        {
+            "$set": {"assigned_to": None, "status": STATUS_CHO, "updated_at": now()},
+            "$push": {"lich_su_phu_trach": {
+                "viec": "tra_ve", "tu": tu, "den": None, "boi": boi, "ly_do": ly_do, "luc": now(),
+            }},
         },
         projection=PROJECTION,
         return_document=ReturnDocument.AFTER,
@@ -351,4 +402,11 @@ async def lay_lich_hen_lien_quan(code: str) -> dict[str, Any] | None:
     # khi khách vừa được báo mã của lịch thứ hai.
     return await get_db().consultation_appointments.find_one(
         {"support_code": code}, {"_id": 0, "booking_key": 0}, sort=[("created_at", -1)]
+    )
+
+
+async def ghi_dong_y_ban_giao(code: str) -> None:
+    """Khách đồng ý bàn giao sau lần gửi đầu (gửi lại cùng yêu cầu, lần này có tích)."""
+    await get_db()[COLLECTION].update_one(
+        {"code": code}, {"$set": {"dong_y_ban_giao": True, "dong_y_luc": now(), "updated_at": now()}}
     )

@@ -58,8 +58,13 @@ LY_DO_BO_QUA = (
 
 # Số điện thoại di động Việt Nam: mở đầu 03/05/07/08/09, tổng mười chữ số, cho
 # phép dấu cách, dấu chấm hoặc gạch ngang xen giữa. Cũng bắt dạng +84/84.
+#
+# Không dính liền chữ, số hay gạch ngang ở hai đầu: chuỗi số NẰM GIỮA một mã là một
+# phần của mã. Ngày 07/10 bộ này báo đỏ vì mã phiên trong biên bản nghiệm thu —
+# `56f18776-…-1e0507084181` sinh ra "0507084181", `8ef25c84-8540-4577-…` sinh ra
+# "84-8540-4577-9" — trong khi không có số điện thoại nào.
 _SO_DIEN_THOAI = re.compile(
-    r"(?:(?:\+?84)[.\s-]?|0)(?:3|5|7|8|9)(?:[.\s-]?\d){8}"
+    r"(?<![0-9A-Za-z-])(?:(?:\+?84)[.\s-]?|0)(?:3|5|7|8|9)(?:[.\s-]?\d){8}(?![0-9A-Za-z])"
 )
 
 
@@ -185,6 +190,24 @@ class KhongCoSoDienThoaiThatTrongKhoMaTests(unittest.TestCase):
 
 
 @unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
+class BieuThucSoDienThoaiTests(unittest.TestCase):
+    """Bộ chặn phải bắt số thật ở mọi cách viết, và không bắt số nằm trong một mã."""
+
+    def test_van_bat_so_that(self):
+        for chuoi in ("Gọi 0971.716.939 nhé", "SĐT: 0912 345 678", "(+84 912-345-678)", "84912345678"):
+            with self.subTest(chuoi):
+                self.assertIsNotNone(_SO_DIEN_THOAI.search(chuoi))
+
+    def test_khong_bat_so_trong_ma_phien(self):
+        for chuoi in (
+            "56f18776-83e1-4ea2-a8dd-1e0507084181",
+            "8ef25c84-8540-4577-9423-551567f81659",
+            "HT-0912345678X",
+        ):
+            with self.subTest(chuoi):
+                self.assertIsNone(_SO_DIEN_THOAI.search(chuoi))
+
+
 class KhongCoDiaChiVanPhongTrongKhoMaTests(unittest.TestCase):
     """Tên thành phố thì được, số nhà và tên đường thì không.
 

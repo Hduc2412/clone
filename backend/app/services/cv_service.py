@@ -186,6 +186,13 @@ async def _merge_into_profile(
         if profile is None:
             raise RuntimeError("Không tạo được hồ sơ cho phiên này.")
 
+    # CV mới ghi khác điều nhân viên đã ghi: không đè, lưu thành đề xuất (08/10).
+    await profiles.ghi_de_xuat(
+        session_id,
+        profiles.o_bi_giu(profile.get("fields"), extraction.fields, source=SOURCE_CV),
+        source=SOURCE_CV,
+        by="cv",
+    )
     merged, changed = profiles.merge_section(
         profile.get("fields"),
         extraction.fields,

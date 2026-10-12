@@ -140,6 +140,10 @@ class SoftRow:
     max_points: int
     missing_field: str | None = None
     kind: str = "mem"
+    # Vì sao dòng này `unknown` — để màn hình và trợ lý không gộp hai chuyện khác
+    # nhau làm một (08/10): `khach_chua_neu` (khách chưa nêu nguyện vọng này) và
+    # `don_chua_cong_bo` (đơn chưa công bố lương/chi phí). Có thể có cả hai.
+    unknown_reasons: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -152,7 +156,31 @@ class SoftRow:
             "max_points": self.max_points,
             "missing_field": self.missing_field,
             "kind": self.kind,
+            "unknown_reasons": list(self.unknown_reasons),
         }
+
+    @classmethod
+    def tu_ban_ghi(cls, d: dict[str, Any]) -> "SoftRow":
+        """Dựng lại từ nhật ký đã lưu — kể cả nhật ký cũ chưa có `unknown_reasons`.
+
+        Không sửa dữ liệu lịch sử để thêm trường; suy lý do từ chính dòng đã lưu:
+        `missing_field` có giá trị là khách chưa nêu; chữ yêu cầu bắt đầu bằng
+        "chưa" ("chưa công bố lương", "chưa rõ chi phí") là đơn chưa công bố.
+        """
+        ly_do = d.get("unknown_reasons")
+        if ly_do is None:
+            ly_do = ()
+            if d.get("outcome") == "unknown":
+                ly_do = _ly_do_chua_ro(
+                    khach_thieu=bool(d.get("missing_field")),
+                    don_thieu=str(d.get("requirement_text", "")).startswith("chưa"),
+                )
+        return cls(
+            key=d["key"], label=d["label"], requirement_text=d["requirement_text"],
+            candidate_text=d["candidate_text"], outcome=d["outcome"], points=d["points"],
+            max_points=d["max_points"], missing_field=d.get("missing_field"),
+            kind=d.get("kind", "mem"), unknown_reasons=tuple(ly_do),
+        )
 
 
 @dataclass(frozen=True)
@@ -532,6 +560,16 @@ def is_eligible(rows: Sequence[CriterionRow]) -> bool:
 
 # --- Xếp hạng mềm ---
 
+KHACH_CHUA_NEU = "khach_chua_neu"
+DON_CHUA_CONG_BO = "don_chua_cong_bo"
+
+
+def _ly_do_chua_ro(*, khach_thieu: bool, don_thieu: bool) -> tuple[str, ...]:
+    """Lý do một dòng lương/chi phí chưa đánh giá được. Rỗng khi đã đánh giá."""
+    return tuple(
+        ten for ten, co in ((KHACH_CHUA_NEU, khach_thieu), (DON_CHUA_CONG_BO, don_thieu)) if co
+    )
+
 
 def evaluate_soft(
     order: dict[str, Any],
@@ -567,6 +605,7 @@ def evaluate_soft(
             points=weights.points("region", region_outcome),
             max_points=weights.max_points("region"),
             missing_field=region_missing,
+            unknown_reasons=(KHACH_CHUA_NEU,) if region_outcome == "unknown" else (),
         )
     )
 
@@ -593,6 +632,7 @@ def evaluate_soft(
             points=weights.points("employer_type", employer_outcome),
             max_points=weights.max_points("employer_type"),
             missing_field=employer_missing,
+            unknown_reasons=(KHACH_CHUA_NEU,) if employer_outcome == "unknown" else (),
         )
     )
 
@@ -627,6 +667,7 @@ def evaluate_soft(
             points=weights.points("salary", salary_outcome),
             max_points=weights.max_points("salary"),
             missing_field=salary_missing,
+            unknown_reasons=_ly_do_chua_ro(khach_thieu=expectation is None, don_thieu=offer is None),
         )
     )
 
@@ -653,6 +694,7 @@ def evaluate_soft(
             points=weights.points("cost", cost_outcome),
             max_points=weights.max_points("cost"),
             missing_field=cost_missing,
+            unknown_reasons=_ly_do_chua_ro(khach_thieu=budget is None, don_thieu=cost is None),
         )
     )
 

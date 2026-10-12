@@ -25,6 +25,7 @@ from app.services.assignment import (
     is_privileged,
     validate_assignee,
 )
+from app.services import quyen_hoi_thoai
 from app.services.audit_service import audit_action
 from app.core.phone import normalize_vietnamese_phone
 
@@ -107,12 +108,24 @@ async def overview():
 
 
 @router.get("/conversations")
-async def conversations(limit: int = Query(default=100, ge=1, le=500)):
-    return await list_conversations(limit=limit)
+async def conversations(
+    limit: int = Query(default=100, ge=1, le=500),
+    current_user=Depends(get_current_user),
+):
+    # Nhân viên thường: chỉ hội thoại của khách mình đang được phép xử lý.
+    return await list_conversations(
+        limit=limit, session_ids=await quyen_hoi_thoai.phien_duoc_xem(current_user)
+    )
 
 
 @router.get("/conversations/{session_id}")
-async def conversation_detail(session_id: str):
+async def conversation_detail(session_id: str, current_user=Depends(get_current_user)):
+    duoc_xem = await quyen_hoi_thoai.phien_duoc_xem(current_user)
+    if duoc_xem is not None and session_id not in duoc_xem:
+        raise HTTPException(
+            status_code=403,
+            detail="Hội thoại này không gắn với khách bạn đang phụ trách.",
+        )
     messages = await get_messages(session_id)
     if not messages:
         raise HTTPException(status_code=404, detail="Không tìm thấy hội thoại.")
@@ -143,7 +156,18 @@ async def create_lead(
 ):
     lead_code = f"LD-{secrets.token_hex(3).upper()}"
     payload = request.model_dump()
-    payload["assigned_to"] = await validate_assignee(payload.get("assigned_to"))
+    # Không tin `assigned_to` trong thân yêu cầu. Nhân viên thường tạo khách thì
+    # khách thuộc về chính mình; muốn giao cho người khác phải là quản lý — cùng
+    # quy tắc với đường sửa khách (`update_lead`). Trước 08/10 đường tạo không
+    # kiểm gì: consultant tạo khách và giao luôn cho đồng nghiệp — kiểm sống HT-7.
+    if is_privileged(current_user):
+        payload["assigned_to"] = await validate_assignee(payload.get("assigned_to"))
+    else:
+        cua_minh = current_user["email"].strip().lower()
+        xin_giao = (payload.get("assigned_to") or "").strip().lower()
+        if xin_giao and xin_giao != cua_minh:
+            ensure_can_assign(current_user, "Chỉ Admin/Manager được giao khách cho người khác.")
+        payload["assigned_to"] = cua_minh
     try:
         lead = await create_managed_lead({"lead_code": lead_code, **payload})
     except DuplicateKeyError as exc:

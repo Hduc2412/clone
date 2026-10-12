@@ -9,6 +9,16 @@ Cờ:
   --model=<ten>          đo trên model khác thay vì `ADVISOR_MODEL`
   --khoa-chung           dùng `GEMINI_API_KEY` thay cho `ADVISOR_API_KEY`
   --nghi=<giay>          nghỉ giữa hai lượt gọi (mặc định 10)
+  --ngan-sach=<n>        trần CỨNG số yêu cầu HTTP tới dịch vụ mô hình (mặc định 8)
+  --giu-du-phong         giữ model dự phòng (mặc định TẮT để mỗi ca đúng một lượt)
+
+## Ngân sách cứng (12/10)
+
+`--gioi-han` đếm **ca**, không đếm yêu cầu HTTP: một ca mà model chính lỗi rồi chuyển
+sang model dự phòng là hai lượt gọi nhưng chỉ tính một. Nay mọi yêu cầu tới dịch vụ mô
+hình đi qua `scripts/ngan_sach_mo_hinh.NganSach` (cùng bộ với `danh_gia_tu_van_that`):
+tối đa N lượt, gặp 429 hoặc hai lỗi dịch vụ liên tiếp thì dừng, không thử lại. Ca bị
+chặn ra `khong_goi_duoc` → không ghi vào bảng, tính CHƯA ĐO.
 
 ## Khác gì `nghiem_thu_tu_van.py`
 
@@ -49,6 +59,7 @@ from app.advisor import qa
 from app.agent import contract, orchestrator, state
 from app.core.config import settings
 from app.db import candidate_profiles as profiles
+from scripts.ngan_sach_mo_hinh import NganSach
 
 
 KET_QUA = (
@@ -395,7 +406,22 @@ async def main() -> int:
             nghi = float(arg.split("=", 1)[1])
         elif arg.startswith("--ma="):
             chi_ma = arg.split("=", 1)[1]
+    toi_da_http = next((int(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--ngan-sach=")), 8)
+    # Đổi cấu hình cho riêng lượt đo rồi trả lại — ca kiểm thử gọi thẳng `main()` trong
+    # cùng tiến trình, để sót là các ca sau chạy với model dự phòng đã bị tắt.
+    cu = (settings.advisor_model, settings.advisor_model_du_phong)
     settings.advisor_model = model
+    if "--giu-du-phong" not in sys.argv:
+        settings.advisor_model_du_phong = ""
+    ngan_sach = NganSach(toi_da_http).gan()
+    try:
+        return await _chay(ngan_sach, toi_da_http, model, gioi_han, nghi, chi_ma)
+    finally:
+        ngan_sach.go()
+        settings.advisor_model, settings.advisor_model_du_phong = cu
+
+
+async def _chay(ngan_sach: NganSach, toi_da_http: int, model: str, gioi_han: int, nghi: float, chi_ma) -> int:
 
     if "--khoa-chung" in sys.argv:
         if not settings.gemini_api_key:
@@ -406,6 +432,8 @@ async def main() -> int:
     bang = {} if "--lam-lai" in sys.argv else doc_bang()
     van_tay = dau_van_tay()
     print(f"Model: {model}   |   cách đo: {van_tay}   |   trần {gioi_han} lượt gọi")
+    print(f"Dự phòng: {settings.advisor_model_du_phong or '(tắt)'}   |   ngân sách cứng {toi_da_http} lượt HTTP; "
+          f"dừng khi 429 hoặc hai lỗi dịch vụ liên tiếp   |   chờ {orchestrator.nguong_cho_giay():g}s/lượt")
 
     cu = sorted({k.split("::")[1] for k in bang if k.count("::") == 2} - {van_tay})
     if cu:
@@ -421,6 +449,10 @@ async def main() -> int:
             continue
         khoa = f"{model}::{van_tay}::{ca.ma}"
         if khoa in bang:
+            continue
+        if ngan_sach.da_dung:
+            chua_do.append(ca.ma)
+            print(f"[không gọi] {ca.ma} — {ngan_sach.ly_do_dung}")
             continue
         if da_goi >= gioi_han:
             chua_do.append(ca.ma)
@@ -438,6 +470,19 @@ async def main() -> int:
             continue
         bang[khoa] = ra
         ghi_bang(bang)
+
+    if ngan_sach.da_goi:
+        print(f"\nLượt gọi HTTP đã dùng: {ngan_sach.da_goi}/{toi_da_http}"
+              + (f" · dừng vì {ngan_sach.ly_do_dung}" if ngan_sach.ly_do_dung else ""))
+        for l in ngan_sach.nhat_ky:
+            print(f"   lượt {l['luot']}: {l['model']} → {l['ket_qua']}")
+        nhat_ky_tep = KET_QUA.with_name("ngan_sach_agent_lan_cuoi.json")
+        nhat_ky_tep.write_text(json.dumps({
+            "model": model, "du_phong": settings.advisor_model_du_phong or None,
+            "cho_giay": orchestrator.nguong_cho_giay(), "toi_da": toi_da_http,
+            "da_goi": ngan_sach.da_goi, "ly_do_dung": ngan_sach.ly_do_dung, "luot": ngan_sach.nhat_ky,
+            "cach_do": van_tay,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     dung_cach = {k: v for k, v in bang.items() if k.split("::")[1:2] == [van_tay]}
     tong_cham = 0

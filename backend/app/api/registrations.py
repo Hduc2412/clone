@@ -29,6 +29,7 @@ from app.db import candidate_accounts
 from app.db import consultation_reports as reports
 from app.db.database import (
     REFERENCE_APPLICATION,
+    count_unassigned_registrations,
     create_application_event,
     create_notification,
     get_recruitment_application,
@@ -37,10 +38,11 @@ from app.db.database import (
     list_unassigned_registrations,
     update_recruitment_application,
 )
-from app.services import registration_service, score_service
+from app.services import ban_toi_thieu, registration_service, score_service
 from app.services.assignment import (
     can_access,
     ensure_can_assign,
+    is_privileged,
     validate_assignee,
 )
 from app.services.audit_service import audit_action
@@ -84,6 +86,12 @@ class ReleaseRequest(BaseModel):
 
 def _session(session_id: str = Path(pattern=SESSION_PATTERN)) -> str:
     return session_id
+
+
+# Hàng đợi trả mặc định tới 300 hồ sơ — đủ để thấy cả hàng với quy mô của trung tâm,
+# trần 500 để một lời gọi không kéo cả bảng về.
+GIOI_HAN_HANG_DOI = 300
+TRAN_HANG_DOI = 500
 
 
 @public_router.post("/{session_id}", status_code=201)
@@ -142,16 +150,26 @@ async def my_registrations(session_id: str = Depends(_session)) -> dict[str, Any
 
 @router.get("/queue")
 async def queue(
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=GIOI_HAN_HANG_DOI, ge=1, le=TRAN_HANG_DOI),
     current_user=Depends(get_current_user),
 ) -> dict[str, Any]:
     """Hồ sơ ứng viên tự đăng ký mà chưa ai nhận.
 
     Không lọc theo người phụ trách: đây đúng là phần việc **chưa của ai**, nên
     mọi nhân viên đều phải nhìn thấy thì mới có người nhận.
+
+    `total` là tổng số đang chờ, `count` là số trả về lần này. Bản trước chỉ có
+    `count` với giới hạn mặc định 50: 72 khách chờ, màn hình hiện 50 mà không ai
+    biết là thiếu (đo ngày 06/10). Giới hạn vẫn cần để một hàng đợi bất thường
+    không kéo sập trang — nhưng bị cắt thì giao diện phải nói ra.
     """
     items = await list_unassigned_registrations(limit=limit)
-    return {"items": items, "count": len(items)}
+    total = await count_unassigned_registrations()
+    # Nhân viên thường thấy bản tối thiểu: đủ để nhận việc, không có họ tên đầy đủ
+    # hay số điện thoại — mở sau khi bấm nhận. Kiểm sống 08/10, HT-10.
+    if not is_privileged(current_user):
+        items = [ban_toi_thieu.dang_ky(item) for item in items]
+    return {"items": items, "count": len(items), "total": max(total, len(items))}
 
 
 @router.post("/{application_code}/accept")
@@ -370,6 +388,24 @@ async def _log(
     )
 
 
+def _chi_nguoi_giu(application: dict[str, Any], current_user: dict) -> None:
+    """Phiếu tóm tắt: người đang giữ hồ sơ hoặc quản lý — kể cả khi chưa ai nhận.
+
+    Trước 08/10 hồ sơ chưa ai nhận thì ai cũng đọc được phiếu ("phải đọc mới biết
+    có nên nhận"). Phiếu mang họ tên, số điện thoại, hồ sơ năng lực, câu khách đã
+    hỏi — tức đọc phiếu là đọc hồ sơ. Nay muốn đọc thì nhận trước; việc nhận là
+    atomic nên không ai mở trùng khách. Kiểm sống HT-11.
+    """
+    if is_privileged(current_user):
+        return
+    if not application.get("assigned_to"):
+        raise HTTPException(
+            status_code=403, detail="Bạn bấm Nhận xử lý trước rồi mới mở được phiếu tóm tắt."
+        )
+    if not can_access(application, current_user):
+        raise HTTPException(status_code=403, detail="Hồ sơ này do người khác phụ trách.")
+
+
 @router.get("/{application_code}/report")
 async def registration_report(
     application_code: str,
@@ -378,10 +414,7 @@ async def registration_report(
     """Phiếu tóm tắt tư vấn của một hồ sơ đăng ký."""
     application = await _load(application_code)
 
-    # Hồ sơ chưa ai nhận thì ai cũng đọc được phiếu — phải đọc mới biết có nên
-    # nhận hay không. Nhận rồi thì theo quy tắc phân quyền chung.
-    if application.get("assigned_to") and not can_access(application, current_user):
-        raise HTTPException(status_code=403, detail="Hồ sơ này do người khác phụ trách.")
+    _chi_nguoi_giu(application, current_user)
 
     report = await reports.get_by_application(application_code)
     if report is None:
@@ -423,8 +456,7 @@ async def rebuild_registration_report(
     và chính vì vậy phiếu ghi kèm số phiên bản hồ sơ.
     """
     application = await _load(application_code)
-    if application.get("assigned_to") and not can_access(application, current_user):
-        raise HTTPException(status_code=403, detail="Hồ sơ này do người khác phụ trách.")
+    _chi_nguoi_giu(application, current_user)
 
     existing = await reports.get_by_application(application_code)
     if existing is not None:

@@ -4,6 +4,7 @@ import hmac
 import json
 import secrets
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Cookie, Depends, HTTPException
@@ -50,6 +51,29 @@ def _secret() -> bytes:
     return settings.jwt_secret.encode("utf-8")
 
 
+def dau_tai_khoan(user: dict[str, Any]) -> int | None:
+    """Dấu của **một bản ghi** tài khoản: thời điểm tạo, tính đến mili giây.
+
+    Email không đủ để nhận diện tài khoản. Xóa một nhân viên rồi tạo tài khoản mới
+    cùng email — cho người khác, hay chỉ là tạo lại — thì token cũ, vốn chỉ mang
+    email, đăng nhập thẳng vào tài khoản mới với mọi quyền của nó. Kiểm trên trình
+    duyệt ngày 06/10: cookie của một consultant tạm đã xóa dùng lại được ngay sau
+    khi tạo lại tài khoản cùng email.
+
+    Không dùng `_id` vì mọi hàm đọc nhân viên đều bỏ nó; `created_at` thì đổi mỗi
+    lần tạo lại, và ai giữ token cũ cũng không đoán được nó tới từng mili giây.
+    Mili giây chứ không micro giây: MongoDB chỉ lưu tới mili giây.
+    """
+    tao_luc = user.get("created_at")
+    if not isinstance(tao_luc, datetime):
+        return None
+    if tao_luc.tzinfo is None:
+        # MongoDB trả giờ UTC không gắn múi. Không gắn thì `timestamp()` hiểu nhầm
+        # là giờ máy, và cùng một bản ghi cho hai dấu khác nhau trên hai máy chủ.
+        tao_luc = tao_luc.replace(tzinfo=timezone.utc)
+    return int(tao_luc.timestamp() * 1000)
+
+
 def create_access_token(user: dict[str, Any]) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
@@ -57,6 +81,7 @@ def create_access_token(user: dict[str, Any]) -> str:
         "sub": user["email"],
         "name": user["full_name"],
         "role": user["role"],
+        "acc": dau_tai_khoan(user),
         "iat": now,
         "exp": now + settings.jwt_expire_minutes * 60,
     }
@@ -107,6 +132,14 @@ async def get_user_pending_password(
         raise HTTPException(
             status_code=401,
             detail="Tài khoản không tồn tại hoặc đã bị khóa.",
+        )
+    # Token phải thuộc đúng bản ghi tài khoản này, không chỉ đúng email — xem
+    # `dau_tai_khoan`. Token cấp trước bản sửa không mang `acc`, nên mọi phiên đang
+    # mở phải đăng nhập lại một lần: cái giá chấp nhận được để đóng lỗ này.
+    if payload.get("acc") != dau_tai_khoan(user):
+        raise HTTPException(
+            status_code=401,
+            detail="Phiên đăng nhập này thuộc một tài khoản cũ. Bạn đăng nhập lại nhé.",
         )
     # Token cấp trước lần đổi mật khẩu gần nhất coi như đã chết. Không có chốt
     # này thì đặt lại mật khẩu chỉ chặn được lần đăng nhập sau, còn phiên đang

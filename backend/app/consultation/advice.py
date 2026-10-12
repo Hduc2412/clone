@@ -81,6 +81,13 @@ class Advice:
     score_ranked: bool = True
     #: Khối chữ tất định. Lớp diễn đạt chỉ được nói lại những gì nằm trong đây.
     block: str = ""
+    #: Mọi dòng tiêu chí bắt buộc theo ĐÚNG thứ tự engine chấm. Ba nhóm ở trên tách
+    #: theo kết quả nên mất thứ tự; bảng đối chiếu trên màn hình cần thứ tự gốc để
+    #: hai đơn khác nhau hiện tiêu chí theo cùng một trình tự.
+    rows: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    #: Các dòng nguyện vọng đã chấm — để giải thích điểm theo từng thành phần. Đơn
+    #: chưa đạt không có: bộ đối chiếu không chấm điểm đơn đã trượt.
+    soft_rows: tuple[dict[str, Any], ...] = field(default_factory=tuple)
 
     @property
     def can_register(self) -> bool:
@@ -299,6 +306,8 @@ def build(
         learning_note=ghi_chu,
         profile_confirmed=profile_confirmed,
         score_ranked=engine_mod.xep_hang_duoc(item.soft_rows),
+        rows=tuple(row.as_dict() for row in item.hard_rows),
+        soft_rows=tuple(row.as_dict() for row in item.soft_rows) if item.eligible else (),
     )
     # `block` không tự tính được trong `__init__` vì dataclass đóng băng, nên
     # dựng xong rồi thay — vẫn là một đối tượng bất biến với nơi gọi.
@@ -321,6 +330,8 @@ def as_dict(advice: Advice) -> dict[str, Any]:
         "blockers": list(advice.blockers),
         "unknowns": list(advice.unknowns),
         "strengths": list(advice.strengths),
+        "rows": list(advice.rows),
+        "soft_rows": list(advice.soft_rows),
         "questions": list(advice.questions),
         "learning": None
         if lo is None

@@ -36,11 +36,13 @@ from app.consultation import khoi_doi_chieu, lien_he
 from app.core.codes import PREFIX_SUPPORT, new_code
 from app.core.phone import normalize_vietnamese_phone
 from app.core.rate_limit import client_ip, rate_limiter
+from app.core.timeutil import utc_now
 from app.core.session_id import SESSION_PATTERN
 from app.db import advisor_turns
 from app.db import support_requests as store
 from app.db.database import create_notification, list_appointments_for_session
-from app.services.assignment import is_privileged
+from app.services.assignment import ensure_can_assign, is_privileged, validate_assignee
+from app.services import ban_toi_thieu
 from app.services.audit_service import audit_action
 
 
@@ -99,6 +101,9 @@ class SupportRequestBody(BaseModel):
     appointment_date: str | None = Field(default=None, max_length=10)
     appointment_time: str | None = Field(default=None, max_length=5)
     meeting_kind: Literal["truc_tiep", "truc_tuyen"] | None = None
+    # Khách tích "đồng ý cho nhân viên nhận yêu cầu xem hồ sơ và CV" (08/10). Mặc định
+    # KHÔNG: không tích thì nhân viên chỉ có bản bàn giao, không mở hồ sơ hay CV gốc.
+    dong_y_ban_giao: bool = False
 
     # KHÔNG có trường `advice_block`, và đó là chủ ý.
     #
@@ -200,8 +205,16 @@ async def gui_yeu_cau(
             # Dựng bằng mã, mô hình không tham gia: nhân viên sẽ đọc từng dòng
             # này ra miệng cho ứng viên nghe. Xem `app/agent/ban_giao.py`.
             "ban_giao": await _ban_giao(session_id, payload.message.strip()),
+            "dong_y_ban_giao": payload.dong_y_ban_giao,
+            "dong_y_luc": utc_now() if payload.dong_y_ban_giao else None,
         }
     )
+    # Gửi lại đúng yêu cầu đang mở mà lần này khách mới tích đồng ý: ghi nhận đồng ý.
+    # Chiều ngược lại (bỏ tích) không rút đồng ý ở đây — rút là một việc riêng, không
+    # suy từ một lần bấm gửi lại.
+    if not _moi and payload.dong_y_ban_giao and not document.get("dong_y_ban_giao"):
+        await store.ghi_dong_y_ban_giao(document["code"])
+        document["dong_y_ban_giao"] = True
 
     # Lịch hẹn: tạo SAU khi yêu cầu đã vào hàng đợi, và không được làm gãy nó.
     #
@@ -494,16 +507,43 @@ def _ban_cho_khach(item: dict[str, Any]) -> dict[str, Any]:
 async def hang_doi(
     status: str | None = Query(default=store.STATUS_CHO, max_length=20),
     kind: str | None = Query(default=None, max_length=20),
-    limit: int = Query(default=100, ge=1, le=300),
+    limit: int = Query(default=300, ge=1, le=500),
     current_user=Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Hàng đợi hỗ trợ. Không lọc theo người phụ trách — ai rảnh thì nhận.
+    """Hàng đợi hỗ trợ. Việc chưa ai nhận thì mọi nhân viên thấy — ai rảnh thì nhận.
 
-    Cố ý giống `/registrations/queue`: hàng đợi là chỗ việc chưa có chủ, nên lọc
-    theo người phụ trách ở đây sẽ biến nó thành một danh sách rỗng với người mới.
+    Trả kèm `total`: danh sách bị cắt theo `limit` thì giao diện phải biết để nói
+    ra, không im lặng giấu những người vừa gửi yêu cầu.
+
+    ## Nhân viên thường thấy gì (từ 08/10)
+
+    - `cho_xu_ly`: **bản tối thiểu** — loại việc, đơn, lúc gửi, tên viết tắt. Đủ để
+      nhận việc; số điện thoại, lời nhắn, bản bàn giao chỉ mở sau khi nhận.
+    - Mọi trạng thái khác: chỉ yêu cầu **mình đang giữ**. Trước 08/10 `?status=
+      dang_xu_ly` trả nguyên bản ghi của mọi người — kiểm sống HT-1.
+
+    Quản lý vẫn thấy đủ, như cũ.
     """
-    items = await store.list_requests(status=status, kind=kind, limit=limit)
-    return {"items": items, "count": len(items)}
+    if is_privileged(current_user):
+        items = await store.list_requests(status=status, kind=kind, limit=limit)
+        total = await store.count_requests(status=status, kind=kind)
+    elif status == store.STATUS_CHO:
+        items = [
+            ban_toi_thieu.ho_tro(d)
+            for d in await store.list_requests(status=status, kind=kind, limit=limit)
+            # Việc chưa ai nhận theo nghĩa đen; bản ghi lệch (đã có người giữ mà
+            # còn trạng thái chờ) thì không cho người khác thấy.
+            if not d.get("assigned_to")
+        ]
+        total = await store.count_requests(status=status, kind=kind)
+    else:
+        items = await store.list_requests(
+            status=status, kind=kind, assigned_to=current_user["email"], limit=limit
+        )
+        total = await store.count_requests(
+            status=status, kind=kind, assigned_to=current_user["email"]
+        )
+    return {"items": items, "count": len(items), "total": max(total, len(items))}
 
 
 @router.get("/cua-toi")
@@ -511,6 +551,14 @@ async def cua_toi(current_user=Depends(get_current_user)) -> dict[str, Any]:
     items = await store.list_requests(
         status=None, assigned_to=current_user["email"], limit=200
     )
+    # Đường dẫn tới hồ sơ gắn với chính yêu cầu — chỉ khi khách đồng ý bàn giao. Quyền
+    # đọc hồ sơ/CV vẫn kiểm lại ở đường hồ sơ (`quyen_ho_so`, điều 3).
+    from app.db import candidate_profiles
+
+    for item in items:
+        if item.get("dong_y_ban_giao") is True and item.get("session_id"):
+            ho_so = await candidate_profiles.get_by_session(item["session_id"])
+            item["profile_code"] = (ho_so or {}).get("code")
     return {"items": items, "count": len(items)}
 
 
@@ -529,8 +577,39 @@ async def chi_tiet(
     document = await store.get_request(code)
     if document is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu này.")
+    if not _duoc_doc_day_du(document, current_user):
+        # Chưa ai nhận: chỉ bản tối thiểu, để biết việc là gì trước khi bấm nhận.
+        # Người khác đang giữ: không gì cả. Trước 08/10 đường này trả nguyên bản
+        # ghi cho bất kỳ ai đăng nhập — kiểm sống HT-2, HT-4.
+        if document.get("status") == store.STATUS_CHO and not document.get("assigned_to"):
+            return {"request": ban_toi_thieu.ho_tro(document), "appointment": None}
+        raise HTTPException(
+            status_code=403,
+            detail=f"Yêu cầu này do {document.get('assigned_to') or 'người khác'} xử lý.",
+        )
     lich = await _dong_bo_lich(document)
-    return {"request": document, "appointment": lich}
+    # Hồ sơ gắn với CHÍNH yêu cầu này — nối qua phiên, không qua số điện thoại — và chỉ
+    # khi khách đã đồng ý bàn giao. Quyền đọc hồ sơ/CV kiểm lại ở đường hồ sơ
+    # (`quyen_ho_so`, điều 3); đây chỉ là đường dẫn cho giao diện.
+    ma_ho_so = None
+    if document.get("dong_y_ban_giao") is True and document.get("session_id"):
+        from app.db import candidate_profiles
+
+        ho_so = await candidate_profiles.get_by_session(document["session_id"])
+        ma_ho_so = (ho_so or {}).get("code")
+    return {"request": document, "appointment": lich, "profile_code": ma_ho_so}
+
+
+def _duoc_doc_day_du(document: dict[str, Any], current_user: dict) -> bool:
+    """Đọc đủ yêu cầu: quản lý, hoặc người đang giữ — theo giá trị HIỆN TẠI.
+
+    Không đọc `lich_su_phu_trach`: người từng giữ rồi bị chuyển đi thì thôi quyền,
+    cùng quy tắc với hồ sơ ứng viên (`services/quyen_ho_so`).
+    """
+    if is_privileged(current_user):
+        return True
+    giu = (document.get("assigned_to") or "").strip().lower()
+    return bool(giu) and giu == (current_user.get("email") or "").strip().lower()
 
 
 async def _dong_bo_lich(document: dict[str, Any]) -> dict[str, Any] | None:
@@ -610,6 +689,106 @@ async def nhan_xu_ly(
     return document
 
 
+class ChuyenBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assigned_to: str = Field(min_length=3, max_length=150)
+    # Bắt buộc lý do, cùng quy tắc với chuyển hồ sơ đăng ký: người nhận phải biết vì
+    # sao việc này về tay mình, và sau này còn dựng lại được chuyện đã xảy ra.
+    note: str = Field(min_length=3, max_length=500)
+
+
+class TraVeBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    note: str = Field(min_length=3, max_length=500)
+
+
+async def _dang_xu_ly(code: str) -> dict[str, Any]:
+    hien_co = await store.get_request(code)
+    if hien_co is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu này.")
+    if hien_co.get("status") != store.STATUS_DANG_XU_LY or not hien_co.get("assigned_to"):
+        raise HTTPException(status_code=409, detail="Yêu cầu này không ở trạng thái đang xử lý.")
+    return hien_co
+
+
+@router.post("/{code}/chuyen")
+async def chuyen_nguoi_xu_ly(
+    code: Annotated[str, Path(pattern=CODE_PATTERN)],
+    payload: ChuyenBody,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    """Giao yêu cầu đang xử lý cho nhân viên khác — chỉ Admin/Manager.
+
+    Trước 07/10 yêu cầu hỗ trợ không có đường nào đổi người xử lý: nhân viên nghỉ,
+    bận hay nhận nhầm thì yêu cầu — kèm khung giờ hẹn khách đã chọn — nằm chết ở tên
+    người ấy. Cùng quyền với chuyển hồ sơ đăng ký.
+    """
+    ensure_can_assign(current_user, "Chỉ Admin/Manager được chuyển người xử lý.")
+    hien_co = await _dang_xu_ly(code)
+    den = await validate_assignee(payload.assigned_to)
+    if den == hien_co["assigned_to"]:
+        raise HTTPException(status_code=409, detail="Yêu cầu đã do người này xử lý.")
+
+    document = await store.chuyen_nguoi_xu_ly(
+        code, tu=hien_co["assigned_to"], den=den, boi=current_user["email"], ly_do=payload.note.strip()
+    )
+    if document is None:
+        raise HTTPException(
+            status_code=409, detail="Yêu cầu vừa đổi người xử lý hoặc đổi trạng thái. Bạn tải lại nhé."
+        )
+    chi_tiet = {"from": hien_co["assigned_to"], "to": den, "note": payload.note.strip()}
+    await audit_action(
+        http_request, "support.handover", actor=current_user,
+        target_type="support_request", target_id=code, details=chi_tiet,
+    )
+    try:
+        await create_notification(
+            notification_type="support_handover",
+            title="Bạn được giao một yêu cầu hỗ trợ",
+            reference_type="support_request",
+            reference_code=code,
+            detail={"customer_name": document.get("full_name"), "assigned_to": den, "note": payload.note.strip()},
+        )
+    except Exception:
+        # Việc giao đã xong; thiếu thông báo thì người nhận vẫn thấy nó trong "Tôi
+        # đang xử lý". Không trả 500 cho một thao tác đã thành công.
+        logger.warning("Không ghi được thông báo chuyển yêu cầu %s.", code)
+    return document
+
+
+@router.post("/{code}/tra-ve")
+async def tra_ve_hang_doi(
+    code: Annotated[str, Path(pattern=CODE_PATTERN)],
+    payload: TraVeBody,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+) -> dict[str, Any]:
+    """Trả yêu cầu về hàng đợi chờ — người đang giữ hoặc Admin/Manager.
+
+    Người giữ tự trả được, không phải chờ quản lý: nhận nhầm hay nghỉ đột xuất mà
+    phải chờ ai đó gỡ thì khách là người chịu. Cùng quy tắc với `registrations.release`.
+    """
+    hien_co = await _dang_xu_ly(code)
+    giu = hien_co["assigned_to"]
+    if giu != current_user["email"] and not is_privileged(current_user):
+        raise HTTPException(status_code=403, detail=f"Yêu cầu này do {giu} đang xử lý.")
+
+    document = await store.tra_ve_hang_doi(
+        code, tu=giu, boi=current_user["email"], ly_do=payload.note.strip()
+    )
+    if document is None:
+        raise HTTPException(status_code=409, detail="Yêu cầu vừa thay đổi. Bạn tải lại nhé.")
+    await audit_action(
+        http_request, "support.released", actor=current_user,
+        target_type="support_request", target_id=code,
+        details={"from": giu, "note": payload.note.strip()},
+    )
+    return document
+
+
 @router.post("/{code}/tra-loi")
 async def tra_loi(
     code: Annotated[str, Path(pattern=CODE_PATTERN)],
@@ -621,12 +800,18 @@ async def tra_loi(
     if hien_co is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu này.")
     # Người đang giữ mới được trả lời; quản lý thì được, để việc không kẹt khi
-    # người nhận nghỉ.
+    # người nhận nghỉ. Từ 08/10 yêu cầu CHƯA ai nhận cũng phải nhận trước: nhân
+    # viên thường không còn đọc được lời nhắn khi chưa nhận, nên trả lời một lời
+    # nhắn mình chưa đọc là trả lời mò.
     giu = hien_co.get("assigned_to")
-    if giu and giu != current_user["email"] and not is_privileged(current_user):
+    if not _duoc_doc_day_du(hien_co, current_user):
         raise HTTPException(
             status_code=403,
-            detail=f"Yêu cầu này do {giu} đang xử lý.",
+            detail=(
+                f"Yêu cầu này do {giu} đang xử lý."
+                if giu
+                else "Bạn bấm Nhận xử lý trước rồi mới trả lời được."
+            ),
         )
 
     document = await store.close_request(

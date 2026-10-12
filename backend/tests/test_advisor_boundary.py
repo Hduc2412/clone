@@ -296,16 +296,26 @@ class ModelDuPhongTests(unittest.IsolatedAsyncioTestCase):
             / "app" / "advisor" / "qa.py"
         ).read_text(encoding="utf-8")
         cay = _ast.parse(nguon)
-        ham = next(
-            n for n in _ast.walk(cay)
-            if isinstance(n, _ast.AsyncFunctionDef) and n.name == "tra_loi"
-        )
-        so_lan_goi = sum(
-            1 for n in _ast.walk(ham)
-            if isinstance(n, _ast.Call)
-            and isinstance(n.func, _ast.Attribute)
-            and n.func.attr == "sinh_van_ban"
-        )
+        def _ham(ten):
+            return next(
+                n for n in _ast.walk(cay)
+                if isinstance(n, (_ast.AsyncFunctionDef, _ast.FunctionDef)) and n.name == ten
+            )
+
+        def _so_lan_goi(n0):
+            return sum(
+                1 for n in _ast.walk(n0)
+                if isinstance(n, _ast.Call)
+                and isinstance(n.func, _ast.Attribute)
+                and n.func.attr == "sinh_van_ban"
+            )
+
+        # Từ 07/10 lời gọi mô hình nằm trong `tra_loi_chi_tiet` (`tra_loi` chỉ bọc lại),
+        # còn hậu kiểm nằm trong `xu_ly_cau_tra_loi` — hàm này KHÔNG được gọi mô hình.
+        ham = _ham("tra_loi_chi_tiet")
+        so_lan_goi = _so_lan_goi(ham)
+        self.assertEqual(_so_lan_goi(_ham("tra_loi")), 0)
+        self.assertEqual(_so_lan_goi(_ham("xu_ly_cau_tra_loi")), 0)
         self.assertEqual(
             so_lan_goi,
             1,

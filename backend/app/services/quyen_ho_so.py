@@ -33,6 +33,15 @@ rồi áp `co_quyen_ho_so`, và danh sách nhật ký lọc theo **mã hồ sơ*
 xem. Trường ảnh chụp vẫn còn trong bản ghi — nó là lịch sử đúng, chỉ không còn
 là căn cứ cấp quyền.
 
+## Điều 3, 08/10: người đang giữ yêu cầu hỗ trợ — CHỈ ĐỌC, và chỉ khi khách đồng ý
+
+Nhân viên đang giữ một yêu cầu hỗ trợ (`dang_xu_ly`, `assigned_to` là mình) được **đọc**
+hồ sơ và CV gắn với chính yêu cầu ấy — nối qua `session_id` của yêu cầu, không qua số
+điện thoại — nếu khách đã tích "đồng ý bàn giao" lúc gửi (`dong_y_ban_giao`). Yêu cầu
+cũ không có trường ấy thì coi như chưa đồng ý. Chuyển yêu cầu sang người khác thì
+người cũ mất quyền ngay, vì quyền tính từ `assigned_to` hiện tại. Sửa hồ sơ thì vẫn
+theo hai điều ở trên — giữ một yêu cầu hỗ trợ không biến ai thành người phụ trách hồ sơ.
+
 ## Phạm vi
 
 Đúng những đường trước đây kiểm quyền theo hồ sơ ứng viên: xem và sửa hồ sơ,
@@ -66,15 +75,28 @@ async def ma_ho_so_truc_tiep(email: str) -> set[str]:
     return {p["code"] for p in ds if p.get("code")}
 
 
-async def co_quyen_ho_so(profile: dict[str, Any], current_user: dict) -> bool:
-    """Quy tắc gốc, trên chính hồ sơ ứng viên. Xét theo thứ tự rẻ trước."""
+async def phien_qua_ho_tro(email: str) -> set[str]:
+    """Phiên của các yêu cầu hỗ trợ `email` ĐANG giữ mà khách đã đồng ý bàn giao (điều 3)."""
+    from app.db import support_requests as ho_tro
+
+    ds = await ho_tro.list_requests(status=ho_tro.STATUS_DANG_XU_LY, assigned_to=email, limit=TRAN)
+    return {d["session_id"] for d in ds if d.get("dong_y_ban_giao") is True and d.get("session_id")}
+
+
+async def co_quyen_ho_so(profile: dict[str, Any], current_user: dict, *, chi_doc: bool = False) -> bool:
+    """Quy tắc gốc, trên chính hồ sơ ứng viên. Xét theo thứ tự rẻ trước.
+
+    `chi_doc=True` cho các đường chỉ ĐỌC (xem hồ sơ, CV, nhật ký): mở thêm điều 3.
+    """
     if is_privileged(current_user):
         return True
     email = _email(current_user)
     if profile.get("assigned_to") == email:
         return True
     ma = profile.get("code")
-    return bool(ma) and ma in await ma_ho_so_qua_don(email)
+    if bool(ma) and ma in await ma_ho_so_qua_don(email):
+        return True
+    return chi_doc and bool(profile.get("session_id")) and profile["session_id"] in await phien_qua_ho_tro(email)
 
 
 async def co_quyen_nhat_ky(log: dict[str, Any], current_user: dict) -> bool:
@@ -91,7 +113,7 @@ async def co_quyen_nhat_ky(log: dict[str, Any], current_user: dict) -> bool:
     profile = await profile_store.get_by_code(ma)
     if profile is None:
         return False
-    return await co_quyen_ho_so(profile, current_user)
+    return await co_quyen_ho_so(profile, current_user, chi_doc=True)
 
 
 async def dieu_kien_ho_so(query: dict[str, Any], current_user: dict) -> dict[str, Any]:
@@ -109,6 +131,9 @@ async def dieu_kien_ho_so(query: dict[str, Any], current_user: dict) -> dict[str
     ma = sorted(await ma_ho_so_qua_don(email))
     if ma:
         hoac.append({"code": {"$in": ma}})
+    phien = sorted(await phien_qua_ho_tro(email))
+    if phien:
+        hoac.append({"session_id": {"$in": phien}})
     return _ghep(hep, hoac)
 
 
@@ -123,8 +148,11 @@ async def dieu_kien_nhat_ky(query: dict[str, Any], current_user: dict) -> dict[s
         return query
     email = _email(current_user)
     hep = {k: v for k, v in query.items() if k != "assigned_to"}
-    ma = sorted(await ma_ho_so_truc_tiep(email) | await ma_ho_so_qua_don(email))
-    dk = {"profile_code": {"$in": ma}}
+    ma = await ma_ho_so_truc_tiep(email) | await ma_ho_so_qua_don(email)
+    phien = sorted(await phien_qua_ho_tro(email))
+    if phien:
+        ma |= {p["code"] for p in await profile_store.list_profiles({"session_id": {"$in": phien}}, limit=TRAN) if p.get("code")}
+    dk = {"profile_code": {"$in": sorted(ma)}}
     if "profile_code" in hep:
         # Người gọi lọc một hồ sơ cụ thể: giữ điều kiện của họ VÀ của quyền.
         return {"$and": [hep, dk]}

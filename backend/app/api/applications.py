@@ -14,7 +14,7 @@ from app.db.database import (
     list_recruitment_applications,
     update_recruitment_application,
 )
-from app.services import score_service
+from app.services import chi_tieu, score_service
 from app.services.assignment import (
     can_access,
     ensure_can_assign,
@@ -238,6 +238,11 @@ async def update_application(
             reference_code=application_code,
         )
 
+    # Chỉ tiêu của đơn (12/10): "Trúng tuyển" trừ một chỉ tiêu; rút/hủy sau khi đã tính
+    # thì trả lại. Đăng ký và các bước khác không đổi gì. Xem `services/chi_tieu`.
+    if fields.get("status") and fields["status"] != existing["status"]:
+        await chi_tieu.khi_doi_trang_thai(existing, fields["status"])
+
     changed_fields = sorted(key for key in fields if key != "is_active")
     event_details = {"changed_fields": changed_fields}
     if "status" in fields:
@@ -400,6 +405,8 @@ async def ghi_ket_qua_so_tuyen(
             detail=f"Đã ghi trình độ {muc} vào hồ sơ {ma_ho_so}, nhưng KHÔNG đổi "
             f"được trạng thái hồ sơ tuyển dụng. Mở lại hồ sơ và đổi trạng thái tay.",
         )
+    if payload.next_status != existing["status"]:
+        await chi_tieu.khi_doi_trang_thai(existing, payload.next_status)
 
     chi_tiet = {
         "japanese_level": muc,

@@ -153,6 +153,13 @@ class KhoiDonTests(unittest.TestCase):
     def test_chua_chon_don_thi_khoi_rong(self):
         self.assertEqual(order_context.render(None), "")
 
+    def test_gioi_tinh_doc_bang_nhan_yeu_cau_khong_lot_ma_may(self):
+        """Lỗi có thật tới 12/10: bảng nhãn giới tính của ứng viên không có "khong_yeu_cau"."""
+        self.assertIn("Giới tính: không yêu cầu", order_context.render(DON_MAU))
+        self.assertNotIn("khong_yeu_cau", order_context.render(DON_MAU))
+        nu = {**DON_MAU, "requirements": {**DON_MAU["requirements"], "gender_pref": "nu"}}
+        self.assertIn("Giới tính: Nữ", order_context.render(nu))
+
     def test_tach_ro_dieu_kien_bat_buoc_va_thong_tin_tham_khao(self):
         """Ranh giới này quyết định ai bị loại, nên phải hiện rõ trong chính khối chữ.
 

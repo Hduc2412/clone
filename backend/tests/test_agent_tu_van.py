@@ -734,6 +734,18 @@ def _yeu_cau_gia():
     )
 
 
+def _ngay_lam_viec_toi():
+    """Một ngày nhận lịch: ít nhất ba ngày tới, bỏ qua Chủ Nhật.
+
+    Bản trước viết cứng "hôm nay + 3 ngày" — chạy đúng ngày thứ Năm thì ngày ấy là
+    Chủ Nhật, bộ kiểm tra lịch từ chối, và sáu ca đỏ dù mã không đổi (gặp 08/10).
+    """
+    ngay = local_today() + timedelta(days=3)
+    while ngay.weekday() == 6:
+        ngay += timedelta(days=1)
+    return ngay
+
+
 class LoiGanLichKhongLamGayYeuCauTests(unittest.IsolatedAsyncioTestCase):
     """Gắn lịch vào yêu cầu hỏng thì **không được** làm gãy lời gọi của khách.
 
@@ -800,7 +812,7 @@ class LoiGanLichKhongLamGayYeuCauTests(unittest.IsolatedAsyncioTestCase):
                     full_name="Trần Thị Thu Hà",
                     phone="0914552780",
                     message="Em muốn gặp trực tiếp.",
-                    appointment_date=(local_today() + timedelta(days=3)).isoformat(),
+                    appointment_date=_ngay_lam_viec_toi().isoformat(),
                     appointment_time="14:00",
                     meeting_kind="truc_tiep",
                 ),
@@ -845,7 +857,7 @@ class BamLaiThiNhanLaiDungLichCuTests(unittest.IsolatedAsyncioTestCase):
             kind="gap_mat",
             full_name="Trần Thị Thu Hà",
             phone="0914552780",
-            appointment_date=(local_today() + timedelta(days=3)).isoformat(),
+            appointment_date=_ngay_lam_viec_toi().isoformat(),
             appointment_time="14:00",
             meeting_kind="truc_tiep",
         )
@@ -1159,6 +1171,8 @@ class HetHanMucVanKhongMatGiTests(unittest.IsolatedAsyncioTestCase):
             ), patch.object(
                 agent_api, "_ghi_moc", AsyncMock()
             ), patch.object(
+                agent_api.courses, "list_published", AsyncMock(return_value=[])
+            ), patch.object(
                 # Dựng lại khối đối chiếu từ nhật ký là việc của ca khác.
                 # Ca này đo đúng một thứ: đường đi khi mô hình không trả lời.
                 agent_api,
@@ -1176,7 +1190,12 @@ class HetHanMucVanKhongMatGiTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_tat_ai_van_tra_loi_chu_khong_tra_loi_500(self):
         ra, _ = await self._hoi_khi_tat_ai()
-        self.assertEqual(ra["answer"], qa.CAU_KHONG_GOI_DUOC)
+        # Từ 07/10: không còn "đang bận" trơn mà là tóm tắt tự động từ kết quả đối
+        # chiếu, nói rõ là tóm tắt — xem `consultation/du_phong.py`.
+        from app.consultation import du_phong
+
+        self.assertTrue(ra["answer"].startswith(du_phong.MO_DAU))
+        self.assertIn("đạt điều kiện bắt buộc", ra["answer"])
         # Nguồn phải tách riêng khỏi `khong_biet`: `advisor_turns.thong_ke()`
         # đếm `khong_biet` để trả lời "bot bí bao nhiêu lần" và **không** tính
         # `khong_goi_duoc` vào mẫu số. Gộp hai thứ vào một thì một ngày hết hạn
@@ -1508,17 +1527,50 @@ class NguongChoRiengTests(unittest.IsolatedAsyncioTestCase):
                 khoi_doi_chieu="",
             )
         self.assertEqual(
-            goi.await_args.kwargs.get("timeout"), orchestrator.NGUONG_CHO_GIAY
+            goi.await_args.kwargs.get("timeout"), orchestrator.nguong_cho_giay()
         )
 
-    async def test_nguong_rieng_rong_hon_nguong_chung(self):
+    async def test_nguong_rieng_khong_hep_hon_nguong_chung(self):
         from app.core.config import settings
 
-        self.assertGreater(orchestrator.NGUONG_CHO_GIAY, settings.advisor_timeout_seconds)
+        self.assertGreaterEqual(orchestrator.nguong_cho_giay(), settings.advisor_timeout_seconds)
 
     async def test_nguong_khong_vo_han(self):
         """Ứng viên đang ngồi chờ. Sau nửa phút thì câu trả lời đến cũng đã muộn."""
-        self.assertLessEqual(orchestrator.NGUONG_CHO_GIAY, 30.0)
+        self.assertLessEqual(orchestrator.nguong_cho_giay(), 30.0)
+
+    async def test_nguong_doc_tu_cau_hinh_khong_ghi_cung(self):
+        """08/10: bộ đo và ứng dụng phải chỉnh ở MỘT chỗ. Đổi cấu hình là đổi ngưỡng thật."""
+        from app.core.config import settings
+
+        with patch.object(settings, "advisor_agent_timeout_seconds", 17.0):
+            self.assertEqual(orchestrator.nguong_cho_giay(), 17.0)
+
+    async def test_client_dung_dung_nguong_cua_cau_hinh(self):
+        """Phòng theo đơn không truyền timeout riêng: client phải lấy đúng cấu hình."""
+        import httpx
+        from app.advisor import client
+        from app.core.config import settings
+
+        thay = {}
+
+        class _Client:
+            def __init__(self, *a, timeout=None, **k):
+                thay["timeout"] = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **k):
+                raise httpx.ReadTimeout("chậm")
+
+        with patch.object(settings, "advisor_timeout_seconds", 23.0), \
+             patch.object(client.httpx, "AsyncClient", _Client):
+            await client._goi_mot_lan("m", "p", temperature=0, max_tokens=10)
+        self.assertEqual(thay["timeout"], 23.0)
 
     async def test_duong_tu_van_theo_don_khong_bi_noi_nguong(self):
         """Nới ngưỡng chung là bắt ứng viên ở đường kia chờ lâu hơn mà không được gì."""
@@ -1717,8 +1769,18 @@ class DiemPhuHopChuaCoNghiaThiKhongHienTests(unittest.TestCase):
         import re
 
         goc = pathlib.Path(__file__).resolve().parents[2] / "frontend"
-        for ten in ("MatchCard.tsx", "OrderAdvicePanel.tsx"):
-            nguon = (goc / "components" / "candidate" / ten).read_text(encoding="utf-8")
+        thu_muc = goc / "components" / "candidate"
+        # Từ 08/10 ô điểm của phòng tư vấn theo đơn nằm trong `BangDoiChieu`
+        # (dùng chung cho cả thẻ đơn). `OrderAdvicePanel` chỉ còn phải chuyền cờ
+        # của máy chủ xuống — không được tự tính hay bỏ rơi nó.
+        panel = (thu_muc / "OrderAdvicePanel.tsx").read_text(encoding="utf-8")
+        self.assertIn("scoreRanked={advice.score_ranked}", panel)
+        self.assertIsNone(re.search(r"score\s*[<>]=?\s*\d", panel))
+        for ten in ("MatchCard.tsx", "BangDoiChieu.tsx"):
+            nguon = (thu_muc / ten).read_text(encoding="utf-8")
+            # Trong `BangDoiChieu` cờ mang tên prop `scoreRanked`; quy về một tên để
+            # cùng một phép kiểm áp được cho cả hai tệp.
+            nguon = nguon.replace("scoreRanked", "score_ranked")
             self.assertIn("score_ranked", nguon, f"{ten} không đọc cờ của máy chủ")
             # Tự suy kiểu `score < 10` là dựng ngưỡng thứ hai ở nơi không biết
             # vì sao điểm thấp.

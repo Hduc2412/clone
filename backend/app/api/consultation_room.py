@@ -39,8 +39,9 @@ from app.auth.journey_security import require_journey_session
 from app.auth.security import get_current_user
 from app.core.config import settings
 from app.core.timeutil import utc_now
+from app.consultation import tien_do
 from app.consultation import advice as advice_builder
-from app.consultation import context_builder, eligibility, lien_he, order_context
+from app.consultation import context_builder, du_phong, eligibility, khoi_mo_rong, lien_he, order_context
 from app.memory import render as bo_nho_render
 from app.memory import topics
 from app.core.rate_limit import client_ip, rate_limiter
@@ -77,6 +78,15 @@ public_router = APIRouter(
 public_router_mo = APIRouter(
     prefix="/tu-van/v1",
     tags=["Engine tư vấn"],
+)
+
+
+# Thay khối kết quả đối chiếu khi hồ sơ chưa được khách xác nhận. Tách hằng để bộ
+# đánh giá trên mô hình thật (`scripts/danh_gia_tu_van_that.py`) dùng đúng chữ này.
+KHOI_CHUA_XAC_NHAN = (
+    "[Hồ sơ CHƯA được ứng viên xác nhận — chưa có kết quả đối chiếu để nói. "
+    "Không nói ứng viên đạt hay chưa đạt; mời ứng viên kiểm tra và xác nhận "
+    "hồ sơ để xem bảng đối chiếu.]"
 )
 
 router = APIRouter(
@@ -152,6 +162,11 @@ async def tu_van_theo_don(
             status_code=404,
             detail="Chưa có hồ sơ cho phiên này. Bạn gửi CV hoặc khai nhanh vài mục nhé.",
         )
+    # Chưa xác nhận thì KHÔNG có bảng, điểm hay kết luận — chặn ở API, không chỉ ở
+    # giao diện (kiểm sống XN-1, 08/10). Đường nhân viên đọc bản nháp
+    # (`/recommendation-logs`, `/profiles`) không đi qua đây nên không bị chặn.
+    if profile.get("status") != profiles.STATUS_CONFIRMED:
+        raise HTTPException(status_code=409, detail=profiles.loi_chua_xac_nhan())
 
     try:
         log, da_dung_lai = await matching_service.run_matching(
@@ -163,7 +178,10 @@ async def tu_van_theo_don(
             detail="Đơn này hiện không còn nhận hồ sơ. Bạn xem đơn khác giúp mình nhé.",
         ) from None
 
-    item = _dong_cua_don(log, code)
+    # Đủ tiêu chí để hiện bảng đối chiếu — nhật ký rút gọn đơn bị loại.
+    item = await matching_service.dong_day_du(
+        profile, _dong_cua_don(log, code), as_of=_ngay_nhat_ky(log)
+    )
 
     ket_qua = advice_builder.build(
         _thanh_match_item(item),
@@ -176,7 +194,13 @@ async def tu_van_theo_don(
     # Bản ghép sẵn luôn có. Bản mô hình viết lại chỉ là thêm vào, và nếu nó bị
     # chốt chặn loại thì màn hình vẫn đủ chữ.
     van_ban = explain.render_template_text(_thanh_match_item(item))
-    van_ban_ai = await phrasing.rephrase(ket_qua.block) if dien_dat else None
+    # Chưa xác nhận hồ sơ thì giao diện chưa hiện kết quả (yêu cầu 08/10), nên cũng
+    # không tốn một lượt mô hình để viết lại một kết luận khách chưa được xem.
+    van_ban_ai = (
+        await phrasing.rephrase(ket_qua.block)
+        if dien_dat and ket_qua.profile_confirmed
+        else None
+    )
 
     # Mở màn hình tư vấn của một đơn là hành vi rõ ràng nhất cho biết khách đang
     # quan tâm đơn nào. Ghi vào bộ nhớ chung để khung chat ở góc màn hình thôi
@@ -258,21 +282,43 @@ async def hoi_them(
     # Dựng lại đúng khối đối chiếu khách đang nhìn thấy, để bot và màn hình nói
     # cùng một điều. Lấy từ nhật ký thay vì tính lại: tính lại có thể ra kết quả
     # khác nếu hồ sơ vừa đổi, và khi ấy bot trả lời về một thứ khách không thấy.
+    danh_muc_khoa = await courses.list_published()
+    ket_qua = None
     try:
         log, _ = await matching_service.run_matching(
             profile, trigger="tu_van_hoi_them", chi_don=code
         )
-        item = _dong_cua_don(log, code)
+        item = await matching_service.dong_day_du(
+            profile, _dong_cua_don(log, code), as_of=_ngay_nhat_ky(log)
+        )
         ket_qua = advice_builder.build(
             _thanh_match_item(item),
             required_japanese=(don.get("requirements") or {}).get("japanese_required"),
             profile_level=_trinh_do(profile),
-            courses=await courses.list_published(),
+            courses=danh_muc_khoa,
             profile_confirmed=profile.get("status") == profiles.STATUS_CONFIRMED,
         )
         khoi_doi_chieu = ket_qua.block
+        if not ket_qua.profile_confirmed:
+            # Kết quả đối chiếu chỉ được nói SAU khi khách kiểm tra và xác nhận hồ sơ
+            # (yêu cầu 08/10). Trợ lý vẫn giúp làm rõ thông tin và nói điều kiện của
+            # đơn — nhưng không nói đạt hay chưa đạt trên dữ liệu máy vừa đọc.
+            khoi_doi_chieu = KHOI_CHUA_XAC_NHAN
     except matching_service.DonKhongCo:
         khoi_doi_chieu = ""
+
+    # Đơn khác lấy từ bộ đối chiếu cả danh mục — không để mô hình tự chọn. Trước
+    # 07/10 phòng này không thấy đơn nào ngoài đơn đang xem, và prompt dặn câu ngoài
+    # bốn khối thì đáp "chưa có thông tin": "đơn này chưa được thì tôi có lựa chọn
+    # nào khác" bị từ chối đúng theo thiết kế.
+    da_xac_nhan = profile.get("status") == profiles.STATUS_CONFIRMED
+    log_ca_danh_muc = await matching_service.ca_danh_muc_cho_tu_van(
+        profile, trigger="tu_van_goi_y"
+    )
+    don_khac = khoi_mo_rong.render_don_khac(
+        log_ca_danh_muc, tru_ma=code, ho_so_da_xac_nhan=da_xac_nhan
+    )
+    khoa_hoc = khoi_mo_rong.render_khoa_hoc(danh_muc_khoa)
 
     # Ghi vào bộ nhớ chung TRƯỚC khi hỏi mô hình, để khung chat thấy được ngay
     # cả khi lượt này hỏng giữa chừng. Ghi sau thì mỗi lần mô hình lỗi là một lần
@@ -287,9 +333,17 @@ async def hoi_them(
         )
 
     profiles.decorate(profile)
-    cau, nguon, model = await qa.tra_loi(
+    kq = await qa.tra_loi_chi_tiet(
         cau_hoi=payload.question,
-        ho_so=context_builder.render(profile),
+        don_khac=don_khac,
+        khoa_hoc=khoa_hoc,
+        # Hồ sơ kèm tình hình hiện tại do nhân viên ghi — xem `consultation/tien_do`.
+        ho_so="\n\n".join(
+            k for k in (
+                context_builder.render(profile),
+                tien_do.render(await tien_do.nap(session_id, profile)),
+            ) if k
+        ),
         don=order_context.render(don),
         doi_chieu=khoi_doi_chieu,
         # Khối "điều kiện nền" nay gồm cả cách gặp người thật. Chúng đi cùng
@@ -304,6 +358,12 @@ async def hoi_them(
         ),
         lich_su=await advisor_turns.list_turns(session_id, code, limit=qa.SO_LUOT_NHO),
     )
+    cau, nguon, model = kq.cau, kq.nguon, kq.model
+    if nguon == qa.NGUON_KHONG_GOI_DUOC and ket_qua is not None and ket_qua.profile_confirmed:
+        # Cả hai model đều không trả lời được. Thay vì chỉ "đang bận", đưa bản tóm
+        # tắt dựng từ kết quả đối chiếu — nói rõ là tóm tắt tự động, và nguồn vẫn
+        # ghi `khong_goi_duoc`. Xem `consultation/du_phong.py`.
+        cau = du_phong.theo_don(ket_qua, log_ca_danh_muc=log_ca_danh_muc)
 
     # Chỉ đánh dấu "đã giải thích" khi mô hình thật sự trả lời được. Đánh dấu cả
     # lúc bot nói không biết thì khung chat sẽ tưởng chủ đề đã xong và cũng lảng
@@ -320,8 +380,19 @@ async def hoi_them(
         answer=cau,
         source=nguon,
         model=model,
+        ly_do=kq.ly_do,
     )
     return {"question": luot["question"], "answer": cau, "source": nguon}
+
+
+def _ngay_nhat_ky(log: dict[str, Any]):
+    """Ngày đối chiếu của nhật ký — chấm lại phải cùng ngày thì mới ra cùng kết quả."""
+    from datetime import date
+
+    try:
+        return date.fromisoformat(str(log.get("as_of")))
+    except ValueError:
+        return None
 
 
 def _dong_cua_don(log: dict[str, Any], code: str) -> dict[str, Any]:
@@ -378,7 +449,7 @@ def _thanh_match_item(row: dict[str, Any]):
         score=int(row.get("score") or 0),
         rank=row.get("rank"),
         hard_rows=tuple(CriterionRow(**dong) for dong in row.get("hard_rows") or ()),
-        soft_rows=tuple(SoftRow(**dong) for dong in row.get("soft_rows") or ()),
+        soft_rows=tuple(SoftRow.tu_ban_ghi(dong) for dong in row.get("soft_rows") or ()),
         gaps=tuple(row.get("gaps") or ()),
         missing_info=tuple(row.get("missing_info") or ()),
         labels=row.get("labels") or {},

@@ -57,7 +57,7 @@ class BaMucTinCayTests(unittest.TestCase):
     def test_tach_rieng_da_xac_nhan_voi_doc_tu_cv_voi_nghe_trong_chat(self):
         khoi = context_builder.render(ho_so())
 
-        self.assertIn("Đã xác nhận", khoi)
+        self.assertIn("Khách đã xác nhận", khoi)
         self.assertIn("Đọc từ CV, khách chưa xác nhận", khoi)
         self.assertIn("Khách nói trong hội thoại, chưa xác nhận", khoi)
 
@@ -73,9 +73,19 @@ class BaMucTinCayTests(unittest.TestCase):
                     return dong
             return ""
 
-        self.assertIn("Đã xác nhận", nhom_cua("Nguyễn Thị Lan"))
+        self.assertIn("Khách đã xác nhận", nhom_cua("Nguyễn Thị Lan"))
         self.assertIn("CV", nhom_cua("3 năm"))
         self.assertIn("hội thoại", nhom_cua("Tokyo"))
+
+    def test_nhan_vien_ghi_tach_khoi_khach_tu_xac_nhan(self):
+        """08/10: điều nhân viên ghi sau buổi gặp không chung nhóm với lời khách tự khai."""
+        khoi = context_builder.render(ho_so(fields={
+            "full_name": o("Nguyễn Thị Lan"), "japanese_level": o("N4", "staff"),
+        }))
+        cac_dong = khoi.splitlines()
+        vi_tri = next(i for i, d in enumerate(cac_dong) if "Tiếng Nhật" in d)
+        tieu_de = next(d for d in reversed(cac_dong[:vi_tri]) if d.endswith(":") and not d.startswith("  "))
+        self.assertIn("Nhân viên", tieu_de)
 
     def test_nhan_tieng_viet_chu_khong_phai_ma_danh_muc(self):
         khoi = context_builder.render(

@@ -118,7 +118,7 @@ class NhatKyTheoHoSoHienTaiTests(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(quyen_ho_so, "ma_ho_so_truc_tiep", truc_tiep), patch.object(
             quyen_ho_so, "ma_ho_so_qua_don", AsyncMock(return_value=set())
-        ):
+        ), patch.object(quyen_ho_so, "phien_qua_ho_tro", AsyncMock(return_value=set())):
             q_a = await quyen_ho_so.dieu_kien_nhat_ky({"session_id": "s"}, A)
             q_b = await quyen_ho_so.dieu_kien_nhat_ky({"session_id": "s"}, B)
         self.assertNotIn("assigned_to", q_a)
@@ -128,7 +128,8 @@ class NhatKyTheoHoSoHienTaiTests(unittest.IsolatedAsyncioTestCase):
 
 class DanhSachHoSoTests(unittest.IsolatedAsyncioTestCase):
     async def _dk(self, nguoi, query, *, ma):
-        with patch.object(quyen_ho_so, "ma_ho_so_qua_don", AsyncMock(return_value=set(ma))):
+        with patch.object(quyen_ho_so, "ma_ho_so_qua_don", AsyncMock(return_value=set(ma))), \
+             patch.object(quyen_ho_so, "phien_qua_ho_tro", AsyncMock(return_value=set())):
             return await quyen_ho_so.dieu_kien_ho_so(query, nguoi)
 
     async def test_them_ho_so_dang_phu_trach_qua_don(self):

@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     # sẵn — chờ lâu thì thà hiện bản ghép sẵn còn hơn để ứng viên nhìn màn hình
     # quay vòng.
     advisor_timeout_seconds: float = 12.0
+    # Ngưỡng chờ của trợ lý hồ sơ (khối JSON dài hơn). Trước 08/10 ghi cứng 25 giây
+    # trong `agent/orchestrator.py`, nên bộ đo và ứng dụng không chung một chỗ chỉnh.
+    advisor_agent_timeout_seconds: float = 25.0
     # Tắt thì toàn hệ tư vấn chạy bằng bản ghép sẵn. Điểm số và kết luận không
     # đổi một ly, vì chúng chưa bao giờ do mô hình tính.
     advisor_enabled: bool = True

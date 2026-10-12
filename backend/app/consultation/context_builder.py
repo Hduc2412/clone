@@ -88,7 +88,11 @@ TEN_NGUON: dict[str, str] = {
 
 # Gom theo mức tin cậy để mỗi nhóm được nói bằng một giọng khác nhau.
 NHOM: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Đã xác nhận", ("user_confirmed", "staff")),
+    # Tách nhân viên khỏi khách tự xác nhận (08/10): "nhân viên ghi sau buổi gặp" và
+    # "khách tự khai rồi bấm xác nhận" là hai mức tin khác nhau. Mức căn cứ của
+    # trình độ tiếng Nhật nằm ở khối tình hình hiện tại (`consultation/tien_do`).
+    ("Nhân viên đã ghi sau khi làm việc với khách", ("staff",)),
+    ("Khách đã xác nhận", ("user_confirmed",)),
     ("Đọc từ CV, khách chưa xác nhận", ("cv",)),
     ("Khách nói trong hội thoại, chưa xác nhận", ("chat",)),
 )

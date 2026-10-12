@@ -122,10 +122,14 @@ def _dong_bat_buoc(order: dict[str, Any]) -> list[str]:
     elif tuoi_max:
         dong.append(f"Độ tuổi: đến {tuoi_max} tuổi")
 
+    # Bảng nhãn của YÊU CẦU giới tính (`GENDER_PREF_LABELS`, có "khong_yeu_cau"), không
+    # phải bảng giới tính của ứng viên (`GENDER_LABELS`, chỉ nam/nữ). Dùng nhầm bảng sau
+    # thì mọi đơn không yêu cầu giới tính đưa cho mô hình dòng "Giới tính: khong_yeu_cau"
+    # — mã máy lọt vào prompt (bắt được 12/10 khi dựng lại dữ liệu mẫu đo tiến độ).
     gioi = yeu_cau.get("gender_pref")
     dong.append(
-        f"Giới tính: {catalog.GENDER_LABELS.get(gioi, gioi)}"
-        if gioi
+        f"Giới tính: {catalog.GENDER_PREF_LABELS.get(gioi, gioi)}"
+        if gioi and gioi != "khong_yeu_cau"
         else "Giới tính: không yêu cầu"
     )
     return dong
@@ -168,6 +172,11 @@ def _dong_tham_khao(order: dict[str, Any]) -> tuple[list[str], bool]:
     diem_manh = ref.get("highlights") or ()
     if diem_manh:
         dong.append(f"Điểm đáng chú ý: {'; '.join(str(d) for d in diem_manh)}")
+
+    # Chỉ tiêu còn lại (12/10): chỉ có khi đơn được đọc qua đường công khai
+    # (`job_orders.cho_cong_khai`) — cùng con số trang chi tiết đơn và khung chat.
+    if order.get("quota") and order.get("con_lai") is not None:
+        dong.append(f"Chỉ tiêu: còn {order['con_lai']}/{order['quota']} người")
     return dong, bool(chi_phi)
 
 

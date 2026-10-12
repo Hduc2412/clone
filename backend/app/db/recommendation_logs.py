@@ -100,9 +100,28 @@ async def find_cached(
     )
 
 
+# Trigger của các lần đối chiếu **một đơn** (phòng tư vấn theo đơn). Nhật ký ghi
+# trước ngày 07/10 chưa có trường `chi_don`, nên phải nhận ra chúng bằng trigger.
+TRIGGER_MOT_DON = ("tu_van_theo_don", "tu_van_hoi_them")
+
+
+def dieu_kien_ca_danh_muc() -> dict[str, Any]:
+    """Lọc ra nhật ký đối chiếu **cả danh mục**, bỏ nhật ký chỉ xét một đơn."""
+    return {"chi_don": {"$in": [None]}, "trigger": {"$nin": list(TRIGGER_MOT_DON)}}
+
+
 async def latest_for_profile(profile_code: str) -> dict[str, Any] | None:
+    """Lần đối chiếu **cả danh mục** gần nhất của hồ sơ.
+
+    Không lấy nhật ký một đơn của phòng tư vấn theo đơn. Bản trước lấy bản ghi mới
+    nhất bất kể loại: khách mở phòng tư vấn của DH-0004 xong thì "lần đối chiếu
+    gần nhất" chỉ còn đúng một đơn — Agent cấp hồ sơ đọc thành "đã xét 1 đơn, đủ
+    điều kiện 1 đơn", lượt mở đầu nói "phù hợp với 1 đơn trên 1 đơn đang tuyển", và
+    trang kết quả bấm "vì sao" ở đơn khác ra 404. Đo ngày 07/10 trên kho phát
+    triển: 5 hồ sơ đang ở đúng trạng thái này.
+    """
     return await get_db()[COLLECTION].find_one(
-        {"profile_code": profile_code},
+        {"profile_code": profile_code, **dieu_kien_ca_danh_muc()},
         DETAIL_PROJECTION,
         sort=[("created_at", DESCENDING)],
     )

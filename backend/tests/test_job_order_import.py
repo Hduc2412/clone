@@ -224,6 +224,99 @@ class ImportErrorReportingTests(unittest.TestCase):
         self.assertIn("Không đọc được file Excel", str(raised.exception))
 
 
+class ConsultantNoteColumnTests(unittest.TestCase):
+    """Cột "Thông tin cho tư vấn viên" (09/10) và chốt không xóa ghi chú khi file thiếu cột.
+
+    Hai trường ghi chú được phép xóa về rỗng, nên một dòng cập nhật mang `None` là xóa
+    thật. File làm trước khi có cột này mà đem nhập để cập nhật đơn thì ghi chú tư vấn
+    viên đã nhập trên màn quản trị sẽ mất sạch — ca dưới ghim chuyện đó không xảy ra.
+    """
+
+    def test_template_has_the_column(self):
+        self.assertIn("Thông tin cho tư vấn viên", [c.label for c in importer.COLUMNS])
+
+    def test_value_is_read_when_the_column_exists(self):
+        preview = importer.parse_workbook(workbook_bytes([valid_row(consultant_note="Hỏi chứng chỉ gốc")]))
+        self.assertEqual(preview.rows[0].data["consultant_note"], "Hỏi chứng chỉ gốc")
+
+    def test_old_file_without_the_column_does_not_touch_saved_notes(self):
+        cu = [c.label for c in importer.COLUMNS if c.key not in ("consultant_note", "internal_note")]
+        preview = importer.parse_workbook(workbook_bytes([valid_row(code="DH-0001")], headers=cu))
+        row = preview.rows[0]
+        self.assertEqual(row.action, "update")
+        self.assertNotIn("consultant_note", row.data)
+        self.assertNotIn("internal_note", row.data)
+
+    def test_column_present_but_blank_clears_on_purpose(self):
+        preview = importer.parse_workbook(workbook_bytes([valid_row(code="DH-0001", consultant_note=None)]))
+        self.assertIn("consultant_note", preview.rows[0].data)
+        self.assertIsNone(preview.rows[0].data["consultant_note"])
+
+    def test_why_it_matters_none_would_really_be_written(self):
+        # Tầng dữ liệu GIỮ `None` của trường ghi chú — tức một khóa `None` lọt xuống là xóa.
+        from app.db.common import flatten_update, keep_allowed_nulls
+        from app.db.job_orders import NULLABLE_FIELDS
+
+        flat = keep_allowed_nulls(flatten_update({"consultant_note": None}), NULLABLE_FIELDS)
+        self.assertEqual(flat, {"consultant_note": None})
+
+
+class CotVangKhiCapNhatTests(unittest.TestCase):
+    """Cập nhật bằng file bị xóa bớt cột không được xóa dữ liệu đang lưu (12/10).
+
+    Đo thử trước khi sửa: file chỉ có các cột bắt buộc, cập nhật DH-0001 → ghi đè rỗng 13
+    trường (thành phố, bằng cấp, tuổi, lương, phụ cấp, chi phí, ngày phỏng vấn, xuất cảnh,
+    điểm nổi bật, mô tả), đặt kinh nghiệm về 0 và **tắt công khai**.
+    """
+
+    BAT_BUOC = [c.label for c in importer.COLUMNS if c.required] + ["Mã đơn"]
+
+    def test_cap_nhat_chi_ghi_dung_cot_co_trong_file(self):
+        from app.db.common import flatten_update, keep_allowed_nulls
+        from app.db.job_orders import NULLABLE_FIELDS
+
+        row = importer.parse_workbook(workbook_bytes([valid_row(code="DH-0001")], headers=self.BAT_BUOC)).rows[0]
+        self.assertEqual(row.action, "update")
+        se_ghi = set(keep_allowed_nulls(flatten_update(row.data), NULLABLE_FIELDS))
+        for khong_duoc in ("published", "status", "description", "city", "reference.salary_min",
+                           "reference.allowances", "requirements.age_min", "requirements.gender_pref",
+                           "requirements.experience_min", "requirements.education_required"):
+            self.assertNotIn(khong_duoc, se_ghi)
+        self.assertIn("requirements.japanese_required", se_ghi)
+
+    def test_them_moi_van_dung_mac_dinh_cho_cot_vang(self):
+        row = importer.parse_workbook(workbook_bytes([valid_row()], headers=self.BAT_BUOC[:-1])).rows[0]
+        self.assertEqual(row.action, "create")
+        self.assertIn("published", row.data)
+        self.assertIn("status", row.data)
+        self.assertEqual(row.data["requirements"]["gender_pref"], "khong_yeu_cau")
+        self.assertNotIn("consultant_note", row.data)
+
+    def test_cot_co_mat_o_trong_thi_van_xoa_co_chu_y(self):
+        row = importer.parse_workbook(workbook_bytes([valid_row(code="DH-0001", salary_min=None, salary_max=None)])).rows[0]
+        self.assertIn("salary_min", row.data["reference"])
+        self.assertIsNone(row.data["reference"]["salary_min"])
+
+
+class GioiHanDongTests(unittest.TestCase):
+    """Quá 500 dòng thì từ chối cả file, nói rõ số dòng — trước 12/10 dòng 501+ bị bỏ im lặng."""
+
+    def test_qua_gioi_han_thi_tu_choi_va_noi_so_dong(self):
+        with self.assertRaises(ValueError) as loi:
+            importer.parse_workbook(workbook_bytes([valid_row()] * (importer.MAX_ROWS + 1)))
+        self.assertIn(f"hơn {importer.MAX_ROWS} dòng", str(loi.exception))
+        self.assertIn(f"hàng {importer.MAX_ROWS + 2}", str(loi.exception))  # hàng 1 là tiêu đề
+        self.assertIn("chia thành nhiều file", str(loi.exception))
+
+    def test_dung_gioi_han_thi_nhan_du(self):
+        preview = importer.parse_workbook(workbook_bytes([valid_row()] * importer.MAX_ROWS))
+        self.assertEqual(preview.summary["total"], importer.MAX_ROWS)
+
+    def test_dong_trong_khong_tinh_vao_gioi_han(self):
+        preview = importer.parse_workbook(workbook_bytes([valid_row()] * importer.MAX_ROWS + [{}] * 20))
+        self.assertEqual(preview.summary["total"], importer.MAX_ROWS)
+
+
 class ImportEndpointTests(unittest.IsolatedAsyncioTestCase):
     """Chốt chặn ở tầng API, trước khi file kịp đi vào bộ đọc."""
 

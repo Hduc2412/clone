@@ -164,7 +164,7 @@ async def list_profile_documents(
     profile = await profiles.get_by_code(profile_code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ.")
-    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user, chi_doc=True):
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem hồ sơ này.")
 
     items = await store.list_for_profile(profile_code)
@@ -242,5 +242,5 @@ async def _ensure_can_read(document: dict[str, Any], current_user) -> None:
         return
 
     profile = await profiles.get_by_code(profile_code)
-    if profile is None or not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
+    if profile is None or not await quyen_ho_so.co_quyen_ho_so(profile, current_user, chi_doc=True):
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem tài liệu này.")

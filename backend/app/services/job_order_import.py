@@ -36,7 +36,9 @@ GUIDE_SHEET = "HuongDan"
 CATALOG_SHEET = "DanhMuc"
 SAMPLE_SHEET = "MauDuLieu"
 
-MAX_ROWS = 500
+# 500 → 2.000 dòng/lần (12/10, chủ đồ án chốt: giới hạn chính là dung lượng file 5 MB). Đo trên
+# máy chủ thử: 2.000 đơn ghi trong vài giây, máy chủ vẫn phục vụ người khác — xem biên bản §10.
+MAX_ROWS = 2000
 
 # Màu phân biệt hai nhóm cột, để nhân viên nhìn là biết ô nào quyết định loại
 # ứng viên và ô nào chỉ để hiển thị.
@@ -81,8 +83,53 @@ COLUMNS: tuple[Column, ...] = (
     Column("Mô tả công việc", "description", width=40),
     Column("Trạng thái", "status", hint="Nháp / Đang tuyển", width=14),
     Column("Công khai", "published", hint="Có / Không", width=12),
-    Column("Ghi chú nội bộ", "internal_note", hint="Không bao giờ hiển thị cho khách", width=28),
+    Column("Ghi chú nội bộ", "internal_note", hint="Chỉ Admin/Manager đọc; không hiển thị cho khách", width=28),
+    Column(
+        "Thông tin cho tư vấn viên", "consultant_note",
+        hint="Mọi nhân viên tư vấn đọc; không hiển thị cho khách", width=30,
+    ),
 )
+
+#: Cột không bắt buộc → chỗ của nó trong `RowResult.data`.
+#:
+#: **File không có cột thì không đụng tới giá trị đang lưu** (12/10, mở rộng từ hai cột
+#: ghi chú ngày 09/10). Không có chốt này, cập nhật đơn bằng một file bị xóa bớt cột sẽ
+#: ghi đè thành rỗng mọi cột vắng: lương, phụ cấp, mô tả, tuổi, bằng cấp — và đặt lại
+#: trạng thái về "Nháp", tắt công khai. Đo thử 12/10 trên DH-0001: một file chỉ có các
+#: cột bắt buộc xóa 13 trường. Cột có mặt mà ô trống thì vẫn xóa — đó là ý người sửa file.
+#:
+#: Đơn THÊM MỚI thì vẫn dùng giá trị mặc định cho cột vắng (đơn mới chưa có gì để giữ),
+#: trừ hai cột ghi chú: vắng thì không tạo khóa.
+DUONG_DAN_COT_TUY_CHON: dict[str, tuple[str, ...]] = {
+    "city": ("city",),
+    "education_required": ("requirements", "education_required"),
+    "experience_min": ("requirements", "experience_min"),
+    "age_min": ("requirements", "age_min"),
+    "age_max": ("requirements", "age_max"),
+    "gender_pref": ("requirements", "gender_pref"),
+    "salary_min": ("reference", "salary_min"),
+    "salary_max": ("reference", "salary_max"),
+    "allowances": ("reference", "allowances"),
+    "cost_total_vnd": ("reference", "cost_total_vnd"),
+    "interview_date": ("reference", "interview_date"),
+    "departure_expected": ("reference", "departure_expected"),
+    "highlights": ("reference", "highlights"),
+    "description": ("description",),
+    "status": ("status",),
+    "published": ("published",),
+    "internal_note": ("internal_note",),
+    "consultant_note": ("consultant_note",),
+}
+GIU_NEU_THIEU_COT = ("internal_note", "consultant_note")
+
+
+def _bo_duong_dan(data: dict[str, Any], duong: tuple[str, ...]) -> None:
+    cha = data
+    for khoa in duong[:-1]:
+        cha = cha.get(khoa)
+        if not isinstance(cha, dict):
+            return
+    cha.pop(duong[-1], None)
 
 _COLUMN_BY_LABEL = {normalize_key(column.label): column for column in COLUMNS}
 
@@ -353,6 +400,7 @@ def parse_row(raw: dict[str, Any], row_number: int) -> RowResult:
         },
         "description": _text(raw.get("description")),
         "internal_note": _text(raw.get("internal_note")),
+        "consultant_note": _text(raw.get("consultant_note")),
         "status": status,
         "published": bool(published),
     }
@@ -390,11 +438,28 @@ def parse_workbook(content: bytes) -> ImportPreview:
     if missing:
         return ImportPreview(rows=[], missing_columns=missing)
 
+    # Quá giới hạn thì từ chối cả file. Trước 12/10 dòng thứ 501 trở đi bị **bỏ im lặng**:
+    # bảng xem trước ghi "500 dòng", người nhập không biết phần còn lại chưa vào.
+    #
+    # Dừng đọc ngay khi gặp dòng dữ liệu thứ 501, không đọc tới cuối: file Excel hay mang
+    # định dạng trên hàng trăm nghìn dòng rỗng. Dòng rỗng thì vẫn đọc qua (không dừng
+    # theo "khoảng trống dài" — làm thế là lại bỏ im lặng dữ liệu nằm sau khoảng trống).
+    tat_ca: list[tuple[int, tuple]] = []
+    for offset, values in enumerate(rows, start=2):
+        if not any(_text(v) is not None for v in values):
+            continue
+        tat_ca.append((offset, values))
+        if len(tat_ca) > MAX_ROWS:
+            workbook.close()
+            raise ValueError(
+                f"File có hơn {MAX_ROWS} dòng dữ liệu (dòng thứ {MAX_ROWS + 1} nằm ở hàng {offset} "
+                f"của bảng tính), mỗi lần nhập tối đa {MAX_ROWS} dòng. Hãy chia thành nhiều file "
+                f"rồi nhập lần lượt."
+            )
+
     results: list[RowResult] = []
     seen_codes: dict[str, int] = {}
-    for offset, values in enumerate(rows, start=2):
-        if offset - 1 > MAX_ROWS:
-            break
+    for offset, values in tat_ca:
         raw = {
             key: (values[position] if position < len(values) else None)
             for key, position in index_by_key.items()
@@ -402,6 +467,11 @@ def parse_workbook(content: bytes) -> ImportPreview:
         if all(_text(value) is None for value in raw.values()):
             continue
         result = parse_row(raw, row_number=offset)
+        for key, duong in DUONG_DAN_COT_TUY_CHON.items():
+            if key in index_by_key:
+                continue
+            if result.action == "update" or key in GIU_NEU_THIEU_COT:
+                _bo_duong_dan(result.data, duong)
         if result.code:
             previous = seen_codes.get(result.code)
             if previous is not None:

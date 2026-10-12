@@ -223,6 +223,20 @@ async def _apply(
     # Chỉ bước xác nhận mới được nâng nguồn của một ô khi giá trị không đổi. Ở
     # các luồng khác — nhất là nhân viên sửa hồ sơ — gửi lại đúng giá trị cũ phải
     # giữ nguyên ô, để không xóa mất dấu "ứng viên xác nhận" và đoạn trích từ CV.
+    # Ô nhân viên đã ghi mà người gửi muốn đổi: không ghi đè, nhưng cũng không lờ
+    # đi — thành đề xuất chờ nhân viên (xem `store.o_bi_giu`). Tính TRƯỚC khi gộp.
+    bi_giu = (
+        store.o_bi_giu(profile.get("fields"), fields, source=source)
+        + store.o_bi_giu(profile.get("preferences"), preferences, source=source)
+        if not confirm
+        else []
+    )
+    khach_sua = (
+        store.o_khach_sua(profile.get("fields"), fields, source=source)
+        + store.o_khach_sua(profile.get("preferences"), preferences, source=source)
+        if not confirm
+        else []
+    )
     merged_fields, changed_fields = store.merge_section(
         profile.get("fields"), fields, source=source, allowed=store.FIELD_KEYS,
         promote_on_equal=confirm,
@@ -236,7 +250,16 @@ async def _apply(
     # Gửi lên đúng những giá trị đang có thì không tạo phiên bản mới. Một bản ghi
     # lịch sử không có gì thay đổi chỉ làm loãng phần lịch sử thật.
     if not changed and not confirm:
-        return profile, []
+        if bi_giu:
+            await store.ghi_de_xuat(profile["session_id"], bi_giu, source=source, by=changed_by)
+        return {**profile, "de_xuat_cho_nhan_vien": bi_giu}, []
+
+    # Nhân viên sửa: giữ lịch sử nhãn xác minh của ô bị đổi, đóng đề xuất của ô ấy.
+    tu_van = (
+        store.ghi_nhan_nhan_vien_sua(profile, merged_fields, changed, by=changed_by)
+        if source == "staff"
+        else None
+    )
 
     version = expected_version if expected_version is not None else profile.get("version", 1)
     updated = await store.apply_changes(
@@ -249,13 +272,18 @@ async def _apply(
         ),
         status=store.STATUS_CONFIRMED if confirm else None,
         confirmed_at=utc_now() if confirm else None,
+        consultation=tu_van,
     )
     if updated is None:
         raise HTTPException(
             status_code=409,
             detail="Hồ sơ vừa được cập nhật ở nơi khác. Vui lòng tải lại trang.",
         )
-    return updated, changed
+    if bi_giu:
+        await store.ghi_de_xuat(profile["session_id"], bi_giu, source=source, by=changed_by)
+    if khach_sua:
+        await store.ghi_thong_bao_khach_sua(profile["session_id"], khach_sua, by=changed_by)
+    return {**updated, "de_xuat_cho_nhan_vien": bi_giu}, changed
 
 
 # --- Endpoint công khai ---
@@ -428,7 +456,7 @@ async def profile_detail(code: str, current_user=Depends(get_current_user)):
     profile = await store.get_by_code(code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
-    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user, chi_doc=True):
         raise HTTPException(status_code=403, detail="Bạn không được xem hồ sơ này.")
     return _decorate(profile)
 
@@ -486,3 +514,135 @@ async def assign_profile(
         details={"assigned_to": assignee},
     )
     return _decorate(profile)
+
+
+# --- Tiến độ học và đề xuất chờ nhân viên (08/10) ---
+
+
+class HocTapBody(BaseModel):
+    """Nhân viên ghi tiến độ học. Khách không có đường nào ghi vào đây."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    trang_thai: Literal["dang_hoc", "tam_dung", "da_hoan_thanh"]
+    muc_tieu: str = Field(max_length=20)
+    khoa_code: str | None = Field(default=None, max_length=20)
+    # Chỉ khi hoàn thành: trình độ đạt được theo kết quả của chính trung tâm.
+    ket_qua: str | None = Field(default=None, max_length=20)
+    expected_version: int | None = Field(default=None, ge=1)
+
+
+@router.post("/{code}/hoc-tap")
+async def ghi_tien_do_hoc(
+    code: str,
+    payload: HocTapBody,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+):
+    """Ghi việc học của ứng viên tại trung tâm.
+
+    - `dang_hoc` / `tam_dung`: chỉ ghi tiến độ. Trình độ đang học tới **không** thành
+      trình độ đã có — bộ đối chiếu vẫn đọc `japanese_level` như cũ.
+    - `da_hoan_thanh` kèm `ket_qua`: ghi "Hoàn thành chương trình N4 tại trung tâm —
+      chưa xác minh chứng chỉ". **Không** đổi `japanese_level` mà bộ đối chiếu đọc, và
+      không tự coi tương đương yêu cầu chứng chỉ của đơn (quyết định 08/10). Trình độ
+      dùng để đối chiếu chỉ đổi qua kết quả sơ tuyển có căn cứ.
+    """
+    from app.db import courses
+
+    profile = await store.get_by_code(code)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
+        raise HTTPException(status_code=403, detail="Bạn không được sửa hồ sơ này.")
+    muc_tieu = catalog.normalize_japanese_level(payload.muc_tieu)
+    if muc_tieu is None:
+        raise HTTPException(status_code=422, detail=f"Trình độ mục tiêu không hợp lệ: {payload.muc_tieu!r}.")
+    if payload.khoa_code and await courses.get_course(payload.khoa_code) is None:
+        raise HTTPException(status_code=422, detail=f"Không có khóa {payload.khoa_code} trong danh mục.")
+    ket_qua = None
+    if payload.ket_qua is not None:
+        if payload.trang_thai != store.HOC_HOAN_THANH:
+            raise HTTPException(status_code=422, detail="Chỉ ghi kết quả khi đã hoàn thành khóa.")
+        ket_qua = catalog.normalize_japanese_level(payload.ket_qua)
+        if ket_qua is None:
+            raise HTTPException(status_code=422, detail=f"Kết quả không hợp lệ: {payload.ket_qua!r}.")
+
+    # Hoàn thành chương trình KHÔNG đổi `japanese_level` (08/10, bản 2): đó là kết quả
+    # học tại trung tâm, chưa phải chứng chỉ, và không tự coi tương đương yêu cầu
+    # chứng chỉ của đơn. Muốn bộ đối chiếu dùng trình độ mới thì ghi kết quả sơ tuyển
+    # kèm căn cứ (`/applications/{mã}/so-tuyen`).
+    fields = profile.get("fields") or {}
+    tu_van = None
+    hoc_tap = {
+        "trang_thai": payload.trang_thai,
+        "muc_tieu": muc_tieu,
+        "khoa_code": payload.khoa_code,
+        "ket_qua": ket_qua,
+        "cap_nhat_boi": current_user["email"],
+        "cap_nhat_luc": utc_now(),
+    }
+    updated = await store.apply_changes(
+        profile["session_id"],
+        expected_version=payload.expected_version or profile.get("version", 1),
+        fields=fields,
+        preferences=profile.get("preferences") or {},
+        history=store.history_entry(profile, current_user["email"], f"tiến độ học: {payload.trang_thai}"),
+        consultation=tu_van,
+        extra={"hoc_tap": hoc_tap},
+    )
+    if updated is None:
+        raise HTTPException(status_code=409, detail="Hồ sơ vừa được cập nhật ở nơi khác. Tải lại rồi ghi lại.")
+    await audit_action(
+        http_request, "candidate_profile.hoc_tap", actor=current_user,
+        target_type="candidate_profile", target_id=code,
+        details={"trang_thai": payload.trang_thai, "muc_tieu": muc_tieu, "ket_qua": ket_qua},
+    )
+    return _decorate(updated)
+
+
+class DongDeXuatBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    field: str = Field(min_length=2, max_length=40)
+    ly_do: str = Field(min_length=3, max_length=300)
+
+
+@router.post("/{code}/de-xuat/giu-nguyen")
+async def giu_nguyen_gia_tri(
+    code: str,
+    payload: DongDeXuatBody,
+    http_request: Request,
+    current_user=Depends(get_current_user),
+):
+    """Nhân viên xem đề xuất của khách và quyết GIỮ giá trị đã ghi.
+
+    Muốn đổi theo khách thì sửa ô ấy bằng biểu mẫu nhân viên — đường đó tự đóng đề
+    xuất (`store.ghi_nhan_nhan_vien_sua`). Đường này chỉ đóng, không đổi giá trị nào,
+    nên không tăng phiên bản và không làm mất hiệu lực kết quả đối chiếu.
+    """
+    profile = await store.get_by_code(code)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
+        raise HTTPException(status_code=403, detail="Bạn không được sửa hồ sơ này.")
+    xung = list(((profile.get("consultation") or {}).get("conflicts")) or [])
+    dong = 0
+    for i, c in enumerate(xung):
+        if (
+            c.get("kind") == store.LOAI_DE_XUAT_NHAN_VIEN
+            and c.get("trang_thai") == store.DE_XUAT_CHO
+            and c.get("field") == payload.field
+        ):
+            xung[i] = {**c, "trang_thai": store.DE_XUAT_DA_XU_LY, "ket_qua": "giu_nguyen",
+                       "ly_do": payload.ly_do.strip(), "xu_ly_boi": current_user["email"],
+                       "xu_ly_luc": utc_now()}
+            dong += 1
+    if not dong:
+        raise HTTPException(status_code=404, detail="Không có đề xuất đang chờ cho mục này.")
+    await store.ghi_xung_dot(profile["session_id"], xung)
+    await audit_action(
+        http_request, "candidate_profile.de_xuat_giu_nguyen", actor=current_user,
+        target_type="candidate_profile", target_id=code, details={"field": payload.field},
+    )
+    return _decorate(await store.get_by_code(code))

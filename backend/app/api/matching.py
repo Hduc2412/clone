@@ -55,10 +55,7 @@ async def matches_for_session(
     if profile is None:
         raise HTTPException(status_code=404, detail="Chưa có hồ sơ cho phiên này.")
     if profile.get("status") != profile_store.STATUS_CONFIRMED:
-        raise HTTPException(
-            status_code=409,
-            detail="Hồ sơ chưa được xác nhận. Vui lòng xem lại và xác nhận trước khi đối chiếu.",
-        )
+        raise HTTPException(status_code=409, detail=profile_store.loi_chua_xac_nhan())
 
     log, from_cache = await matching_service.run_matching(
         profile, trigger="public", force=refresh
@@ -74,10 +71,19 @@ async def match_detail(
     profile = await profile_store.get_by_session(session_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Chưa có hồ sơ cho phiên này.")
+    # Hai lỗi kiểm sống 08/10: đường này trả kết quả cho hồ sơ CHƯA xác nhận
+    # (XN-2), và trả kết quả của phiên bản hồ sơ CŨ sau khi khách sửa (XN-3) —
+    # nhật ký "mới nhất" không có nghĩa là nhật ký của hồ sơ hiện tại.
+    if profile.get("status") != profile_store.STATUS_CONFIRMED:
+        raise HTTPException(status_code=409, detail=profile_store.loi_chua_xac_nhan())
 
     log = await log_store.latest_for_profile(profile["code"])
     if log is None:
         raise HTTPException(status_code=404, detail="Chưa có kết quả đối chiếu.")
+    if log.get("profile_version") != profile.get("version", 1):
+        # Đối chiếu lại đúng phiên bản hiện tại. `run_matching` dùng lại nhật ký
+        # nếu đã có cho phiên bản này, nên gọi nhiều lần không ghi thêm nhật ký.
+        log, _ = await matching_service.run_matching(profile, trigger="public")
 
     item = next((row for row in log.get("items", []) if row.get("code") == code), None)
     if item is None:
@@ -153,7 +159,7 @@ async def latest_for_profile(profile_code: str, current_user=Depends(get_current
     profile = await profile_store.get_by_code(profile_code)
     if profile is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ ứng viên.")
-    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user):
+    if not await quyen_ho_so.co_quyen_ho_so(profile, current_user, chi_doc=True):
         raise HTTPException(status_code=403, detail="Bạn không được xem hồ sơ này.")
 
     log = await log_store.latest_for_profile(profile_code)

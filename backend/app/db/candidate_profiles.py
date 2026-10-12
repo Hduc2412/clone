@@ -72,6 +72,20 @@ DEFAULT_CONFIDENCE: dict[str, float] = {
 STATUS_EXTRACTED = "extracted"
 STATUS_CONFIRMED = "confirmed"
 
+#: Mã lỗi ổn định khi một đường tư vấn phía khách gặp hồ sơ chưa xác nhận. Giao diện
+#: dựa vào mã này (không dựa vào câu chữ) để đưa khách về bước kiểm tra và xác nhận.
+MA_CHUA_XAC_NHAN = "ho_so_chua_xac_nhan"
+
+
+def loi_chua_xac_nhan() -> dict[str, Any]:
+    return {
+        "code": MA_CHUA_XAC_NHAN,
+        "message": (
+            "Hồ sơ chưa được bạn xác nhận. Bạn kiểm tra và xác nhận hồ sơ trước, "
+            "rồi bảng đối chiếu mới hiện."
+        ),
+    }
+
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[COLLECTION].create_index("code", unique=True)
@@ -112,6 +126,102 @@ CHUNG_CU_BAN_GOC = "ban_goc"                  # ứng viên cầm bằng gốc
 CHUNG_CU_TRA_CUU = "tra_cuu_truc_tuyen"       # tra kết quả trên trang chính thức
 CHUNG_CU_KHONG_CO = "khong_xuat_trinh"        # không xuất trình được gì
 CAC_CHUNG_CU = (CHUNG_CU_BAN_GOC, CHUNG_CU_TRA_CUU, CHUNG_CU_KHONG_CO)
+
+
+
+# --- Bốn trạng thái tiếng Nhật mà khách và trợ lý phải nói khác nhau (08/10) ---
+#
+# "N4" một mình không đủ: "đang học N4", "tự khai N4", "đã đạt N4" và "có chứng chỉ
+# N4" là bốn mức tin khác nhau, và chỉ ba mức sau là trình độ ĐÃ CÓ. Bộ đối chiếu
+# vẫn đọc đúng `japanese_level` như cũ — trạng thái này chỉ nói căn cứ của nó.
+#
+# - `tu_khai`: khách khai, CV ghi, hoặc nhân viên ghi mà khách không xuất trình gì.
+# - Hoàn thành chương trình tại trung tâm: nằm trong `hoc_tap`, nhãn "Hoàn thành
+#   chương trình N4 tại trung tâm — chưa xác minh chứng chỉ". KHÔNG đổi `japanese_level`
+#   và không tự coi tương đương yêu cầu chứng chỉ của đơn (quyết định 08/10).
+# - `co_chung_chi`: nhân viên đã đối chứng bằng gốc hoặc tra cứu chính thức.
+# - `dang_hoc` không phải một mức của `japanese_level`: nó nằm trong `hoc_tap`, và
+#   trình độ đang học tới **không** được tính là đã có.
+
+TT_TU_KHAI = "tu_khai"
+#: Bản ghi cũ mang mức `center`. Từ 08/10 (bản 2) không còn đường nào ghi mức này: hoàn
+#: thành chương trình tại trung tâm KHÔNG đổi trình độ bộ đối chiếu đọc — xem `hoc_tap`.
+TT_HOAN_THANH_TRUNG_TAM = "hoan_thanh_chuong_trinh"
+TT_CO_CHUNG_CHI = "co_chung_chi"
+
+
+def da_xac_minh_co_can_cu(o: dict[str, Any] | None) -> bool:
+    """Ô có căn cứ đối chứng: nhân viên đã xem bản gốc hoặc tra cứu trên trang chính thức.
+
+    Đây là điều kiện DUY NHẤT để khóa một ô trước lời khách tự khai (08/10, bản 2).
+    "Nhân viên nhập" không có nghĩa là "đã kiểm chứng": nhân viên ghi lại điều khách nói
+    qua điện thoại cũng mang nguồn `staff`, và khóa nó là giữ lời khai cũ trước lời khai mới
+    của chính người ấy.
+    """
+    o = o or {}
+    return o.get("verification") == XAC_THUC_DOI_CHUNG and o.get("evidence_type") in (
+        CHUNG_CU_BAN_GOC, CHUNG_CU_TRA_CUU
+    )
+TT_DANG_HOC = "dang_hoc"
+
+HOC_DANG_HOC = "dang_hoc"
+HOC_TAM_DUNG = "tam_dung"
+HOC_HOAN_THANH = "da_hoan_thanh"
+CAC_TRANG_THAI_HOC = (HOC_DANG_HOC, HOC_TAM_DUNG, HOC_HOAN_THANH)
+NHAN_TRANG_THAI_HOC = {
+    HOC_DANG_HOC: "đang học",
+    HOC_TAM_DUNG: "tạm dừng học",
+    HOC_HOAN_THANH: "đã hoàn thành khóa",
+}
+
+
+def trang_thai_tieng_nhat(profile: dict[str, Any] | None) -> dict[str, Any]:
+    """Trình độ đang có, căn cứ của nó, và việc học đang diễn ra — tách rõ từng phần."""
+    from app.matching import catalog
+
+    o = ((profile or {}).get("fields") or {}).get("japanese_level") or {}
+    muc = o.get("value")
+    nhan_muc = catalog.JAPANESE_LEVEL_LABELS.get(str(muc), str(muc)) if muc else None
+    if not muc:
+        ma, nhan = None, None
+    elif o.get("verification") == XAC_THUC_DOI_CHUNG and o.get("evidence_type") in (
+        CHUNG_CU_BAN_GOC, CHUNG_CU_TRA_CUU
+    ):
+        ma = TT_CO_CHUNG_CHI
+        cach = "bản gốc" if o.get("evidence_type") == CHUNG_CU_BAN_GOC else "tra cứu chính thức"
+        nhan = f"{nhan_muc} — có chứng chỉ, nhân viên đã đối chứng ({cach})"
+    elif o.get("verification") == XAC_THUC_TRUNG_TAM:
+        ma = TT_HOAN_THANH_TRUNG_TAM
+        nhan = f"Hoàn thành chương trình {nhan_muc} tại trung tâm — chưa xác minh chứng chỉ"
+    else:
+        ma, nhan = TT_TU_KHAI, f"{nhan_muc} — tự khai, chưa được đối chứng"
+    hoc = (profile or {}).get("hoc_tap") or {}
+    dang_hoc = None
+    if hoc.get("trang_thai") in (HOC_DANG_HOC, HOC_TAM_DUNG):
+        dich = hoc.get("muc_tieu")
+        dang_hoc = {
+            "trang_thai": hoc["trang_thai"],
+            "nhan": (
+                f"{NHAN_TRANG_THAI_HOC[hoc['trang_thai']]} hướng tới "
+                f"{catalog.JAPANESE_LEVEL_LABELS.get(str(dich), str(dich))}"
+                + (f" (khóa {hoc['khoa_code']})" if hoc.get("khoa_code") else "")
+                + " — chưa phải trình độ đã có"
+            ),
+            "muc_tieu": dich,
+            "khoa_code": hoc.get("khoa_code"),
+            "cap_nhat_luc": hoc.get("cap_nhat_luc"),
+        }
+    # Hoàn thành chương trình tại trung tâm: thông tin học tập, KHÔNG phải trình độ đã
+    # xác minh và không tự coi tương đương yêu cầu chứng chỉ của đơn (08/10, bản 2).
+    chuong_trinh = None
+    if hoc.get("trang_thai") == HOC_HOAN_THANH and hoc.get("ket_qua"):
+        kq = catalog.JAPANESE_LEVEL_LABELS.get(str(hoc["ket_qua"]), str(hoc["ket_qua"]))
+        chuong_trinh = {
+            "muc": hoc["ket_qua"],
+            "khoa_code": hoc.get("khoa_code"),
+            "nhan": f"Hoàn thành chương trình {kq} tại trung tâm — chưa xác minh chứng chỉ",
+        }
+    return {"muc": muc, "ma": ma, "nhan": nhan, "dang_hoc": dang_hoc, "chuong_trinh": chuong_trinh}
 
 
 def muc_xac_thuc(chung_cu: str) -> str:
@@ -191,7 +301,17 @@ def merge_section(
             current_priority = SOURCE_PRIORITY.get(current.get("source", ""), 0)
             # Nguồn yếu hơn không được ghi đè nguồn mạnh hơn. Cùng nguồn thì giá
             # trị mới thắng, vì đó là người dùng tự sửa lại chính mình.
-            if incoming_priority < current_priority:
+            #
+            # Ngoại lệ (08/10, bản 2): KHÁCH sửa một ô nhân viên nhập mà KHÔNG có căn
+            # cứ đối chứng — đó là lời khai được nhân viên chép lại, không phải điều đã
+            # kiểm. Khách sửa lời khai của chính mình thì lời mới thắng; nhân viên nhận
+            # một dòng thông báo (`o_khach_sua`). CV và hội thoại vẫn không đè được.
+            khach_sua_loi_khai = (
+                source == "user_confirmed"
+                and current.get("source") == "staff"
+                and not da_xac_minh_co_can_cu(current)
+            )
+            if incoming_priority < current_priority and not khach_sua_loi_khai:
                 continue
             if current.get("value") == value:
                 # Cùng nguồn và cùng giá trị: không có gì để làm. Nguồn mạnh hơn
@@ -205,6 +325,178 @@ def merge_section(
         changed.append(key)
 
     return merged, changed
+
+
+# --- Giá trị nhân viên đã ghi: không bị ghi đè, cũng không bị lờ đi (08/10) ---
+#
+# `merge_section` vốn bỏ qua giá trị của nguồn yếu hơn — đúng về quyền ghi, nhưng
+# **im lặng**: khách sửa trình độ từ N4 (nhân viên đã đối chứng bằng gốc) thành N5,
+# màn hình báo lưu xong, giá trị vẫn N4, và không ai biết khách vừa nói một điều
+# khác. Kiểm sống XM-1. Nay giá trị ấy thành một **đề xuất chờ nhân viên**, nằm
+# trong `consultation.conflicts` — chỗ trợ lý vẫn ghi mâu thuẫn nghe được trong hội
+# thoại — chứ không tạo cấu trúc thứ hai cho cùng một việc.
+
+LOAI_DE_XUAT_NHAN_VIEN = "khac_gia_tri_nhan_vien"
+DE_XUAT_CHO = "cho_nhan_vien"
+DE_XUAT_DA_XU_LY = "da_xu_ly"
+TRAN_DE_XUAT = 20
+TRAN_LICH_SU_XAC_MINH = 20
+
+
+def o_bi_giu(
+    existing: dict[str, Any] | None,
+    incoming: dict[str, Any],
+    *,
+    source: str,
+) -> list[dict[str, Any]]:
+    """Những ô ĐÃ XÁC MINH CÓ CĂN CỨ mà người gửi (nguồn yếu hơn) muốn đổi giá trị.
+
+    Thuần, không ghi gì. Ô nhân viên nhập mà không có căn cứ thì không bị khóa — khách
+    tự sửa được (`merge_section`), nhân viên nhận một dòng thông báo (`o_khach_sua`).
+    """
+    muc_gui = SOURCE_PRIORITY.get(source, 0)
+    ra: list[dict[str, Any]] = []
+    for key, value in incoming.items():
+        if value is None or value == "":
+            continue
+        o = (existing or {}).get(key) or {}
+        if not da_xac_minh_co_can_cu(o) or muc_gui >= SOURCE_PRIORITY["staff"]:
+            continue
+        if o.get("value") == value:
+            continue
+        ra.append({
+            "field": key,
+            "gia_tri_nhan_vien": o.get("value"),
+            "gia_tri_de_xuat": value,
+            "verification": o.get("verification"),
+        })
+    return ra
+
+
+LOAI_KHACH_SUA_O_NHAN_VIEN = "khach_sua_o_nhan_vien_nhap"
+DA_AP_DUNG = "da_ap_dung"
+
+
+def o_khach_sua(existing: dict[str, Any] | None, incoming: dict[str, Any], *, source: str) -> list[dict[str, Any]]:
+    """Ô nhân viên nhập (không có căn cứ) mà khách vừa sửa sang giá trị khác. Thuần."""
+    if source != "user_confirmed":
+        return []
+    ra = []
+    for key, value in incoming.items():
+        o = (existing or {}).get(key) or {}
+        if value in (None, "") or o.get("source") != "staff" or da_xac_minh_co_can_cu(o):
+            continue
+        if o.get("value") != value:
+            ra.append({"field": key, "gia_tri_nhan_vien": o.get("value"), "gia_tri_de_xuat": value})
+    return ra
+
+
+async def ghi_thong_bao_khach_sua(session_id: str, da_sua: list[dict[str, Any]], *, by: str) -> None:
+    """Báo nhân viên: khách đã sửa ô nhân viên nhập. Đã áp dụng — không chờ ai duyệt."""
+    if not da_sua:
+        return
+    moi = [
+        {"field": d["field"], "previous": d["gia_tri_nhan_vien"], "suggested": d["gia_tri_de_xuat"],
+         "source": "user_confirmed", "kind": LOAI_KHACH_SUA_O_NHAN_VIEN, "trang_thai": DA_AP_DUNG,
+         "recorded_at": now(), "by": by}
+        for d in da_sua
+    ]
+    await get_db()[COLLECTION].update_one(
+        {"session_id": session_id},
+        {"$push": {"consultation.conflicts": {"$each": moi, "$slice": -TRAN_DE_XUAT}}},
+    )
+
+
+async def ghi_de_xuat(
+    session_id: str, bi_giu: list[dict[str, Any]], *, source: str, by: str
+) -> None:
+    """Lưu đề xuất chờ nhân viên. **Không** tăng phiên bản hồ sơ.
+
+    Đề xuất không đổi gì bộ đối chiếu đọc, nên không có lý do làm mất hiệu lực kết
+    quả đối chiếu. Gửi lại đúng đề xuất đang chờ thì không thêm dòng thứ hai.
+    """
+    if not bi_giu:
+        return
+    hien = await get_by_session(session_id)
+    cho = {
+        (c.get("field"), c.get("suggested"))
+        for c in ((hien or {}).get("consultation") or {}).get("conflicts") or []
+        if c.get("kind") == LOAI_DE_XUAT_NHAN_VIEN and c.get("trang_thai") == DE_XUAT_CHO
+    }
+    moi = [
+        {
+            "field": b["field"],
+            "previous": b["gia_tri_nhan_vien"],
+            "suggested": b["gia_tri_de_xuat"],
+            "source": source,
+            "kind": LOAI_DE_XUAT_NHAN_VIEN,
+            "trang_thai": DE_XUAT_CHO,
+            "recorded_at": now(),
+            "by": by,
+        }
+        for b in bi_giu
+        if (b["field"], b["gia_tri_de_xuat"]) not in cho
+    ]
+    if not moi:
+        return
+    await get_db()[COLLECTION].update_one(
+        {"session_id": session_id},
+        {"$push": {"consultation.conflicts": {"$each": moi, "$slice": -TRAN_DE_XUAT}}},
+    )
+
+
+def de_xuat_dang_cho(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        c for c in ((profile.get("consultation") or {}).get("conflicts") or [])
+        if c.get("kind") == LOAI_DE_XUAT_NHAN_VIEN and c.get("trang_thai") == DE_XUAT_CHO
+    ]
+
+
+def ghi_nhan_nhan_vien_sua(
+    profile: dict[str, Any],
+    merged_fields: dict[str, Any],
+    changed: list[str],
+    *,
+    by: str,
+) -> dict[str, Any]:
+    """Phần `consultation` mới sau khi nhân viên sửa các ô `changed`. Thuần.
+
+    Hai việc, cùng lúc với lần ghi hồ sơ:
+
+    1. Ô đang mang nhãn xác minh mà nhân viên đổi giá trị: nhãn **không đi theo** giá
+       trị mới (`merge_section` dựng ô mới), nhưng nhãn cũ — ai xác minh, lúc nào,
+       bằng gì — được chép vào `lich_su_xac_minh` chứ không mất theo năm bản lịch sử.
+    2. Đề xuất đang chờ của chính ô ấy: nhân viên vừa quyết giá trị, nên đề xuất
+       chuyển sang đã xử lý.
+    """
+    tu_van = dict(profile.get("consultation") or {})
+    lich_su = list(tu_van.get("lich_su_xac_minh") or [])
+    for key in changed:
+        cu = ((profile.get("fields") or {}).get(key)) or {}
+        if cu.get("verification") and (merged_fields.get(key) or {}).get("value") != cu.get("value"):
+            lich_su.append({
+                "field": key,
+                "value": cu.get("value"),
+                "verification": cu.get("verification"),
+                "evidence_type": cu.get("evidence_type"),
+                "verified_by": cu.get("verified_by"),
+                "verified_at": cu.get("verified_at"),
+                "thay_boi": by,
+                "thay_luc": now(),
+                "gia_tri_moi": (merged_fields.get(key) or {}).get("value"),
+            })
+    tu_van["lich_su_xac_minh"] = lich_su[-TRAN_LICH_SU_XAC_MINH:]
+    xung = []
+    for c in tu_van.get("conflicts") or []:
+        if (
+            c.get("kind") == LOAI_DE_XUAT_NHAN_VIEN
+            and c.get("trang_thai") == DE_XUAT_CHO
+            and c.get("field") in changed
+        ):
+            c = {**c, "trang_thai": DE_XUAT_DA_XU_LY, "xu_ly_boi": by, "xu_ly_luc": now()}
+        xung.append(c)
+    tu_van["conflicts"] = xung
+    return tu_van
 
 
 def missing_required(profile: dict[str, Any]) -> list[str]:
@@ -244,6 +536,7 @@ def decorate(profile: dict[str, Any]) -> dict[str, Any]:
             preferences, "desired_region_group", catalog.REGION_LABELS
         ),
     }
+    profile["trang_thai_tieng_nhat"] = trang_thai_tieng_nhat(profile)
     profile["missing_required"] = missing_required(profile)
     profile["consultation_profile"] = consultation_view(profile)
     return profile
@@ -262,7 +555,24 @@ def consultation_view(profile: dict[str, Any]) -> dict[str, Any]:
 def public_view(profile: dict[str, Any]) -> dict[str, Any]:
     """Bản dành cho ứng viên. Ẩn lịch sử và thông tin phân công nội bộ."""
     hidden = {"history", "assigned_to", "lead_code", "phone_normalized", "_id"}
-    return {key: value for key, value in profile.items() if key not in hidden}
+    ra = {key: value for key, value in profile.items() if key not in hidden}
+    # Nhãn xác minh thì khách được biết; ai xác minh (email nhân viên) thì không.
+    ra["fields"] = {
+        key: {k: v for k, v in (cell or {}).items() if k != "verified_by"}
+        for key, cell in (profile.get("fields") or {}).items()
+    }
+    # Lịch sử nhãn xác minh, người xử lý và lý do đóng đề xuất là sổ nội bộ.
+    tu_van = dict(profile.get("consultation") or {})
+    tu_van.pop("lich_su_xac_minh", None)
+    tu_van["conflicts"] = [
+        {k: v for k, v in c.items() if k not in ("by", "xu_ly_boi", "ly_do")}
+        for c in tu_van.get("conflicts") or []
+    ]
+    if profile.get("consultation") is not None:
+        ra["consultation"] = tu_van
+    if profile.get("hoc_tap"):
+        ra["hoc_tap"] = {k: v for k, v in profile["hoc_tap"].items() if k != "cap_nhat_boi"}
+    return ra
 
 
 def history_entry(profile: dict[str, Any], changed_by: str, note: str) -> dict[str, Any]:
@@ -383,6 +693,7 @@ async def apply_changes(
     status: str | None = None,
     confirmed_at: Any = None,
     consultation: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Ghi bản mới kèm khóa theo số phiên bản.
 
@@ -423,6 +734,9 @@ async def apply_changes(
             changes["confirmed_at"] = None
     if consultation is not None:
         changes["consultation"] = consultation
+    # Trường cấp hồ sơ khác (`hoc_tap`) — đi cùng khóa phiên bản như mọi lần ghi.
+    for key, value in (extra or {}).items():
+        changes[key] = value
     if confirmed_at is not None:
         changes["confirmed_at"] = confirmed_at
 
@@ -509,3 +823,10 @@ async def attach_lead(code: str, lead_code: str, phone_normalized: str) -> None:
 
 async def count_profiles(query: dict[str, Any] | None = None) -> int:
     return await get_db()[COLLECTION].count_documents(query or {})
+
+
+async def ghi_xung_dot(session_id: str, conflicts: list[dict[str, Any]]) -> None:
+    """Ghi lại danh sách đề xuất/mâu thuẫn. Không tăng phiên bản — xem `ghi_de_xuat`."""
+    await get_db()[COLLECTION].update_one(
+        {"session_id": session_id}, {"$set": {"consultation.conflicts": conflicts[-TRAN_DE_XUAT:]}}
+    )

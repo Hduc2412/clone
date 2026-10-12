@@ -952,8 +952,14 @@ async def get_management_overview() -> dict[str, Any]:
     }
 
 
-async def list_conversations(limit: int = 100) -> list[dict[str, Any]]:
-    pipeline = [
+async def list_conversations(
+    limit: int = 100, session_ids: set[str] | None = None
+) -> list[dict[str, Any]]:
+    """`session_ids` khác `None` thì chỉ lấy đúng những phiên ấy — xem `quyen_hoi_thoai`."""
+    pipeline: list[dict[str, Any]] = []
+    if session_ids is not None:
+        pipeline.append({"$match": {"session_id": {"$in": sorted(session_ids)}}})
+    pipeline += [
         {"$sort": {"last_active": -1}},
         {"$limit": limit},
         {
@@ -1118,6 +1124,19 @@ async def list_unassigned_registrations(
         .limit(limit)
     )
     return await cursor.to_list(length=limit)
+
+
+async def count_unassigned_registrations() -> int:
+    """Tổng số hồ sơ đang chờ trong hàng đợi — cùng điều kiện với `list_unassigned_registrations`.
+
+    Hàng đợi cắt theo `limit`, nên chỉ đếm phần tử trả về là không biết có bị cắt
+    không. Đo ngày 06/10: 72 hồ sơ chờ, màn hình hiện 50, không có dấu hiệu nào cho
+    thấy còn 22 người nữa — và vì xếp người chờ lâu nhất lên đầu, 22 người bị giấu
+    chính là những người vừa đăng ký.
+    """
+    return await get_db().recruitment_applications.count_documents(
+        {"source": "self_registration", "assigned_to": None, "is_active": True}
+    )
 
 
 async def list_assigned_registrations(limit: int = 100) -> list[dict[str, Any]]:

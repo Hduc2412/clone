@@ -324,7 +324,12 @@ async def read_notification(
     if notification is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông báo.")
 
-    if notification.get("reference_type") == REFERENCE_APPLICATION:
+    if notification.get("reference_type") == "job_order":
+        # Thông báo về đơn tuyển dụng (hết hạn, đủ chỉ tiêu, trả chỉ tiêu) là việc của
+        # người quản lý đơn — consultant không thấy, cũng không tắt được.
+        if current_user.get("role") not in ("admin", "manager"):
+            raise HTTPException(status_code=403, detail="Chỉ Admin/Manager xử lý thông báo về đơn.")
+    elif notification.get("reference_type") == REFERENCE_APPLICATION:
         application = await get_recruitment_application(reference_code)
         if application is None:
             raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ đăng ký.")

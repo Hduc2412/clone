@@ -122,7 +122,8 @@ class PublicMatchTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(HTTPException) as caught:
                 await matches_for_session(SESSION, http_request(), limit=5, refresh=False)
         self.assertEqual(caught.exception.status_code, 409)
-        self.assertIn("chưa được xác nhận", caught.exception.detail)
+        # Mã ổn định để giao diện đưa khách về bước xác nhận (08/10).
+        self.assertEqual(caught.exception.detail["code"], profile_store.MA_CHUA_XAC_NHAN)
 
     async def test_a_confirmed_profile_gets_only_the_orders_it_qualifies_for(self):
         with patch.object(
@@ -194,7 +195,8 @@ class RecommendationLogApiTests(unittest.IsolatedAsyncioTestCase):
         # ấy không cần nói ra; nay quyền còn đi theo đơn đang phụ trách
         # (`services/quyen_ho_so`), nên phải nói rõ — và để ca không chạm
         # database thật. Ca cho quyền đi theo đơn nằm ở `test_quyen_ho_so.py`.
-        for ten in ("ma_ho_so_qua_don", "ma_ho_so_truc_tiep"):
+        # 08/10: thêm điều 3 — không giữ yêu cầu hỗ trợ nào có đồng ý bàn giao.
+        for ten in ("ma_ho_so_qua_don", "ma_ho_so_truc_tiep", "phien_qua_ho_tro"):
             vá = patch(f"app.services.quyen_ho_so.{ten}", AsyncMock(return_value=set()))
             vá.start()
             self.addCleanup(vá.stop)

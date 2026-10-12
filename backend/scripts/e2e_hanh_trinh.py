@@ -179,6 +179,62 @@ async def _xoa_nhan_vien(emails: list[str]) -> int:
         await close_db()
 
 
+async def _tra_ve_hang_doi(emails: list[str], so: dict) -> tuple[int, int]:
+    """Trả hồ sơ và yêu cầu **của lượt này** về hàng đợi, trước khi xóa tài khoản tạm.
+
+    Không có bước này, mỗi lượt để lại một hồ sơ đăng ký giao cho consultant B (bước
+    16 chuyển cho B) và một yêu cầu hỗ trợ giao cho A — rồi xóa cả hai tài khoản.
+    Ngày 06/10 tích lại 129 bản ghi mang người phụ trách không còn tồn tại, phải trả
+    về hàng đợi bằng tay.
+
+    Chỉ đụng đúng hai mã lượt này ghi trong `so`, và chỉ khi chúng đang giao cho một
+    trong các tài khoản tạm vừa tạo — điều kiện nằm ngay trong câu cập nhật. Đi thẳng
+    vào database chứ không qua API: bước này chạy trong `finally`, kể cả khi lượt đo
+    hỏng giữa chừng và không còn phiên đăng nhập nào dùng được; yêu cầu hỗ trợ thì
+    chưa có API trả về hàng đợi.
+
+    Trả `(số hồ sơ đăng ký, số yêu cầu hỗ trợ)` đã trả về.
+    """
+    from datetime import datetime, timezone
+
+    from app.db.common import get_db
+    from app.db.database import close_db, init_db
+
+    if not emails:
+        return 0, 0
+    ma_hs, ma_ht = so.get("ho_so_tuyen"), so.get("ho_tro")
+    if not ma_hs and not ma_ht:
+        return 0, 0
+    await init_db()
+    try:
+        db = get_db()
+        luc = datetime.now(timezone.utc).replace(tzinfo=None)
+        n_hs = n_ht = 0
+        if ma_hs:
+            truoc = await db.recruitment_applications.find_one_and_update(
+                {"application_code": ma_hs, "assigned_to": {"$in": list(emails)}},
+                {"$set": {"assigned_to": None, "updated_at": luc}},
+            )
+            if truoc:
+                n_hs = 1
+                await db.application_events.insert_one({
+                    "application_code": ma_hs, "action": "released",
+                    "actor_email": "e2e_hanh_trinh", "actor_name": "Bộ đo hành trình",
+                    "details": {"from": truoc.get("assigned_to"),
+                                "note": "Trả về hàng đợi trước khi xóa tài khoản tạm"},
+                    "created_at": luc,
+                })
+        if ma_ht:
+            ra = await db.support_requests.update_one(
+                {"code": ma_ht, "assigned_to": {"$in": list(emails)}, "status": "dang_xu_ly"},
+                {"$set": {"assigned_to": None, "status": "cho_xu_ly", "updated_at": luc}},
+            )
+            n_ht = ra.modified_count
+        return n_hs, n_ht
+    finally:
+        await close_db()
+
+
 def _ghi(*phan):
     print("   " + " ".join(str(x) for x in phan))
 
@@ -589,14 +645,58 @@ def phan_nhan_vien(goc: str, so: dict) -> list[str]:
     _ghi(f"8. hai nhân viên tư vấn đăng nhập: {NHAN_VIEN[0][0]}, {NHAN_VIEN[1][0]}")
 
     hong += _hang_doi_ho_tro(a, b, so)
-    hong += _doc_yeu_cau(a, so)
+    # Từ 08/10: chưa nhận thì chỉ bản tối thiểu; đọc đủ (bàn giao, lịch hẹn) SAU khi nhận.
+    hong += _chua_nhan_chi_ban_toi_thieu(b, so)
     hong += _nhan_ho_tro(a, b, so)
+    hong += _doc_yeu_cau(a, so)
+    hong += _nguoi_khac_khong_doc_duoc(b, so)
     hong += _nhan_ho_so_tuyen(a, b, so)
     hong += _phieu_tom_tat(a, b, so)
     hong += _ho_so_ung_vien(a, b, so)
     hong += _nhat_ky_gioi_thieu(a, b, so)
     hong += _khong_co_quyen_quan_ly(a, so)
     hong += _chuyen_ho_so(goc, a, b, so)
+    hong += _chuyen_tra_ho_tro(goc, a, b, so)
+    return hong
+
+
+def _chuyen_tra_ho_tro(goc: str, a: Khach, b: Khach, so: dict) -> list[str]:
+    """Quản lý chuyển yêu cầu hỗ trợ A → B; A mất quyền; B trả về hàng đợi.
+
+    Chức năng thêm ngày 07/10. Trước đó yêu cầu hỗ trợ không đổi được người xử lý.
+    Ba điều phải cùng đúng: chuyển xong thì A không trả lời hay trả về được nữa; B trả
+    về được; trả về xong yêu cầu nằm lại trong hàng đợi chờ, chưa ai giữ.
+    """
+    ma = so.get("ho_tro")
+    if not ma:
+        return ["thiếu mã yêu cầu hỗ trợ để kiểm chuyển/trả"]
+    ql = Khach(goc)
+    ma_s, _ = ql.goi("/auth/login", method="POST", than={"email": QUAN_LY[0], "password": QUAN_LY[1]})
+    if ma_s != 200:
+        return [f"quản lý tạm không đăng nhập được: {ma_s}"]
+    ma_s, ra = ql.goi(
+        f"/ho-tro/{ma}/chuyen", method="POST",
+        than={"assigned_to": NHAN_VIEN[1][0], "note": "E2E: chuyển yêu cầu A sang B"},
+    )
+    if ma_s != 200 or (ra or {}).get("assigned_to") != NHAN_VIEN[1][0]:
+        return [f"quản lý chuyển yêu cầu {ma} sang B lỗi: {ma_s} {ra}"]
+
+    hong = []
+    s_tl, _ = a.goi(f"/ho-tro/{ma}/tra-loi", method="POST", than={"reply": "A trả lời sau khi đã bị chuyển"})
+    if s_tl != 403:
+        hong.append(f"sau khi chuyển, A vẫn trả lời được yêu cầu {ma}: {s_tl}")
+    s_tv, _ = a.goi(f"/ho-tro/{ma}/tra-ve", method="POST", than={"note": "A thử trả về"})
+    if s_tv != 403:
+        hong.append(f"sau khi chuyển, A vẫn trả về được yêu cầu {ma}: {s_tv}")
+    s_b, ra_b = b.goi(f"/ho-tro/{ma}/tra-ve", method="POST", than={"note": "E2E: B trả về hàng đợi"})
+    if s_b != 200 or (ra_b or {}).get("status") != "cho_xu_ly" or (ra_b or {}).get("assigned_to"):
+        hong.append(f"B không trả được yêu cầu {ma} về hàng đợi: {s_b} {ra_b}")
+    else:
+        _s, hang = b.goi("/ho-tro")
+        if ma not in _cac_ma(hang):
+            hong.append(f"trả về xong mà {ma} không nằm trong hàng đợi chờ")
+    if not hong:
+        _ghi(f"17. quản lý chuyển yêu cầu {ma} A → B · A mất quyền trả lời/trả về · B trả về hàng đợi")
     return hong
 
 
@@ -659,6 +759,40 @@ def _hang_doi_ho_tro(a: Khach, b: Khach, so: dict) -> list[str]:
             hong.append(f"nhân viên {ten} không thấy yêu cầu {so['ho_tro']} trong hàng đợi")
     if not hong:
         _ghi(f"9. cả hai thấy {so['ho_tro']} trong hàng đợi hỗ trợ")
+    return hong
+
+
+_NHAY_CAM = ("phone", "full_name", "message", "ban_giao", "advice_block", "session_id")
+
+
+def _chua_nhan_chi_ban_toi_thieu(nv: Khach, so: dict) -> list[str]:
+    """Việc chưa ai nhận: thấy để nhận, nhưng không đọc được hồ sơ của khách."""
+    hong = []
+    ma_s, ds = nv.goi("/ho-tro")
+    dong = next((i for i in (ds or {}).get("items", []) if i.get("code") == so["ho_tro"]), {})
+    lo = [k for k in _NHAY_CAM if dong.get(k)]
+    if lo:
+        hong.append(f"hàng đợi lộ {lo} của yêu cầu chưa ai nhận")
+    ma_s, ct = nv.goi(f"/ho-tro/{so['ho_tro']}")
+    lo = [k for k in _NHAY_CAM if ((ct or {}).get("request") or {}).get(k)]
+    if ma_s != 200 or lo:
+        hong.append(f"chi tiết yêu cầu chưa ai nhận: {ma_s}, lộ {lo}")
+    if not hong:
+        _ghi(f"9b. trước khi nhận, B chỉ thấy bản tối thiểu của {so['ho_tro']}")
+    return hong
+
+
+def _nguoi_khac_khong_doc_duoc(nv: Khach, so: dict) -> list[str]:
+    """Sau khi A nhận: B không đọc được qua danh sách lẫn gọi thẳng chi tiết."""
+    hong = []
+    ma_s, ds = nv.goi("/ho-tro?status=dang_xu_ly")
+    if any(i.get("code") == so["ho_tro"] for i in (ds or {}).get("items", [])):
+        hong.append("B liệt kê được yêu cầu A đang giữ qua ?status=dang_xu_ly")
+    ma_s, _ = nv.goi(f"/ho-tro/{so['ho_tro']}")
+    if ma_s != 403:
+        hong.append(f"B đọc được chi tiết yêu cầu A đang giữ: {ma_s}")
+    if not hong:
+        _ghi(f"10b. B không đọc được {so['ho_tro']} khi A đang giữ")
     return hong
 
 
@@ -740,6 +874,14 @@ def _nhan_ho_so_tuyen(a: Khach, b: Khach, so: dict) -> list[str]:
             hong.append(f"{ten} không đọc được hàng đợi tuyển dụng: {ma_s}")
         elif ma not in _cac_ma(ra):
             hong.append(f"{ten} không thấy hồ sơ {ma} trong hàng đợi tuyển dụng")
+        else:
+            dong = next(i for i in ra.get("items", []) if i.get("application_code") == ma)
+            if dong.get("phone") or dong.get("customer_name"):
+                hong.append(f"hàng đợi tuyển dụng lộ họ tên/số điện thoại của {ma} cho {ten} trước khi nhận")
+    # Trước khi nhận: phiếu tóm tắt (họ tên, SĐT, hồ sơ năng lực) chưa mở (08/10).
+    ma_s, _ = b.goi(f"/registrations/{ma}/report")
+    if ma_s != 403:
+        hong.append(f"B đọc được phiếu của hồ sơ chưa ai nhận: trả {ma_s}")
 
     ma_s, ra = a.goi(f"/registrations/{ma}/accept", method="POST")
     if ma_s != 200:
@@ -938,6 +1080,10 @@ def main() -> int:
         hong.append(f"bộ đo nổ: {type(exc).__name__}: {exc}")
     finally:
         if tu_tao and not args.giu_tai_khoan:
+            # Trả TRƯỚC, xóa SAU: xóa trước thì hồ sơ đã mang tên một tài khoản không
+            # còn tồn tại, đúng thứ bước trả về tồn tại để tránh.
+            hs, ht = asyncio.run(_tra_ve_hang_doi(tu_tao, so))
+            print(f"\nTrả về hàng đợi: {hs} hồ sơ đăng ký, {ht} yêu cầu hỗ trợ của lượt này.")
             n = asyncio.run(_xoa_nhan_vien(tu_tao))
             print(f"\nĐã xóa {n} tài khoản nhân viên tạm.")
 

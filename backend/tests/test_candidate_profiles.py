@@ -461,11 +461,10 @@ class StaffProfileApiTests(unittest.IsolatedAsyncioTestCase):
         # ấy không cần nói ra; nay quyền còn đi theo đơn đang phụ trách
         # (`services/quyen_ho_so`), nên phải nói rõ — và để ca không chạm
         # database thật. Ca cho quyền đi theo đơn nằm ở `test_quyen_ho_so.py`.
-        vá = patch(
-            "app.services.quyen_ho_so.ma_ho_so_qua_don", AsyncMock(return_value=set())
-        )
-        vá.start()
-        self.addCleanup(vá.stop)
+        for ten in ("ma_ho_so_qua_don", "phien_qua_ho_tro"):  # 08/10: điều 3
+            vá = patch(f"app.services.quyen_ho_so.{ten}", AsyncMock(return_value=set()))
+            vá.start()
+            self.addCleanup(vá.stop)
 
     async def test_a_consultant_only_sees_their_own_profiles(self):
         captured = {}

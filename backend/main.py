@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,7 +69,13 @@ async def lifespan(app: FastAPI):
             "Không ghi bù được sổ điểm lúc khởi động. Sổ chờ vẫn giữ nguyên."
         )
 
+    # Quét đơn quá hạn chưa gỡ rồi báo Admin (12/10) — chạy nền, định kỳ. Hủy khi tắt.
+    from app.services import het_han_don
+
+    quet_het_han = asyncio.create_task(het_han_don.chay_dinh_ky())
+
     yield
+    quet_het_han.cancel()
     await close_db()
 
 

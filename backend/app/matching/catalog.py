@@ -189,7 +189,7 @@ JOB_ORDER_STATUS_LABELS: dict[str, str] = {
     "draft": "Nháp",
     "open": "Đang tuyển",
     "paused": "Tạm dừng",
-    "filled": "Đủ số lượng",
+    "filled": "Đã hoàn thành chỉ tiêu",
     "expired": "Hết hạn",
     "closed": "Đã đóng",
 }

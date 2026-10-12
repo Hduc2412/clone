@@ -43,6 +43,11 @@ TAG_WIDTH = 6
 def _outcome_text(row: CriterionRow | SoftRow) -> str:
     if isinstance(row, CriterionRow):
         return catalog.RESULT_LABELS.get(row.result, row.result)
+    if row.outcome in NON_REASONS and row.points > 0:
+        # Điểm trung lập theo luật (`cost.unknown`), KHÔNG phải điểm mạnh. Khối này
+        # là thứ mô hình đọc; để trơn "+5" là mời nó nói "phù hợp nhờ chi phí" về
+        # một đơn chưa công bố chi phí, hoặc với một khách chưa nêu ngân sách.
+        return f"+{row.points} (trung lập — chưa đủ dữ liệu để đánh giá, không phải điểm mạnh)"
     return f"+{row.points}"
 
 

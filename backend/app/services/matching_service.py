@@ -113,6 +113,9 @@ async def run_matching(
         "engine_version": payload["engine_version"],
         "as_of": payload["as_of"],
         "pool_query": dict(POOL_QUERY),
+        # Nhật ký một đơn phải nhận ra được, để không ai lấy nó làm "lần đối chiếu
+        # gần nhất" của cả danh mục — xem `recommendation_logs.latest_for_profile`.
+        "chi_don": chi_don,
         "total_considered": payload["total_considered"],
         "eligible_count": payload["eligible_count"],
         "top_codes": [item.code for item in result.top(DEFAULT_TOP_N)],
@@ -122,6 +125,55 @@ async def run_matching(
         "actor_email": actor_email,
     }
     return await recommendation_logs.create_log(document), False
+
+
+async def dong_day_du(
+    profile: dict[str, Any], row: dict[str, Any], *, as_of: date | None = None
+) -> dict[str, Any]:
+    """Dòng nhật ký của một đơn, kèm ĐỦ các tiêu chí bắt buộc để hiển thị.
+
+    Nhật ký rút gọn đơn bị loại (`_gon_lai`): chỉ giữ dòng không đạt. Đủ cho việc
+    đối chứng, thiếu cho bảng đối chiếu khách xem — bảng phải hiện cả tiêu chí đã
+    đạt. Nên với dòng đã rút gọn, chấm lại đúng đơn ấy bằng engine — thuần, tất định,
+    cùng hồ sơ và cùng ngày thì ra đúng các dòng đã chấm — và KHÔNG ghi nhật ký mới.
+    Dòng chưa rút gọn trả nguyên.
+    """
+    if row.get("eligible") or not row.get("hard_rows_passed"):
+        return row
+    don = next((d for d in await load_pool() if d.get("code") == row.get("code")), None)
+    if don is None:
+        return row
+    ngay = as_of or local_today()
+    ket = engine.match_orders(
+        [don], engine.build_facts(profile, ngay), weights=load_weights(), as_of=ngay
+    ).as_dict()["items"]
+    if not ket:
+        return row
+    day_du = ket[0]
+    # Chỉ lấy phần dòng tiêu chí; kết luận giữ nguyên theo nhật ký.
+    return {**row, "hard_rows": [_bo_nhan_suy_ra(d) for d in day_du["hard_rows"]]}
+
+
+async def ca_danh_muc_cho_tu_van(
+    profile: dict[str, Any], *, trigger: str
+) -> dict[str, Any] | None:
+    """Kết quả đối chiếu **cả danh mục** để trợ lý giới thiệu đơn khác — hoặc `None`.
+
+    Trợ lý không được tự chọn đơn. Nó chỉ nói lại đơn mà bộ đối chiếu đã chấm, nên
+    khi cần đơn khác thì chạy đúng `run_matching` như trang kết quả — có bộ đệm 10
+    phút theo phiên bản hồ sơ và vân tay danh mục, nên hỏi nhiều câu liền không đối
+    chiếu lại nhiều lần.
+
+    Chỉ chạy với hồ sơ **đã xác nhận**, cùng quy tắc với trang kết quả
+    (`/public/matches` trả 409 khi chưa xác nhận). Hồ sơ máy vừa đọc từ CV có thể đọc
+    nhầm; giới thiệu cả danh mục từ chỗ đọc nhầm ấy là đẩy khách đi sai đường.
+    """
+    from app.db import candidate_profiles as profiles
+
+    if profile.get("status") != profiles.STATUS_CONFIRMED:
+        return None
+    log, _ = await run_matching(profile, trigger=trigger)
+    return log
 
 
 def _gon_lai(item: dict[str, Any]) -> dict[str, Any]:
@@ -233,12 +285,7 @@ def _rebuild(item: dict[str, Any]) -> engine.MatchItem:
         for row in item.get("hard_rows", [])
     )
     soft_rows = tuple(
-        engine.SoftRow(
-            key=row["key"], label=row["label"],
-            requirement_text=row["requirement_text"], candidate_text=row["candidate_text"],
-            outcome=row["outcome"], points=row["points"], max_points=row["max_points"],
-            missing_field=row.get("missing_field"), kind="mem",
-        )
+        engine.SoftRow.tu_ban_ghi({**row, "kind": "mem"})
         for row in item.get("soft_rows", [])
     )
     return engine.MatchItem(

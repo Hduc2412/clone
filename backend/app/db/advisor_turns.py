@@ -34,6 +34,7 @@ Nên có ô thứ ba: `khong_goi_duoc`. Nó **không nằm trong mẫu số** c�
 tỉ lệ ấy nói về phán đoán của bot, còn ô này nói về việc dịch vụ có sống hay
 không. Hai câu hỏi khác nhau thì hai con số khác nhau.
 """
+import re
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -54,7 +55,9 @@ SOURCE_KHONG_GOI_DUOC = "khong_goi_duoc"
 # tư vấn về một đơn; quá đó thì vấn đề là cần gặp người, không phải hỏi thêm bot.
 MAX_MOI_PHIEN = 40
 
-PROJECTION = {"_id": 0}
+# `ly_do` là chẩn đoán nội bộ ("hau_kiem: có số không nằm trong dữ liệu…") — không đi
+# ra đường công khai nào. Đọc thẳng trong database khi cần điều tra.
+PROJECTION = {"_id": 0, "ly_do": 0}
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
@@ -73,6 +76,7 @@ async def add_turn(
     source: str,
     model: str = "",
     moc: str | None = None,
+    ly_do: str = "",
 ) -> dict[str, Any]:
     """Ghi một lượt hỏi đáp.
 
@@ -102,8 +106,38 @@ async def add_turn(
     }
     if moc:
         document["moc"] = moc
+    if ly_do:
+        # Vì sao lượt này ra như vậy — hậu kiểm loại, mô hình tự nhận ngoài phạm vi,
+        # hay không gọi được mô hình. Xem `qa.KetQuaHoi`. Chỉ để chẩn đoán; giao diện
+        # không đọc trường này.
+        document["ly_do"] = ly_do[:300]
     await get_db()[COLLECTION].insert_one(dict(document))
     return strip_id(document)
+
+
+def _khoa_tho_thanh_nhan(van_ban: str | None) -> str | None:
+    """Thay khóa kỹ thuật (`experience_years`…) bằng nhãn tiếng Việt khi ĐỌC ra.
+
+    Một số lượt dự phòng lưu trước 07/10 ghép thẳng tên trường vào câu ("Hồ sơ còn
+    thiếu: experience_years, salary_expectation_jpy"). Mã hiện tại đã ghép nhãn,
+    nhưng không sửa hàng loạt dữ liệu lịch sử chỉ vì cách hiển thị (08/10) — đổi ở
+    đây là đổi đúng thứ người đọc thấy, còn bản ghi gốc vẫn nguyên.
+    """
+    if not van_ban:
+        return van_ban
+    from app.consultation.context_builder import NHAN
+
+    return re.sub(
+        r"(?<![A-Za-z0-9_])(" + "|".join(sorted(map(re.escape, NHAN), key=len, reverse=True)) + r")(?![A-Za-z0-9_])",
+        lambda m: NHAN[m.group(1)],
+        van_ban,
+    ) if "_" in van_ban else van_ban
+
+
+def _hien_thi(doc: dict[str, Any]) -> dict[str, Any]:
+    if doc.get("answer"):
+        doc["answer"] = _khoa_tho_thanh_nhan(doc["answer"])
+    return doc
 
 
 async def list_turns(
@@ -116,7 +150,7 @@ async def list_turns(
         .sort([("created_at", ASCENDING)])
         .limit(limit)
     )
-    return [document async for document in cursor]
+    return [_hien_thi(document) async for document in cursor]
 
 
 async def list_all_turns(session_id: str, limit: int = 100) -> list[dict[str, Any]]:
@@ -143,7 +177,7 @@ async def list_all_turns(session_id: str, limit: int = 100) -> list[dict[str, An
         .sort([("created_at", ASCENDING)])
         .limit(limit)
     )
-    return [document async for document in cursor]
+    return [_hien_thi(document) async for document in cursor]
 
 
 async def count_turns(session_id: str, job_order_code: str | None) -> int:

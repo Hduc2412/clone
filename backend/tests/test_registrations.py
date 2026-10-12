@@ -518,13 +518,25 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
                 await api.accept("HS-CCC333", http_request(), OTHER)
         self.assertEqual(ctx.exception.status_code, 409)
 
-    async def test_ai_cung_doc_duoc_phieu_cua_ho_so_chua_ai_nhan(self):
+    async def test_chua_ai_nhan_thi_nhan_vien_thuong_phai_nhan_truoc_moi_doc_phieu(self):
+        """Quy tắc 08/10 thay cho "ai cũng đọc được phiếu của hồ sơ chưa ai nhận".
+
+        Phiếu mang họ tên, số điện thoại, hồ sơ năng lực — đọc phiếu là đọc hồ sơ.
+        Kiểm sống HT-11 cho thấy cách cũ mở hồ sơ cho mọi nhân viên trước khi nhận.
+        """
+        with patch.object(api, "get_recruitment_application", AsyncMock(return_value=self.application)):
+            with self.assertRaises(HTTPException) as ctx:
+                await api.registration_report("HS-CCC333", OTHER)
+        self.assertEqual(ctx.exception.status_code, 403)
+        self.assertIn("Nhận xử lý", ctx.exception.detail)
+
+    async def test_quan_ly_doc_duoc_phieu_cua_ho_so_chua_ai_nhan(self):
         report = {"code": "PT-BBB222", "text": "..."}
         with (
             patch.object(api, "get_recruitment_application", AsyncMock(return_value=self.application)),
             patch.object(api.reports, "get_by_application", AsyncMock(return_value=report)),
         ):
-            result = await api.registration_report("HS-CCC333", OTHER)
+            result = await api.registration_report("HS-CCC333", ADMIN)
         self.assertEqual(result["code"], "PT-BBB222")
 
     async def test_ho_so_da_giao_thi_nguoi_ngoai_khong_doc_duoc_phieu(self):

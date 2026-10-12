@@ -84,7 +84,7 @@ def thanh_match_item(row: dict[str, Any]):
         score=int(row.get("score") or 0),
         rank=row.get("rank"),
         hard_rows=tuple(CriterionRow(**dong) for dong in row.get("hard_rows") or ()),
-        soft_rows=tuple(SoftRow(**dong) for dong in row.get("soft_rows") or ()),
+        soft_rows=tuple(SoftRow.tu_ban_ghi(dong) for dong in row.get("soft_rows") or ()),
         gaps=tuple(row.get("gaps") or ()),
         missing_info=tuple(row.get("missing_info") or ()),
         labels=row.get("labels") or {},

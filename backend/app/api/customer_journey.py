@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.security import get_current_user
 from app.db.database import get_managed_lead, list_recruitment_applications
+from app.services import quyen_hoi_thoai
 from app.services.customer_journey_service import get_customer_journey
 
 
@@ -27,5 +28,13 @@ async def customer_journey(lead_code: str, current_user=Depends(get_current_user
             raise HTTPException(
                 status_code=403, detail="Bạn chỉ được xem khách hàng được giao cho mình."
             )
-        return await get_customer_journey(lead, appointment_owner=email)
+        hanh_trinh = await get_customer_journey(lead, appointment_owner=email)
+        # Hội thoại ở đây ghép theo số điện thoại — không phải khóa bền (hai người
+        # chung số, số đổi). Với nhân viên thường chỉ giữ phiên có liên kết rõ ràng
+        # tới việc họ đang giữ (08/10, `quyen_hoi_thoai`).
+        hanh_trinh["conversations"] = quyen_hoi_thoai.loc_hoi_thoai(
+            hanh_trinh.get("conversations") or [],
+            await quyen_hoi_thoai.phien_duoc_xem(current_user),
+        )
+        return hanh_trinh
     return await get_customer_journey(lead)

@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent import ban_giao as ban_giao_builder
+from app.advisor import qa
 from app.agent import contract, mo_dau, orchestrator, state
 from app.auth.journey_security import require_journey_session
 from app.core.rate_limit import client_ip, rate_limiter
@@ -36,12 +37,15 @@ from app.core.session_id import SESSION_PATTERN
 from app.db import advisor_turns
 from app.db import candidate_documents as tai_lieu_cv
 from app.db import candidate_profiles as profiles
+from app.db import courses
 from app.db import recommendation_logs, session_memory, support_requests
 from app.db.database import (
     list_appointments_for_session,
     list_unassigned_registrations,
 )
-from app.matching import catalog, explain
+from app.consultation import tien_do
+from app.consultation import du_phong, khoi_mo_rong
+from app.matching import catalog, engine, explain
 from app.services import matching_service
 
 
@@ -85,7 +89,9 @@ class XacNhanBody(BaseModel):
     value: Any
 
 
-async def _nap(session_id: str) -> tuple[dict[str, Any] | None, state.TrangThai, dict[str, Any] | None]:
+async def _nap(
+    session_id: str, *, cho_khach: bool = True
+) -> tuple[dict[str, Any] | None, state.TrangThai, dict[str, Any] | None]:
     """Đọc mọi thứ cần để suy trạng thái. Trả `(hồ sơ, trạng thái, nhật ký)`.
 
     Đọc song song được, nhưng ở đây đọc lần lượt cho dễ đọc mã: bốn lời gọi nhỏ
@@ -96,6 +102,19 @@ async def _nap(session_id: str) -> tuple[dict[str, Any] | None, state.TrangThai,
     log = None
     if profile:
         log = await recommendation_logs.latest_for_profile(profile["code"])
+        # Nhật ký của phiên bản hồ sơ CŨ không được dùng để tư vấn (08/10): khách
+        # sửa trình độ, hoặc nhân viên ghi kết quả sơ tuyển, thì kết quả cũ hết
+        # hiệu lực. Đối chiếu lại đúng phiên bản hiện tại (có bộ đệm theo phiên
+        # bản); hồ sơ chưa xác nhận thì không có kết quả nào.
+        if log is not None and log.get("profile_version") != profile.get("version", 1):
+            log = await matching_service.ca_danh_muc_cho_tu_van(
+                profile, trigger="tu_van_goi_y"
+            )
+        # Đường phía khách: hồ sơ chưa xác nhận thì KHÔNG có kết quả đối chiếu nào —
+        # kể cả nhật ký của lần xác nhận trước (hồ sơ quay về `extracted` khi trợ lý
+        # nghe được giá trị mới). Bản bàn giao dùng cùng quy tắc để bản khách xem trước và bản nhân viên nhận là một; nhân viên đọc bản nháp qua màn hồ sơ và nhật ký giới thiệu.
+        if cho_khach and profile.get("status") != profiles.STATUS_CONFIRMED:
+            log = None
 
     bo_nho = await session_memory.lay(session_id)
     don_dang_xet = (bo_nho or {}).get("job_order_code")
@@ -226,18 +245,46 @@ async def hoi_tro_ly(
         )
 
     profiles.decorate(profile)
+    da_xac_nhan = profile.get("status") == profiles.STATUS_CONFIRMED
+    if log is None and da_xac_nhan:
+        # Hồ sơ đã xác nhận mà chưa từng đối chiếu cả danh mục — ví dụ khách vào thẳng
+        # từ trang một đơn. Chạy đúng bộ đối chiếu như trang kết quả (có bộ đệm), để
+        # câu "có đơn nào hợp với tôi không" trả lời được bằng kết quả của engine.
+        log = await matching_service.ca_danh_muc_cho_tu_van(profile, trigger="tu_van_goi_y")
     khoi = _khoi_doi_chieu(log)
+    danh_muc_khoa = await courses.list_published()
+    khoi_them = "\n\n".join(
+        k for k in (
+            # Tình hình hiện tại: nhân viên đã ghi gì, hồ sơ đăng ký ở chặng nào (08/10).
+            tien_do.render(await tien_do.nap(session_id, profile)),
+            _don_dang_xem(log, trang_thai.don_dang_xet),
+            khoi_mo_rong.render_ly_do_truot(log),
+            khoi_mo_rong.render_khoa_hoc(danh_muc_khoa),
+        ) if k
+    )
 
     ket_qua, nguon, model = await orchestrator.tra_loi(
         cau_hoi=payload.question,
         profile=profile,
         trang_thai=trang_thai,
         khoi_doi_chieu=khoi,
+        khoi_them=khoi_them,
         lich_su=await advisor_turns.list_turns(
             session_id, None, limit=orchestrator.SO_LUOT_NHO
         ),
         bo_nho=await session_memory.lay(session_id),
     )
+    if nguon == qa.NGUON_KHONG_GOI_DUOC:
+        # Cả hai model đều không trả lời được: tóm tắt tự động từ kết quả đối chiếu
+        # thay cho "đang bận" trơn. Nguồn vẫn là `khong_goi_duoc`.
+        ket_qua = contract.KetQua(
+            reply=du_phong.theo_ho_so(
+                log, ho_so_da_xac_nhan=da_xac_nhan, con_thieu=trang_thai.con_thieu,
+                khoa_hoc=danh_muc_khoa,
+                trinh_do=((profile.get("fields") or {}).get("japanese_level") or {}).get("value"),
+            ),
+            da_loai=ket_qua.da_loai,
+        )
 
     await advisor_turns.add_turn(
         session_id=session_id,
@@ -246,6 +293,7 @@ async def hoi_tro_ly(
         answer=ket_qua.reply,
         source=nguon,
         model=model,
+        ly_do="; ".join(ket_qua.da_loai) if nguon != qa.NGUON_MO_HINH else "",
     )
     await _ghi_moc(session_id, trang_thai)
 
@@ -283,6 +331,27 @@ async def xac_nhan_de_xuat(
     # được: trường có trong danh sách cho phép, kiểu dữ liệu đúng — y như đường
     # biểu mẫu. Người gọi trực tiếp bằng curl cũng chỉ làm được đúng những gì
     # biểu mẫu làm được.
+    # Ô nhân viên đã ghi: không ghi đè, nhưng lưu thành đề xuất chờ nhân viên và
+    # nói rõ cho khách — cùng quy tắc với biểu mẫu (`store.o_bi_giu`, 08/10).
+    muc_cua_o = "fields" if payload.field in profiles.FIELD_KEYS else "preferences"
+    bi_giu = profiles.o_bi_giu(
+        profile.get(muc_cua_o), {payload.field: payload.value}, source="user_confirmed"
+    )
+    if bi_giu:
+        await profiles.ghi_de_xuat(
+            session_id, bi_giu, source="user_confirmed", by=f"session:{session_id}"
+        )
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "gia_tri_nhan_vien_da_ghi",
+                "message": (
+                    "Thông tin này nhân viên đã ghi sau khi gặp bạn, nên hệ thống "
+                    "chưa đổi. Mình đã gửi điều bạn vừa nói để nhân viên xem lại."
+                ),
+            },
+        )
+
     nhan, loai = contract.kiem_de_xuat(
         [{"field": payload.field, "value": payload.value}],
         profile=profile,
@@ -315,7 +384,9 @@ async def xac_nhan_de_xuat(
             status_code=409,
             detail="Hồ sơ vừa được cập nhật ở nơi khác. Bạn tải lại trang giúp mình nhé.",
         )
-    return profiles.decorate(da_sua)
+    # Bản cho khách: không lịch sử, không người phụ trách, không email nhân viên.
+    # Trước 08/10 đường này trả nguyên bản ghi nội bộ cho trình duyệt.
+    return profiles.decorate(profiles.public_view(da_sua))
 
 
 @public_router.get("/{session_id}/tro-ly/ban-giao")
@@ -364,6 +435,27 @@ def _khoi_doi_chieu(log: dict[str, Any] | None) -> str:
     for row in dat[:5]:
         dong.append("")
         dong.append(explain.render_block(matching_service._rebuild(row)))
+    return "\n".join(dong)
+
+
+def _don_dang_xem(log: dict[str, Any] | None, ma: str | None) -> str:
+    """Kết quả đối chiếu của đơn khách đang xem, nếu đơn ấy CHƯA đạt.
+
+    Đơn đạt đã nằm trong `_khoi_doi_chieu` (năm đơn đạt đầu). Đơn chưa đạt thì
+    không — nên trước đây khách đang xem DH-0016, hỏi "tôi còn thiếu gì cho đơn
+    này", Agent không thấy đơn ấy vướng ở đâu.
+    """
+    if not log or not ma:
+        return ""
+    row = next((r for r in log.get("items") or () if r.get("code") == ma), None)
+    if row is None or row.get("eligible"):
+        return ""
+    dong = [f"[Đơn khách đang xem: {ma} — {row.get('title')}] KẾT LUẬN: chưa đạt điều kiện bắt buộc"]
+    for d in row.get("hard_rows") or ():
+        if d.get("result") == engine.KHONG_DAT:
+            dong.append(f"- Chưa đạt — {d.get('label')}: {d.get('requirement_text')} — {d.get('candidate_text')}")
+    if row.get("hard_rows_passed"):
+        dong.append(f"- {row['hard_rows_passed']} tiêu chí bắt buộc khác đã đạt")
     return "\n".join(dong)
 
 
