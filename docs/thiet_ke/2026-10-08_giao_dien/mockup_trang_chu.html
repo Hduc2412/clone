@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOCKUP — Trang chủ và danh sách đơn</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  .hero { position: relative; overflow: hidden; min-height: 560px; display: flex; align-items: flex-end; }
+  .hero .anh { position: absolute; inset: 0; background-size: cover; background-position: center 30%; opacity: 0; animation: cảnh 36s infinite; }
+  /* Ba cảnh, mỗi cảnh 12 giây, mờ dần 3 giây — đủ chậm để không kéo mắt khỏi chữ */
+  .hero .a1 { background-image: url("../../../frontend/public/nen/fuji-hoa-anh-dao.webp"); animation-delay: 0s; }
+  .hero .a2 { background-image: url("../../../frontend/public/nen/ho-kawaguchi.webp"); animation-delay: 12s; }
+  .hero .a3 { background-image: url("../../../frontend/public/nen/fuji-binh-minh.webp"); animation-delay: 24s; }
+  @keyframes cảnh { 0% { opacity: 0; transform: scale(1.04); } 8% { opacity: 1; } 33% { opacity: 1; } 41% { opacity: 0; transform: scale(1); } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .hero .a1 { opacity: 1; } .hero .a2, .hero .a3 { display: none; } }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(251,248,242,0) 30%, rgba(251,248,242,.85) 78%, var(--nen) 100%); }
+  /* Chữ nằm trên một tấm nền ngà đặc, KHÔNG đặt thẳng lên ảnh — giữ độ tương phản ở mọi cảnh */
+  .tam-chu { position: relative; z-index: 2; background: rgba(251,248,242,.96); border-radius: 18px; padding: 30px 32px; max-width: 640px; box-shadow: var(--bong); margin-bottom: 36px; }
+  .tam-chu h1 { font-size: 2.2rem; }
+  /* Điện thoại: ảnh thành một dải phía trên, tấm chữ nằm dưới chồng nhẹ lên — phong cảnh vẫn thấy được */
+  @media (max-width: 640px) {
+    .hero { display: block; min-height: 0; padding-top: 210px; }
+    .hero .anh { bottom: auto; height: 250px; }
+    .hero::after { bottom: auto; height: 250px; }
+    .tam-chu { padding: 22px; margin-bottom: 8px; } .tam-chu h1 { font-size: 1.6rem; }
+  }
+  .ba-buoc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .ba-buoc div { background: #fff; border: 1px solid var(--vien-nhat); border-radius: 14px; padding: 18px; }
+  .ba-buoc i { font-style: normal; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--chu); color: #fff; font-weight: 700; margin-bottom: 8px; }
+  @media (max-width: 640px) { .ba-buoc { grid-template-columns: 1fr; } }
+  .loc { display: flex; flex-wrap: wrap; gap: 10px; }
+  .loc select { width: auto; min-width: 220px; }
+  @media (max-width: 640px) { .loc select { flex: 1 1 100%; } }
+  .don { display: grid; gap: 10px; }
+  .don .tren { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+  .don h3 { font-size: 1.15rem; }
+  .don dl { display: grid; grid-template-columns: repeat(4, auto); gap: 4px 20px; margin: 4px 0 0; font-size: .93rem; justify-content: start; }
+  .don dt { color: var(--chu-phu); font-size: .84rem; } .don dd { margin: 0; font-weight: 600; }
+  @media (max-width: 640px) { .don dl { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">MOCKUP · ảnh nền Wikimedia Commons (xem chân trang) · dữ liệu đơn mẫu</div>
+
+<header class="dau-trang"><div class="khung">
+  <a class="logo" href="#"><b>DC</b> Nhân lực Quốc tế DC</a>
+  <nav class="menu"><a href="#">Giới thiệu</a><a class="dang" href="#">Đơn hàng</a><a href="#">Điều kiện</a><a href="#">Chi phí</a><a href="#">Hỏi đáp</a><a href="#">Hồ sơ của tôi</a></nav>
+  <button class="nut nut-phu nut-nho nut-menu" aria-label="Mở menu">☰ Menu</button>
+</div></header>
+
+<section class="hero" aria-label="Giới thiệu">
+  <div class="anh a1" role="img" aria-label="Núi Phú Sĩ mùa hoa anh đào"></div>
+  <div class="anh a2" aria-hidden="true"></div>
+  <div class="anh a3" aria-hidden="true"></div>
+  <div class="khung" style="width:100%">
+    <div class="tam-chu hien">
+      <p class="tieu-de-khoi">Điều dưỡng · Hộ lý Nhật Bản</p>
+      <h1 style="margin-top:8px">Biết rõ mình hợp đơn nào, và còn thiếu gì</h1>
+      <p style="margin-top:12px" class="phu">Gửi CV hoặc khai vài dòng. Hệ thống đặt hồ sơ của bạn cạnh từng điều kiện của đơn, chỉ ra chỗ đã đạt và chỗ cần bổ sung. Nhân viên tư vấn gọi lại trong giờ hành chính.</p>
+      <div class="hang" style="margin-top:20px">
+        <a class="nut nut-chinh" href="#">Gửi CV để được tư vấn</a>
+        <a class="nut nut-phu" href="#don">Xem đơn đang tuyển</a>
+      </div>
+      <p class="nho phu" style="margin-top:14px">Không cần tạo tài khoản trước.</p>
+    </div>
+  </div>
+</section>
+
+<main class="khung cach-lon" style="padding-bottom:64px">
+  <section>
+    <h2>Ba bước để biết kết quả</h2>
+    <div class="ba-buoc" style="margin-top:14px">
+      <div><i>1</i><h3>Gửi CV hoặc khai tay</h3><p class="phu nho" style="margin-top:4px">PDF, Word (.docx) hoặc ảnh chụp đều được. Chưa có CV thì điền vài mục.</p></div>
+      <div><i>2</i><h3>Kiểm tra và xác nhận</h3><p class="phu nho" style="margin-top:4px">Xem lại thông tin máy đọc được, sửa chỗ sai, trả lời mục còn thiếu.</p></div>
+      <div><i>3</i><h3>Xem bảng đối chiếu</h3><p class="phu nho" style="margin-top:4px">Từng điều kiện của đơn đặt cạnh hồ sơ của bạn, kèm hướng đi tiếp.</p></div>
+    </div>
+  </section>
+
+  <section id="don">
+    <div class="hang" style="justify-content:space-between"><h2>Đơn đang tuyển</h2><span class="phu nho">Sắp xếp theo hạn nộp gần nhất</span></div>
+    <form class="loc" style="margin-top:14px" onsubmit="return false" aria-label="Lọc đơn">
+      <label class="an" for="kv">Khu vực</label><select id="kv" class="o-nhap"><option>Mọi khu vực</option><option>Kantō</option></select>
+      <label class="an" for="lh">Loại cơ sở</label><select id="lh" class="o-nhap"><option>Mọi loại cơ sở</option></select>
+      <label class="an" for="ct">Chương trình</label><select id="ct" class="o-nhap"><option>Mọi chương trình</option></select>
+    </form>
+    <div class="luoi-2" style="margin-top:16px">
+      <article class="the don">
+        <div class="tren"><div><span class="chip chip-tin">Kỹ năng đặc định</span><h3 style="margin-top:8px">Điều dưỡng viện dưỡng lão Tokyo</h3><p class="phu nho">Viện dưỡng lão Sakura · Tokyo</p></div></div>
+        <dl><div><dt>Lương</dt><dd>195.000–215.000 ¥</dd></div><div><dt>Tiếng Nhật</dt><dd>Từ N4</dd></div><div><dt>Tuổi</dt><dd>20–35</dd></div><div><dt>Hạn nộp</dt><dd>24/12/2026</dd></div></dl>
+        <div class="hang" style="margin-top:6px"><a class="nut nut-chinh nut-nho" href="#">Tôi có hợp đơn này không?</a><a class="nut nut-nhe" href="#">Xem chi tiết</a></div>
+      </article>
+      <article class="the don">
+        <div class="tren"><div><span class="chip chip-tin">Kỹ năng đặc định</span><h3 style="margin-top:8px">Điều dưỡng viện dưỡng lão Fukuoka</h3><p class="phu nho">Viện dưỡng lão Hakata · Fukuoka</p></div></div>
+        <dl><div><dt>Lương</dt><dd>180.000–195.000 ¥</dd></div><div><dt>Tiếng Nhật</dt><dd>Từ N4</dd></div><div><dt>Tuổi</dt><dd>20–35</dd></div><div><dt>Hạn nộp</dt><dd>13/01/2027</dd></div></dl>
+        <div class="hang" style="margin-top:6px"><a class="nut nut-chinh nut-nho" href="#">Tôi có hợp đơn này không?</a><a class="nut nut-nhe" href="#">Xem chi tiết</a></div>
+      </article>
+    </div>
+    <p style="margin-top:16px"><a class="nut nut-phu" href="#">Xem tất cả đơn đang tuyển</a></p>
+  </section>
+
+  <section class="the-nga">
+    <h2>Chi phí nói rõ từ đầu</h2>
+    <p class="phu" style="margin-top:6px">Tổng chi phí chương trình 90.000.000đ, gồm đăng ký 10.000.000đ · học tiếng 35.000.000đ · xuất cảnh 45.000.000đ. <a href="#">Xem chi tiết chi phí</a></p>
+  </section>
+</main>
+
+<footer style="border-top:1px solid var(--vien); padding:24px 0; background:#fff">
+  <div class="khung nho phu">Ảnh nền núi Phú Sĩ: SRP1998 (CC BY-SA 4.0), Midori (CC BY 3.0), Romain Guy (CC0) — qua Wikimedia Commons. Thông tin chi phí và lương mang tính tham khảo, nhân viên xác nhận lại theo từng trường hợp.</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,186 @@
+{
+  "database": "xkld_kiem_thu_0710",
+  "goc": "http://127.0.0.1:8020",
+  "ket_qua": [
+    {
+      "ma": "HT-1",
+      "mo_ta": "B (consultant) liệt kê yêu cầu A đang giữ qua ?status=dang_xu_ly",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "thay": true,
+        "khoa_nhay_cam": [
+          "ban_giao",
+          "full_name",
+          "message",
+          "phone",
+          "session_id"
+        ]
+      }
+    },
+    {
+      "ma": "HT-2",
+      "mo_ta": "B đọc chi tiết yêu cầu A đang giữ bằng gọi thẳng API",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "khoa_nhay_cam": [
+          "ban_giao",
+          "full_name",
+          "message",
+          "phone",
+          "session_id"
+        ],
+        "co_lich": true
+      }
+    },
+    {
+      "ma": "HT-3",
+      "mo_ta": "Hàng đợi chưa ai nhận trả cho consultant cả số điện thoại, lời nhắn, bản bàn giao",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "thay": true,
+        "khoa_nhay_cam": [
+          "ban_giao",
+          "full_name",
+          "message",
+          "phone",
+          "session_id"
+        ]
+      }
+    },
+    {
+      "ma": "HT-4",
+      "mo_ta": "B đọc chi tiết đầy đủ yêu cầu CHƯA ai nhận (trước khi bấm nhận)",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "khoa_nhay_cam": [
+          "ban_giao",
+          "full_name",
+          "message",
+          "phone",
+          "session_id"
+        ]
+      }
+    },
+    {
+      "ma": "HT-5",
+      "mo_ta": "B liệt kê hội thoại của khách không liên quan tới mình",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "thay": true
+      }
+    },
+    {
+      "ma": "HT-6",
+      "mo_ta": "B đọc nội dung hội thoại của khách không liên quan",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "so_tin": 2
+      }
+    },
+    {
+      "ma": "HT-7",
+      "mo_ta": "A (consultant) tạo khách và giao luôn cho B qua assigned_to trong thân yêu cầu",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 201,
+        "assigned_to": "tq-tu-van-b@local.test"
+      }
+    },
+    {
+      "ma": "HT-8",
+      "mo_ta": "internal_note lọt ra API phía khách",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": {
+        "lot_ra": []
+      }
+    },
+    {
+      "ma": "HT-9",
+      "mo_ta": "consultant đọc internal_note qua API nội bộ (chỉ ghi nhận, chưa kết luận)",
+      "ket_qua": "GHI NHẬN",
+      "bang_chung": {
+        "http": 200,
+        "doc_duoc": true
+      }
+    },
+    {
+      "ma": "HT-10",
+      "mo_ta": "Hàng đợi đăng ký trả cho consultant họ tên, số điện thoại của khách chưa ai nhận",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "khoa": [
+          "customer_name",
+          "phone"
+        ]
+      }
+    },
+    {
+      "ma": "HT-11",
+      "mo_ta": "Consultant đọc phiếu tóm tắt đầy đủ của hồ sơ đăng ký chưa ai nhận",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "do_dai": 4549
+      }
+    },
+    {
+      "ma": "XM-1",
+      "mo_ta": "Khách sửa trình độ đã được nhân viên xác minh: bị bỏ qua im lặng, không lưu đề xuất, không báo",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http_patch": 200,
+        "gia_tri_sau": "N4",
+        "nguon": "staff",
+        "verification": "verified",
+        "co_luu_de_xuat": false
+      }
+    },
+    {
+      "ma": "XM-2",
+      "mo_ta": "Nhân viên đổi giá trị đã xác minh bằng biểu mẫu chung mà nhãn xác minh cũ vẫn còn",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": {
+        "http": 200,
+        "gia_tri": "N3",
+        "verification": null,
+        "verified_by": null
+      }
+    },
+    {
+      "ma": "XN-1",
+      "mo_ta": "API tư vấn theo đơn trả bảng, điểm, kết luận cho hồ sơ CHƯA xác nhận",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "so_dong": 7,
+        "branch": "phu_hop"
+      }
+    },
+    {
+      "ma": "XN-2",
+      "mo_ta": "API lý do chi tiết một đơn trả kết quả cho hồ sơ CHƯA xác nhận",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "eligible": true
+      }
+    },
+    {
+      "ma": "XN-3",
+      "mo_ta": "Sau khi sửa trình độ, API lý do chi tiết vẫn trả kết quả của phiên bản hồ sơ cũ",
+      "ket_qua": "LỖI",
+      "bang_chung": {
+        "http": 200,
+        "dong_tieng_nhat": "ứng viên N4",
+        "eligible": true
+      }
+    }
+  ]
+}

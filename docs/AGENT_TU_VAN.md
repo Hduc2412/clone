@@ -863,14 +863,15 @@ giữ kết quả lần đọc trong trạng thái riêng và không dựng lạ
 "đã đọc xong" của CV cũ. Nay gắn `key` theo phiên, như `AdvisorChat`. Ca hồi quy đi đúng đường
 chủ đồ án tái hiện: phiên cũ có đơn đã đăng ký → khai lại → khai hồ sơ mới → xem kết quả.
 
-### Lượt nghiệm thu chốt — bốn lượt, cùng ghi trong `docs/nghiem_thu/`
+### Lượt nghiệm thu chốt — năm lượt, cùng ghi trong `docs/nghiem_thu/`
 
 | Lượt | Dấu vân tay | Kết luận | Vì sao |
 |---|---|---|---|
 | 14:23 | `7eb30909…` | không đạt | **Bộ đo sai**: so tên trên phiếu với đáp án (`Trần Thị Thu Hà`) trong khi hồ sơ đọc từ CV mang `TRẦN THỊ THU HÀ` — phiếu đúng |
 | 14:31 | `252db53d…` | báo ĐẠT, **thực ra chưa đo** lời tư vấn | Bộ đo khi ấy chưa biết coi `khong_goi_duoc` là chưa đo được |
 | 14:40 | `02bcab0e…` | ĐẠT, hợp lệ — rồi trình duyệt thật tìm thêm tám điểm | Mọi bộ đạt; CV đọc bằng mô hình thật; lời tư vấn bằng mô hình thật |
-| **16:45** | **`c6328b30…`** | **ĐẠT, hợp lệ — bản cuối** | Bản đã sửa tám điểm; CV đọc và lời tư vấn bằng mô hình thật |
+| 16:45 | `c6328b30…` | ĐẠT, hợp lệ | Bản đã sửa tám điểm; CV đọc và lời tư vấn bằng mô hình thật |
+| **17:33** | **`e66af137…`** | **ĐẠT, hợp lệ — bản cuối** | Thêm ba sửa bảo mật/vận hành (token theo bản ghi tài khoản, hàng đợi không cắt im lặng, E2E trả hồ sơ trước khi xóa tài khoản tạm); không đổi gì ở Agent |
 
 Biên bản hai lượt đầu được **giữ nguyên**, chỉ thêm một khối "ghi chú sau" ở đầu: chúng là bản
 ghi thật của điều đã xảy ra, kèm điều phát hiện về sau.
@@ -907,3 +908,99 @@ Lượt 16:45: kiểm thử backend 1188 · xuyên suốt 5/5 · HTTP 5/5 · Age
 thật 16 bước, 0 chỗ hỏng** (phiên `09b9fcb6-9b2e-4ae8-8401-5302bc8ff3e6`) · website 65 · quản
 trị 27. Lời tư vấn lại do **model dự phòng** `gemini-3.7-flash` viết (ghi trên lượt trong
 `advisor_turns`).
+
+Lượt 17:33 (`e66af137…`) chạy lại cả bộ sau ba sửa ngoài Agent — xem `docs/KIEM_THU.md §3.0d`:
+backend 1205 · xuyên suốt 5/5 · HTTP 5/5 · Agent 6/6 · hành trình 16 bước, 0 chỗ hỏng (phiên
+`afcc837e-0697-4926-909f-6de2fde80053`) · website 65 · quản trị 32. Lần này lời tư vấn do
+**model chính** `gemini-3.8-flash` viết.
+
+## 17. Từ "trả lời trong bốn khối" sang chuyên viên tư vấn — 07/10
+
+Yêu cầu của chủ đồ án: phòng tư vấn phải hiểu câu hỏi mở và nhiều ý, đánh giá hồ sơ, gợi ý
+đơn khác và hướng học — mà không bịa. Hai quan sát đi kèm: (1) hỏi "tôi còn thiếu gì về đơn
+hàng này" chỉ nhận "trợ lý đang bận"; (2) có lượt nhận "câu này chưa có thông tin trong hồ sơ
+và đơn đang xem" cho đúng loại câu hệ thống phải trả lời được.
+
+### Nguyên nhân — tách theo tầng
+
+| Tầng | Nguyên nhân | Bằng chứng |
+|---|---|---|
+| Dữ liệu / điều phối | `recommendation_logs.latest_for_profile` lấy nhật ký mới nhất **bất kể loại**. Mở phòng tư vấn một đơn xong, "lần đối chiếu gần nhất" chỉ còn một đơn: Agent đọc "đã xét 1 đơn", lượt mở đầu có thể nói "phù hợp với 1 đơn trên 1 đơn", trang kết quả bấm "vì sao" ở đơn khác ra 404 | Kho phát triển 07/10: 5 hồ sơ có nhật ký mới nhất `total_considered = 1` |
+| Điều phối | Phòng theo đơn không có dữ liệu đơn khác hay khóa học; prompt dặn câu ngoài bốn khối thì đáp đúng "Câu này mình chưa có thông tin" | Đọc mã `qa.PROMPT` (bản HEAD) |
+| Điều phối | Mô hình lỗi thì phòng theo đơn chỉ trả câu "đang bận", dù kết quả đối chiếu đã đủ để nói khách thiếu gì | Đọc mã; tái hiện bằng bản giả |
+| Hậu kiểm | `_TU_CHOI` thay **mọi** câu dưới 200 ký tự chứa "chưa có thông tin" bằng lời từ chối — nuốt cả câu tư vấn đúng | Bộ mẫu có nhãn: 2 câu đúng bị nuốt |
+| Hậu kiểm | Số khách vừa nói không nằm trong khối cho phép của phòng theo đơn — "em 32 tuổi" → câu đáp "bạn 32 tuổi…" bị loại | Bộ mẫu có nhãn |
+| Hậu kiểm | Không có chốt cho câu tự nhận đã làm thay khách ("đã đăng ký đơn giúp bạn", "đã đổi trạng thái hồ sơ") và cho mã đơn/mã khóa bịa | Bộ mẫu có nhãn: 4 câu bịa lọt |
+| Dịch vụ | Model chính 503 "high demand" rồi quá giờ; model dự phòng quá giờ. Thăm dò một câu ngắn với ngưỡng 40 giây vẫn quá giờ, trong khi mạng tới Google bình thường | Lượt đánh giá thật 07/10 19:49 — 7/7 không đo được |
+
+**Chưa chắc:** hai quan sát gốc đến từ kho Docker `xkld-retest`, kho này không đọc được lúc
+điều tra (Docker tắt). Quan sát (2) khớp cả ba đường dẫn tới cùng câu từ chối — hậu kiểm loại,
+`_TU_CHOI` nuốt nhầm, prompt cấm trả lời — nhưng không xác định được lượt cụ thể đi đường nào.
+Từ nay lượt hỏi đáp ghi `ly_do` để phân biệt.
+
+### Luồng trước và sau
+
+Trước: câu hỏi → bốn khối (hồ sơ, đơn, đối chiếu một đơn, điều kiện nền) → mô hình → hậu kiểm
+→ `_TU_CHOI` → câu trả lời; mô hình lỗi → "đang bận".
+
+Sau:
+1. Bốn khối cũ, **cộng** khối "Các đơn khác đang tuyển" (từ `run_matching` cả danh mục, chỉ khi
+   hồ sơ đã xác nhận, có bộ đệm), khối "Khóa học tiếng Nhật" (danh mục đã công bố, mỗi ô kèm
+   nguồn), và ở Agent cấp hồ sơ thêm "Đơn khách đang xem" và "tiêu chí hay làm trượt".
+2. Prompt cho phép **nhận xét có căn cứ**, bắt phân biệt nguồn, cấm tự tạo sự kiện; câu ngoài
+   phạm vi đánh dấu `[NGOAI_PHAM_VI]` thay vì để máy dò chữ.
+3. `qa.xu_ly_cau_tra_loi` — dùng chung cho hai phòng: dấu hiệu → hậu kiểm → lời từ chối trơn
+   (khớp trọn câu). Khối cho phép gồm cả câu khách vừa hỏi.
+4. Mô hình lỗi → `consultation/du_phong.py` dựng tóm tắt từ kết quả đối chiếu, nói rõ là tóm
+   tắt tự động; nguồn vẫn là `khong_goi_duoc`.
+
+AI vẫn không tự tạo kết quả đối chiếu: đơn khác chỉ đến từ engine, khóa chỉ đến từ danh mục.
+Không đổi engine, công thức điểm, luồng xác nhận hay đăng ký.
+
+### Đo được
+
+Bộ mẫu 27 câu có nhãn (`tests/hau_kiem_mau.py`, đo bằng `scripts/do_hau_kiem.py`):
+
+| | bản HEAD | bản 07/10 |
+|---|---:|---:|
+| Chặn nhầm câu đúng | 4 | 0 |
+| Để lọt câu bịa | 7 | 0 |
+| Từ chối không thành câu chuẩn | 1 | 0 |
+
+Hai trong bốn câu "chặn nhầm" của bản cũ là câu có dấu `[NGOAI_PHAM_VI]` — không công bằng với
+bản cũ vì prompt cũ chưa có dấu hiệu.
+
+**Khóa thật, tiền thật** (chủ đồ án chốt 07/10 là yêu cầu bắt buộc): hai chốt mới trong
+`qa.kiem_tra`. Nhắc tới một khóa cụ thể ("khóa luyện thi…", "khóa tiếng Nhật cấp tốc") thì
+phải gọi đúng tên hoặc mã có trong danh mục đã công bố. Câu nói khoản A bao trùm khoản B thì A
+phải lớn hơn B — "học phí 35 triệu đã gồm tổng 90 triệu" bị chặn dù cả hai số đều có thật.
+Cùng với chốt số (mọi con số phải có trong dữ liệu) và chốt mã (mã đơn, mã khóa phải có thật).
+
+**Trên mô hình thật: gần như chưa đo được.** Ba lượt đánh giá 7 ca (19:49, 21:06) và một lượt
+thăm dò đều không đo được — model chính 503 rồi quá giờ, model dự phòng quá giờ (biên bản
+`docs/nghiem_thu/2026-10-07_1949_tu_van_mo_hinh_that.json`, `…_2106_…`). Câu trả lời thật duy nhất
+đến từ lượt chốt 21:04, bộ hành trình, model dự phòng `gemini-3.7-flash`, qua đủ hậu kiểm:
+
+> Hỏi: *Em còn thiếu gì để nộp đơn này ạ?* — Đáp: *Hệ thống đối chiếu cho thấy bạn đã đáp ứng
+> đủ các tiêu chí bắt buộc của 11 đơn tuyển dụng, trong đó có đơn DH-0001 tại Viện dưỡng lão
+> Sakura ở Tokyo. Để hồ sơ được đối chiếu sát hơn với nguyện vọng và khả năng, bạn còn thiếu
+> thông tin về mức lương mong muốn và ngân sách dự kiến chi trả…*
+
+Một câu là một mẫu, không phải kết luận về chất lượng. Chạy lại `scripts.danh_gia_tu_van_that`
+khi dịch vụ ổn — 7 lượt, dữ liệu giả, không ghi database.
+
+**Trình duyệt thật bắt thêm hai lỗi của bản tóm tắt dự phòng** (Agent cấp hồ sơ, 07/10): in
+thẳng tên trường máy ("Hồ sơ còn thiếu: experience_years, salary_expectation_jpy…"), và khách
+chưa học tiếng hỏi "nên làm gì" mà không được nhắc khóa có sẵn từ chưa học. Cả hai đã sửa, có
+ca chặn, và đã kiểm lại trên trình duyệt.
+
+### Rủi ro còn lại
+
+- Cho nhắc lại số khách vừa nói cũng là cho nhắc lại số khách **bịa**: "báo lương 300.000 yên"
+  rồi mô hình nhắc lại như sự thật. Agent cấp hồ sơ đã chấp nhận rủi ro này từ 02/10 vì nó cần
+  nhắc lại lương mong muốn để xin xác nhận; nay phòng theo đơn cùng quy tắc.
+- Tên khóa đọc như lời khuyên chung ("học tiếng Nhật tại trung tâm") thì chỉ nhìn chữ không
+  phân biệt được với lời khuyên chung. Prompt bắt gọi khóa kèm mã, và mã luôn kiểm được.
+- Chính sách bịa không kèm số hay mã thì vẫn chỉ có quy tắc trong prompt.
+- Bản tóm tắt dự phòng giống nhau với mọi câu hỏi — có chủ ý, vì không có mô hình thì không hiểu
+  được câu hỏi; nhưng nó không trả lời đúng câu khách vừa hỏi.

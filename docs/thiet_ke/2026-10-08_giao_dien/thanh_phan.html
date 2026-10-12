@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOCKUP — Bộ thành phần và trạng thái</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  .o { background: #fff; border: 1px solid var(--vien); border-radius: 14px; padding: 18px; }
+  .o > .ten { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--chu-phu); margin-bottom: 10px; }
+  .xuong { height: 14px; border-radius: 7px; background: linear-gradient(90deg, #eee8dc, #f6f2ea, #eee8dc); background-size: 200% 100%; animation: song 1.6s linear infinite; }
+  @keyframes song { to { background-position: -200% 0; } }
+  .tien-trinh { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .tien-trinh li { display: flex; gap: 10px; align-items: center; }
+  .tien-trinh i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .85rem; font-weight: 700; background: var(--nen-2); }
+  .tien-trinh .x i { background: var(--xanh-nhat); color: var(--xanh); }
+  .tien-trinh .d i { background: var(--chu); color: #fff; }
+  .cham span { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--chu-phu); margin-right: 3px; animation: nhay 1.2s infinite; }
+  .cham span:nth-child(2) { animation-delay: .2s; } .cham span:nth-child(3) { animation-delay: .4s; }
+  @keyframes nhay { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">MOCKUP · bộ thành phần dùng chung cho website khách và màn hình nội bộ</div>
+<div class="tl">
+  <h1>Bộ thành phần và trạng thái</h1>
+  <p class="phu">Mọi màn hình dùng chung một bộ này. Màn hình nội bộ dùng cùng màu, cỡ chữ gốc nhỏ hơn một nấc (16px thay vì 17px).</p>
+
+  <h2>1. Màu</h2>
+  <div class="mau">
+    <div><span style="background:#fbf8f2"></span><p><b>Nền ngà</b><br>#FBF8F2</p></div>
+    <div><span style="background:#f4efe4"></span><p><b>Ngà đậm</b><br>#F4EFE4 · khối phụ</p></div>
+    <div><span style="background:#1d2b3e"></span><p><b>Chữ xanh đậm</b><br>#1D2B3E · 13,6:1 trên nền</p></div>
+    <div><span style="background:#5f6877"></span><p><b>Chữ phụ</b><br>#5F6877 · 5,1:1</p></div>
+    <div><span style="background:#a3302d"></span><p><b>Đỏ trầm</b><br>#A3302D · nút chính, chữ trắng 6,6:1</p></div>
+    <div><span style="background:#2c7a4b"></span><p><b>Xanh lá ✓</b><br>#2C7A4B · 5,0:1 trên trắng</p></div>
+    <div><span style="background:#7a5200"></span><p><b>Vàng đất</b><br>#7A5200 · "cần bổ sung"</p></div>
+    <div><span style="background:#2b5a86"></span><p><b>Xanh tin</b><br>#2B5A86 · thông tin, viền focus</p></div>
+  </div>
+  <p class="nho phu" style="margin-top:8px">Đổi so với hiện tại: đỏ #CB1D1E (tươi) → đỏ trầm #A3302D; nền #FFFDF9 → ngà #FBF8F2. Tỷ lệ tương phản tính theo WCAG, cần đo lại bằng công cụ khi triển khai.</p>
+
+  <h2>2. Chữ</h2>
+  <div class="o cach">
+    <p class="ten">Be Vietnam Pro · cỡ gốc 17px · dòng 1,65</p>
+    <h1>Tiêu đề trang 32px</h1>
+    <h2 style="margin:0;padding:0;border:0">Tiêu đề khối 24px</h2>
+    <h3>Tiêu đề mục 19px</h3>
+    <p>Chữ thường 17px. Một dòng không quá khoảng 70 ký tự để mắt không lạc dòng.</p>
+    <p class="nho phu">Chữ phụ 15px — cỡ nhỏ nhất được dùng. Không dùng chữ 12–13px cho nội dung khách cần đọc.</p>
+    <p class="bao bao-loi"><span class="bt">!</span><span><b>Lỗi đang thấy ở trang thật (ảnh chụp 08/10)</b>Chữ hiện có chân (serif) dù đã khai Be Vietnam Pro — có thể do <code>var(--font-sans)</code> không được định nghĩa khi phông không tải được. Sẽ sửa bằng giá trị dự phòng <code>var(--font-sans, system-ui)</code>, kiểm lại khi triển khai.</span></p>
+  </div>
+
+  <h2>3. Nút</h2>
+  <div class="o hang">
+    <button class="nut nut-chinh">Nút chính</button>
+    <button class="nut nut-phu">Nút phụ</button>
+    <button class="nut nut-nhe">Liên kết dạng nút</button>
+    <button class="nut nut-chinh" disabled>Đang gửi…</button>
+    <button class="nut nut-phu nut-nho">Nút nhỏ</button>
+  </div>
+  <p class="nho phu" style="margin-top:8px">Cao tối thiểu 48px (nút nhỏ 40px, chỉ ở màn hình nội bộ). Mỗi khối chỉ một nút chính. Viền focus xanh 3px luôn thấy được.</p>
+
+  <h2>4. Nhãn trạng thái — luôn có chữ, không chỉ màu</h2>
+  <div class="o hang">
+    <span class="chip chip-xanh">✓ Đạt</span><span class="chip chip-do">✕ Chưa đạt</span><span class="chip chip-vang">? Chưa rõ</span>
+    <span class="chip chip-tin">Kỹ năng đặc định</span><span class="chip">Tokyo · vùng Kantō</span>
+  </div>
+  <p class="nho phu" style="margin-top:8px">Trang khách: bảng chỉ dùng ✓ (xem mục 5). Trang nội bộ: dùng đủ ba nhãn chữ vì nhân viên cần biết chính xác chỗ phải hỏi.</p>
+
+  <h2>5. Bảng đối chiếu và thẻ tiêu chí</h2>
+  <div class="luoi-2">
+    <div class="o"><p class="ten">Máy tính — bảng 4 cột</p>
+      <table class="bang" style="display:table">
+        <thead><tr><th>Tiêu chí</th><th>Yêu cầu</th><th>Của bạn</th><th class="cot-dau">✓</th></tr></thead>
+        <tbody>
+          <tr><th>Bằng cấp</th><td>Cao đẳng trở lên</td><td>Cao đẳng Điều dưỡng</td><td class="cot-dau"><span class="dau-tich">✓</span></td></tr>
+          <tr><th>Tiếng Nhật</th><td>Từ N4</td><td>Chưa học</td><td class="cot-dau"></td></tr>
+          <tr><th>Độ tuổi</th><td>20–35</td><td class="chua-cung-cap">Chưa cung cấp</td><td class="cot-dau"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="o"><p class="ten">Điện thoại — thẻ dọc</p>
+      <ul class="the-tieu-chi" style="display:block">
+        <li><div class="hang-dau"><span>Bằng cấp</span><span class="dau-tich">✓</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Cao đẳng trở lên</dd><dt>Thông tin của bạn</dt><dd>Cao đẳng Điều dưỡng</dd></dl></li>
+        <li><div class="hang-dau"><span>Độ tuổi</span></div><dl><dt>Yêu cầu của đơn</dt><dd>20–35</dd><dt>Thông tin của bạn</dt><dd class="chua-cung-cap">Chưa cung cấp</dd></dl></li>
+      </ul>
+    </div>
+  </div>
+  <p class="nho phu" style="margin-top:8px">Ô có ✓ đọc cho trình đọc màn hình là "Đáp ứng"; ô trống đọc là "Chưa đáp ứng hoặc chưa rõ". Phần tổng kết bên dưới luôn tách chưa đạt và chưa rõ bằng chữ.</p>
+
+  <h2>6. Biểu mẫu</h2>
+  <div class="luoi-2">
+    <div class="o">
+      <div class="truong"><label for="a">Họ và tên</label><input id="a" class="o-nhap" value="Đỗ Thị Thử"></div>
+      <div class="truong"><label for="b">Năm sinh</label><span class="goi-y">Ghi 4 chữ số, ví dụ 1998</span><input id="b" class="o-nhap" inputmode="numeric"></div>
+    </div>
+    <div class="o">
+      <div class="truong loi"><label for="c">Số điện thoại</label><input id="c" class="o-nhap" value="09123"><span class="bao-loi">Số điện thoại cần đủ 10 chữ số. Bạn kiểm lại giúp mình.</span></div>
+      <div class="truong"><label>Trình độ tiếng Nhật</label><div class="lua-chon"><label class="chon"><input type="radio" name="t" checked> Chưa học</label><label><input type="radio" name="t"> Đang học</label><label><input type="radio" name="t"> Đã có N5–N1</label></div></div>
+    </div>
+  </div>
+  <p class="nho phu" style="margin-top:8px">Nhãn luôn nằm trên ô, không dùng chữ mờ trong ô thay nhãn. Lỗi nói cách sửa, không chỉ nói "sai". Lựa chọn ít mục dùng nút lớn thay cho danh sách thả xuống.</p>
+
+  <h2>7. Thông báo</h2>
+  <div class="luoi-2">
+    <div class="bao bao-tin"><span class="bt">i</span><span><b>Thông tin</b>Nhân viên trả lời trong giờ hành chính, thứ Hai đến thứ Bảy.</span></div>
+    <div class="bao bao-dat"><span class="bt">✓</span><span><b>Thành công</b>Đã gửi yêu cầu. Mã của bạn: HT-B048C6.</span></div>
+    <div class="bao bao-vang"><span class="bt">?</span><span><b>Cần bổ sung</b>Bạn chưa cho biết năm sinh.</span></div>
+    <div class="bao bao-loi"><span class="bt">!</span><span><b>Chưa gửi được</b>Mất kết nối. Câu bạn gõ vẫn còn, bấm Gửi lại khi có mạng.</span></div>
+  </div>
+
+  <h2>8. Mẫu trạng thái</h2>
+  <p class="phu">Mỗi ô là một trạng thái phải có trên giao diện thật. Câu chữ là bản nháp để duyệt.</p>
+  <div class="luoi-3" style="margin-top:14px">
+    <div class="o"><p class="ten">Đang tải</p><div class="cach"><div class="xuong" style="width:60%"></div><div class="xuong"></div><div class="xuong" style="width:80%"></div></div><p class="nho phu" style="margin-top:10px">Khung xương đúng hình nội dung sắp hiện; có chữ ẩn "Đang tải" cho trình đọc màn hình.</p></div>
+    <div class="o"><p class="ten">Đang đọc CV</p><ol class="tien-trinh"><li class="x"><i>✓</i>Đã nhận tệp CV_DoThiThu.pdf</li><li class="d"><i>2</i>Đang đọc nội dung…</li><li><i>3</i>Đưa thông tin vào hồ sơ</li></ol><p class="nho phu" style="margin-top:10px">Giữ trang này mở trong lúc đọc. Đọc xong, hồ sơ hiện ngay bên dưới để bạn kiểm tra.</p></div>
+    <div class="o"><p class="ten">Đọc CV thành công</p><div class="bao bao-dat"><span class="bt">✓</span><span><b>Đã đọc được 6 mục</b>Họ tên, bằng cấp, chuyên ngành… Bạn kiểm tra lại trước khi dùng.</span></div><button class="nut nut-chinh" style="margin-top:12px">Kiểm tra hồ sơ</button></div>
+    <div class="o"><p class="ten">Không đọc được CV</p><div class="bao bao-loi"><span class="bt">!</span><span><b>Chưa đọc được tệp này</b>Ảnh mờ hoặc tệp không có chữ. Bạn thử tệp khác, hoặc khai tay vài mục.</span></div><div class="hang" style="margin-top:12px"><button class="nut nut-phu">Chọn tệp khác</button><button class="nut nut-nhe">Khai tay</button></div></div>
+    <div class="o"><p class="ten">Thiếu thông tin</p><div class="bao bao-vang"><span class="bt">?</span><span><b>Còn 2 mục để kết quả chắc hơn</b>Thiếu không làm bạn mất đơn nào — hệ thống ghi "chưa rõ" chứ không loại.</span></div><div class="truong" style="margin-top:12px"><label for="n1">Bạn sinh năm nào?</label><input id="n1" class="o-nhap"></div></div>
+    <div class="o"><p class="ten">Có tiêu chí chưa đáp ứng</p><div class="bao bao-loi"><span class="bt">●</span><span><b>Chưa đáp ứng: Tiếng Nhật</b>Đơn cần từ N4, hồ sơ ghi chưa học.</span></div><p class="nho" style="margin-top:10px">Kèm ngay hướng đi: <a href="#">xem hướng học</a> · <a href="#">đơn khác bạn đạt</a></p></div>
+    <div class="o"><p class="ten">Chưa có nguyện vọng để chấm điểm</p><p><b>Điểm khớp nguyện vọng</b></p><p class="phu" style="margin-top:4px">Bạn chưa nêu khu vực, loại cơ sở, lương hay ngân sách mong muốn nên chưa có điểm để so đơn này với đơn khác.</p><button class="nut nut-phu nut-nho" style="margin-top:10px">Nêu nguyện vọng</button></div>
+    <div class="o"><p class="ten">Có điểm nguyện vọng</p><p><b style="font-size:1.4rem">60</b> / 100 — mức khớp nguyện vọng, <b>không phải</b> khả năng trúng tuyển.</p><ul class="nho" style="margin:8px 0 0;padding-left:18px"><li>Khu vực: Tokyo — bạn chọn Kantō · +25/40</li><li>Loại cơ sở: trùng · +30/30</li><li>Lương: bạn chưa nêu · +0/20 <i>(chưa rõ)</i></li></ul></div>
+    <div class="o"><p class="ten">Hồ sơ chưa xác nhận</p><div class="bao bao-vang"><span class="bt">?</span><span><b>Kiểm tra hồ sơ trước đã</b>Máy có thể đọc nhầm. Bảng đối chiếu hiện sau khi bạn xác nhận.</span></div><button class="nut nut-chinh" style="margin-top:12px">Kiểm tra và xác nhận</button></div>
+    <div class="o"><p class="ten">Trợ lý đang trả lời</p><p class="nho" style="background:var(--nen-2);border-radius:10px;padding:10px">Tôi chưa học tiếng thì nên chuẩn bị gì?</p><p class="cham" style="margin-top:10px" role="status"><span></span><span></span><span></span> Trợ lý đang viết…</p><p class="nho phu">Ô hỏi khóa lại đến khi có câu trả lời; nội dung đang đọc không bị đẩy đi.</p></div>
+    <div class="o"><p class="ten">Lỗi mạng</p><div class="bao bao-loi"><span class="bt">!</span><span><b>Chưa gửi được câu hỏi</b>Mất kết nối. Câu bạn gõ vẫn còn trong ô.</span></div><button class="nut nut-phu" style="margin-top:12px">Gửi lại</button></div>
+    <div class="o"><p class="ten">Trợ lý bận / hết hạn mức</p><div class="bao bao-tin"><span class="bt">i</span><span><b>Trợ lý đang tạm bận</b>Dưới đây là <u>tóm tắt tự động</u> từ kết quả đối chiếu, chưa phải câu trả lời riêng cho câu bạn hỏi.</span></div><div class="hang" style="margin-top:12px"><button class="nut nut-phu nut-nho">Hỏi lại sau</button><button class="nut nut-nhe">Nhắn nhân viên</button></div></div>
+    <div class="o"><p class="ten">Gửi yêu cầu thành công</p><div class="bao bao-dat"><span class="bt">✓</span><span><b>Đã gửi tới nhân viên tư vấn</b>Mã HT-B048C6 · lịch gặp trực tuyến 09:30 thứ Sáu 09/10/2026.</span></div><p class="nho phu" style="margin-top:10px">Nhân viên gọi lại trong giờ hành chính. Theo dõi ở Hồ sơ của tôi.</p></div>
+    <div class="o"><p class="ten">Gửi lại (bấm hai lần)</p><div class="bao bao-tin"><span class="bt">i</span><span><b>Yêu cầu này đã được gửi</b>Vẫn là mã HT-B048C6 và lịch TV-20261009-09CE — hệ thống không tạo thêm.</span></div></div>
+    <div class="o"><p class="ten">Xung đột dữ liệu</p><div class="bao bao-vang"><span class="bt">?</span><span><b>Hồ sơ vừa được cập nhật ở nơi khác</b>Lúc 14:32 (tab khác hoặc nhân viên). Thông tin bạn đang sửa chưa được lưu.</span></div><div class="hang" style="margin-top:12px"><button class="nut nut-chinh nut-nho">Xem bản mới nhất</button><button class="nut nut-nhe">So với thứ tôi đang sửa</button></div></div>
+    <div class="o"><p class="ten">Kết quả cũ, đang tính lại</p><div class="bao bao-tin"><span class="bt">i</span><span><b>Hồ sơ đã thay đổi</b>Bảng bên dưới đang được tính lại theo thông tin mới.</span></div><p class="nho phu" style="margin-top:10px">Bảng cũ mờ đi và có nhãn "kết quả trước khi sửa" — không tự đổi trong lúc khách đang đọc mà đợi khách bấm "Xem kết quả mới".</p></div>
+    <div class="o"><p class="ten">Chi phí: đơn chưa công bố (bản 2)</p><p class="nho">Chi phí: <b>đơn chưa công bố</b> — bạn: khả năng 100.000.000 đ</p><p class="nho phu" style="margin-top:6px">+5/10 — điểm trung lập vì chưa đủ dữ liệu để đánh giá, <b>không phải</b> điểm mạnh.</p></div>
+    <div class="o"><p class="ten">Chi phí: khách chưa nêu ngân sách (bản 2)</p><p class="nho">Chi phí: 90.000.000 đ — bạn: <i>Chưa cung cấp</i></p><p class="nho phu" style="margin-top:6px">+5/10 — bạn chưa nêu ngân sách; điểm trung lập vì chưa đủ dữ liệu để đánh giá, không phải điểm mạnh. <a href="#">Nêu ngân sách</a></p></div>
+    <div class="o"><p class="ten">Khách sửa mục nhân viên đã ghi (bản 2)</p><div class="bao bao-vang" role="status"><span class="bt">?</span><span><b>Tiếng Nhật: chưa đổi</b>Nhân viên đã ghi N4 sau khi đối chứng bản gốc. Điều bạn sửa (N5) đã được gửi để nhân viên xem lại.</span></div></div>
+    <div class="o"><p class="ten">Bốn mức tiếng Nhật (bản 2)</p><p class="hang"><span class="chip">N4 · tự khai</span><span class="chip chip-tin">đang học N3 · chưa có</span><span class="chip chip-xanh">N4 · đã đạt (trung tâm)</span><span class="chip chip-xanh">N4 · có chứng chỉ</span></p><p class="nho phu" style="margin-top:8px">Mỗi nhãn có chữ; "đang học" không bao giờ đứng cạnh dấu ✓ của tiêu chí tiếng Nhật.</p></div>
+    <div class="o"><p class="ten">Nhân viên: việc chưa nhận (bản 2)</p><p><b>L. T. M.</b> · Đăng ký DH-0001 · 2 giờ trước</p><p class="nho phu">Số điện thoại, lời nhắn, phiếu tóm tắt mở sau khi nhận.</p><button class="nut nut-chinh nut-nho" style="margin-top:8px">Nhận xử lý</button></div>
+    <div class="o"><p class="ten">Nhân viên: người khác đang giữ (bản 2)</p><div class="bao bao-tin"><span class="bt">i</span><span><b>Yêu cầu này do tuvan.a đang xử lý</b>Bạn không mở được chi tiết. Cần chuyển thì nhờ quản lý.</span></div></div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOCKUP — Hàng đợi và xử lý của nhân viên</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  /* Trang nội bộ: cùng bảng màu, mật độ dày hơn một nấc (16px), không ảnh nền */
+  html { font-size: 16px; }
+  body { background: #f7f4ee; }
+  .vo { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .ben { background: var(--chu); color: #dfe5ee; padding: 18px 12px; }
+  .ben .logo { color: #fff; margin: 0 8px 18px; }
+  .ben a { display: block; color: #dfe5ee; text-decoration: none; padding: 9px 12px; border-radius: 10px; font-size: .95rem; }
+  .ben a.dang { background: rgba(255,255,255,.12); color: #fff; font-weight: 600; }
+  .ben a .so { float: right; background: var(--do); color: #fff; border-radius: 999px; padding: 0 8px; font-size: .8rem; }
+  .ben p { margin: 16px 12px 6px; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: #9fb0c6; }
+  .chinh { padding: 22px 26px 60px; min-width: 0; }
+  .hai-cot { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 16px; }
+  .tab { display: flex; gap: 6px; border-bottom: 1.5px solid var(--vien); }
+  .tab a { padding: 10px 14px; text-decoration: none; color: var(--chu-2); font-weight: 500; border-bottom: 3px solid transparent; margin-bottom: -1.5px; }
+  .tab a.dang { color: var(--chu); border-color: var(--do); font-weight: 600; }
+  .ds { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+  .ds li { background: #fff; border: 1px solid var(--vien-nhat); border-radius: 12px; padding: 12px 14px; }
+  .ds li.chon { border-color: var(--chu); box-shadow: 0 0 0 1px var(--chu); }
+  .ds .t { display: flex; justify-content: space-between; gap: 8px; }
+  .kq { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: .84rem; font-weight: 600; }
+  .kq-dat { background: var(--xanh-nhat); color: var(--xanh); }
+  .kq-khong { background: var(--loi-nhat); color: var(--loi); }
+  .kq-ro { background: var(--vang-nhat); color: var(--vang); }
+  .muc dl { display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; margin: 10px 0 0; }
+  .muc dt { color: var(--chu-phu); } .muc dd { margin: 0; }
+  .xac-minh { font-size: .8rem; display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; }
+  .xm-nv { background: var(--xanh-nhat); color: var(--xanh); }
+  .xm-tu { background: var(--nen-2); color: var(--chu-phu); }
+  .xm-cv { background: var(--tin-nhat); color: var(--tin); }
+  .nut-dong { display: flex; flex-wrap: wrap; gap: 10px; }
+  .dong-thoi-gian { list-style: none; margin: 10px 0 0; padding: 0 0 0 16px; border-left: 2px solid var(--vien); font-size: .92rem; }
+  .dong-thoi-gian li { margin-bottom: 10px; }
+  /* Danh sách dính bên trái khi cuộn chi tiết — chuyển sang hồ sơ kế tiếp không phải cuộn ngược lên */
+  .hai-cot > section:first-child { position: sticky; top: 16px; }
+  @media (max-width: 1100px) { .hai-cot { grid-template-columns: 1fr; } .hai-cot > section:first-child { position: static; } }
+  @media (max-width: 860px) {
+    .vo { grid-template-columns: minmax(0, 1fr); }
+    .ben { display: flex; gap: 6px; overflow-x: auto; padding: 10px; }
+    .ben p, .ben .logo { display: none; }
+    .ben a { white-space: nowrap; }
+    .chinh { padding: 16px; }
+    .muc dl { grid-template-columns: 1fr; gap: 2px; }
+    .muc dt { margin-top: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">MOCKUP · màn hình nội bộ · dữ liệu minh họa</div>
+<div class="vo">
+  <nav class="ben" aria-label="Menu quản trị">
+    <a class="logo" href="#"><b>DC</b> Quản trị</a>
+    <p>Việc hằng ngày</p>
+    <a href="#">Tổng quan</a>
+    <a class="dang" href="#" aria-current="page">Hàng đợi hồ sơ <span class="so">12</span></a>
+    <a href="#">Yêu cầu hỗ trợ <span class="so">4</span></a>
+    <a href="#">Lịch hẹn</a>
+    <a href="#">Hồ sơ ứng tuyển</a>
+    <a href="#">Khách hàng</a>
+    <p>Dữ liệu</p>
+    <a href="#">Đơn tuyển dụng</a><a href="#">Khóa học</a><a href="#">Nhật ký giới thiệu</a>
+    <p>Quản lý</p>
+    <a href="#">Điểm nhân viên</a><a href="#">Người dùng</a><a href="#">Nhật ký hệ thống</a>
+  </nav>
+
+  <main class="chinh">
+    <div class="hang" style="justify-content:space-between"><h1 style="font-size:1.6rem">Hàng đợi hồ sơ</h1><span class="phu nho">Đăng nhập: tuvan.a@dc.vn · Nhân viên tư vấn</span></div>
+    <div class="tab" style="margin-top:12px" role="tablist">
+      <a class="dang" href="#" role="tab" aria-selected="true">Chờ nhận (12)</a><a href="#" role="tab">Của tôi (5)</a><a href="#" role="tab">Đang có người xử lý <span class="phu nho">(quản lý)</span></a>
+    </div>
+
+    <div class="hai-cot">
+      <section aria-label="Danh sách chờ nhận">
+        <p class="nho phu" style="margin-top:10px"><b>Chờ nhận</b> — bản tối thiểu: chưa có họ tên đầy đủ, số điện thoại hay phiếu cho tới khi bạn bấm nhận.</p>
+        <ul class="ds">
+          <li><div class="t"><b>N. V. B.</b><span class="phu nho">5 giờ trước</span></div><p class="nho">Xin gặp mặt · có lịch hẹn</p><button class="nut nut-chinh nut-nho" style="margin-top:8px">Nhận xử lý</button></li>
+          <li><div class="t"><b>T. T. C.</b><span class="chip chip-vang nho">Quá 24 giờ</span></div><p class="nho">Đăng ký DH-0004 · Chiba</p><button class="nut nut-chinh nut-nho" style="margin-top:8px">Nhận xử lý</button></li>
+        </ul>
+        <p class="nho phu" style="margin-top:14px"><b>Của tôi</b></p>
+        <ul class="ds">
+          <li class="chon"><div class="t"><b>Lê Thị Minh</b><span class="phu nho">nhận 10:12</span></div><p class="nho">Đăng ký DH-0001 · Tokyo</p><p class="nho" style="margin-top:4px"><span class="kq kq-dat">6 đạt</span> <span class="kq kq-ro">1 chưa rõ</span> <span class="kq" style="background:var(--vang-nhat);color:var(--vang)">1 đề xuất chờ</span></p></li>
+        </ul>
+      </section>
+
+      <section class="cach">
+        <div class="the">
+          <div class="hang" style="justify-content:space-between">
+            <div><p class="tieu-de-khoi">HS-7F21A9 · bạn đang xử lý</p><h2 style="margin-top:4px">Lê Thị Minh</h2><p class="phu">Đăng ký đơn DH-0001 — Điều dưỡng viện dưỡng lão Tokyo · gửi 12:05 hôm nay</p></div>
+            <div class="nut-dong"><button class="nut nut-phu">Trả về hàng đợi</button><button class="nut nut-phu" disabled title="Chỉ quản lý">Chuyển cho…</button></div>
+          </div>
+          <div class="bao bao-tin" style="margin-top:14px"><span class="bt" aria-hidden="true">i</span><div><b>Hai người cùng bấm "Nhận xử lý"?</b>Chỉ một người nhận được; người kia thấy thông báo "đã có người nhận" và danh sách tự làm mới.</div></div>
+        </div>
+
+        <div class="the muc">
+          <h3>Hồ sơ và nguồn thông tin</h3>
+          <dl>
+            <dt>Điện thoại</dt><dd>09xx xxx xxx <span class="nho phu">(giữ chỗ)</span></dd>
+            <dt>Năm sinh</dt><dd><span class="chua-cung-cap">Chưa cung cấp</span> — cần hỏi khi gọi</dd>
+            <dt>Tiếng Nhật</dt><dd>N4 <span class="xac-minh xm-nv">có chứng chỉ · đã đối chứng bản gốc · tuvan.a, 08/10</span><br><span class="xac-minh xm-cv" style="margin-left:0">đang học hướng tới N3 — chưa phải trình độ đã có</span></dd>
+            <dt>Bằng cấp</dt><dd>Cao đẳng Điều dưỡng <span class="xac-minh xm-cv">đọc từ CV · khách xác nhận</span></dd>
+            <dt>Nguyện vọng</dt><dd>Vùng Kantō, viện dưỡng lão</dd>
+          </dl>
+          <p class="nho phu" style="margin-top:10px">Bốn mức tiếng Nhật: <span class="xac-minh xm-tu">tự khai</span> <span class="xac-minh xm-cv">đang học (chưa có)</span> <span class="xac-minh xm-nv">đã đạt theo kết quả trung tâm</span> <span class="xac-minh xm-nv">có chứng chỉ</span>. Mục nhân viên đã ghi thì khách không sửa đè được.</p>
+        </div>
+
+        <div class="the" style="border-color:#e9cf8f">
+          <h3>Đề xuất của khách chờ bạn xem</h3>
+          <p class="nho" style="margin-top:8px"><b>Tiếng Nhật</b>: khách vừa sửa thành <b>N5</b> (08/10 14:32). Bạn đã ghi <b>N4</b> — đối chứng bản gốc.</p>
+          <p class="nho phu">Hệ thống chưa đổi gì. Kết quả đối chiếu vẫn theo N4 cho tới khi bạn quyết.</p>
+          <div class="hang" style="margin-top:10px"><button class="nut nut-phu nut-nho">Giữ N4 (ghi lý do)</button><button class="nut nut-phu nut-nho">Sửa theo khách</button></div>
+        </div>
+
+        <div class="the">
+          <h3>Tiến độ học</h3>
+          <div class="luoi-3" style="margin-top:10px">
+            <div class="truong"><label for="tt-hoc">Trạng thái</label><select id="tt-hoc" class="o-nhap"><option>Đang học</option><option>Tạm dừng</option><option>Đã hoàn thành khóa</option></select></div>
+            <div class="truong"><label for="mt">Mục tiêu</label><select id="mt" class="o-nhap"><option>N3</option></select></div>
+            <div class="truong"><label for="kh">Khóa</label><select id="kh" class="o-nhap"><option>KH-0001</option></select></div>
+          </div>
+          <p class="nho phu">Chỉ khi “Đã hoàn thành khóa” và ghi kết quả thì trình độ mới đổi (mức “đã đạt theo kết quả trung tâm”). Đang học không làm hồ sơ đạt thêm điều kiện nào.</p>
+          <button class="nut nut-chinh nut-nho">Lưu tiến độ</button>
+        </div>
+
+        <div class="the">
+          <h3>Đối chiếu với DH-0001</h3>
+          <p class="nho phu" style="margin-top:4px">Màn hình nội bộ hiện đủ ba trạng thái bằng chữ (<span class="kq kq-dat">✓ Đạt</span> <span class="kq kq-khong">✕ Chưa đạt</span> <span class="kq kq-ro">? Chưa rõ</span>) — nhân viên cần biết chính xác chỗ nào phải hỏi.</p>
+          <table class="bang" style="margin-top:10px">
+            <thead><tr><th scope="col">Tiêu chí</th><th scope="col">Đơn yêu cầu</th><th scope="col">Hồ sơ</th><th scope="col">Kết quả</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Tiếng Nhật</th><td>Từ N4</td><td>N4 (có chứng chỉ)</td><td><span class="kq kq-dat">✓ Đạt</span></td></tr>
+              <tr><th scope="row">Độ tuổi</th><td>20–35</td><td class="chua-cung-cap">Chưa cung cấp</td><td><span class="kq kq-ro">? Chưa rõ</span></td></tr>
+              <tr><th scope="row">Bằng cấp</th><td>Cao đẳng trở lên</td><td>Cao đẳng Điều dưỡng</td><td><span class="kq kq-dat">✓ Đạt</span></td></tr>
+              <tr><td colspan="4" class="nho phu">+ 4 tiêu chí đạt khác · <a href="#">Mở đủ 7 dòng</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="luoi-2">
+          <div class="the">
+            <h3>Khách đã hỏi trợ lý</h3>
+            <ul class="nho" style="margin:10px 0 0; padding-left:18px">
+              <li>"Khi nào thì phỏng vấn?"</li>
+              <li>"Tổng chi phí là bao nhiêu?"</li>
+            </ul>
+            <a class="nho" href="#">Xem toàn bộ hội thoại tư vấn</a>
+          </div>
+          <div class="the">
+            <h3>Lịch hẹn</h3>
+            <p class="nho" style="margin-top:10px"><b>Thứ Sáu 09/10/2026 · 09:30</b> · gặp trực tuyến</p>
+            <p class="nho phu">mã lịch minh họa · chưa diễn ra</p>
+          </div>
+        </div>
+
+        <div class="the">
+          <h3>Ghi kết quả sơ tuyển</h3>
+          <p class="nho phu" style="margin-top:4px">Chỉ ghi sau buổi gặp. Một lần lưu đổi cả trình độ đã xác minh lẫn trạng thái hồ sơ.</p>
+          <div class="luoi-2" style="margin-top:12px">
+            <div class="truong"><label for="tdnb">Trình độ tiếng Nhật đã kiểm</label><select id="tdnb" class="o-nhap"><option>N4</option></select></div>
+            <div class="truong"><label>Đối chứng bằng</label><div class="lua-chon"><label class="chon"><input type="radio" name="dc" checked> Bằng gốc</label><label><input type="radio" name="dc"> Tra cứu chính thức</label><label><input type="radio" name="dc"> Không xuất trình</label></div></div>
+          </div>
+          <div class="truong"><label>Kết quả</label><div class="lua-chon"><label><input type="radio" name="kq"> Đạt sơ tuyển</label><label><input type="radio" name="kq"> Còn thiếu giấy tờ</label><label><input type="radio" name="kq"> Không đạt</label></div></div>
+          <div class="truong"><label for="gc">Ghi chú nội bộ</label><textarea id="gc" class="o-nhap" placeholder="Chỉ nhân viên đọc được, không gửi cho khách và không đưa vào trợ lý AI"></textarea></div>
+          <button class="nut nut-chinh">Lưu kết quả</button>
+        </div>
+
+        <div class="the">
+          <h3>Lịch sử</h3>
+          <ul class="dong-thoi-gian">
+            <li><b>12:05</b> Khách xác nhận hồ sơ và đăng ký DH-0001 (đạt điều kiện bắt buộc, còn 1 mục chưa rõ)</li>
+            <li><b>12:06</b> Hệ thống tạo phiếu tóm tắt và đưa vào hàng đợi</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

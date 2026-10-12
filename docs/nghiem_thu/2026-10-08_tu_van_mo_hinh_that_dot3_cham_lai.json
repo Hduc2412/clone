@@ -1,0 +1,84 @@
+{
+  "mo_ta": "Chấm lại ngoại tuyến câu trả lời đã lưu của dot3 bằng _cham hiện hành (đã sửa bắt nhầm câu phủ định ở ca chuong_trinh). Không gọi mô hình.",
+  "tep_nguon": "2026-10-08_tu_van_mo_hinh_that_dot3.json",
+  "sha256_tep_nguon": "d05f99bc75e4ed649ae07734263ca00e47b1ffa0a2745e89721ba9f89de06394",
+  "tong": {
+    "ĐẠT": 6,
+    "HỎNG": 0,
+    "CHƯA ĐO ĐƯỢC": 4
+  },
+  "ca": [
+    {
+      "ma": "tien_do",
+      "ket_luan_luc_do": "ĐẠT",
+      "ket_luan_cham_lai": "ĐẠT",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "chuong_trinh",
+      "ket_luan_luc_do": "HỎNG",
+      "ket_luan_cham_lai": "ĐẠT",
+      "hong_luc_do": [
+        "coi hoàn thành chương trình tại trung tâm như chứng chỉ / đủ yêu cầu của đơn"
+      ],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "chua_xac_nhan",
+      "ket_luan_luc_do": "ĐẠT",
+      "ket_luan_cham_lai": "ĐẠT",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "danh_gia_ho_so",
+      "ket_luan_luc_do": "ĐẠT",
+      "ket_luan_cham_lai": "ĐẠT",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "doi_don",
+      "ket_luan_luc_do": "ĐẠT",
+      "ket_luan_cham_lai": "ĐẠT",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "huong_hoc",
+      "ket_luan_luc_do": "CHƯA ĐO ĐƯỢC",
+      "ket_luan_cham_lai": "CHƯA ĐO ĐƯỢC",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "con_thieu",
+      "ket_luan_luc_do": "ĐẠT",
+      "ket_luan_cham_lai": "ĐẠT",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "nhieu_y",
+      "ket_luan_luc_do": "CHƯA ĐO ĐƯỢC",
+      "ket_luan_cham_lai": "CHƯA ĐO ĐƯỢC",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "chen_lenh",
+      "ket_luan_luc_do": "CHƯA ĐO ĐƯỢC",
+      "ket_luan_cham_lai": "CHƯA ĐO ĐƯỢC",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    },
+    {
+      "ma": "ngoai_pham_vi",
+      "ket_luan_luc_do": "CHƯA ĐO ĐƯỢC",
+      "ket_luan_cham_lai": "CHƯA ĐO ĐƯỢC",
+      "hong_luc_do": [],
+      "hong_cham_lai": []
+    }
+  ]
+}

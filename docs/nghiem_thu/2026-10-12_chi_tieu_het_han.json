@@ -1,0 +1,75 @@
+{
+  "database": "xkld_kiem_thu_0710",
+  "ket_qua": [
+    {
+      "ma": "CT-1",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "(200, 1, False)"
+    },
+    {
+      "ma": "CT-2",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "['  - DH-0021 · [KIỂM THỬ] Đơn chỉ tiêu tạm: đang tuyển, còn 1/1 chỉ tiêu, hạn nộp 11/11/2026.']"
+    },
+    {
+      "ma": "CT-3",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "(200, 'filled', 1, False)"
+    },
+    {
+      "ma": "CT-4",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "404"
+    },
+    {
+      "ma": "CT-5",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "['job_order.filled']"
+    },
+    {
+      "ma": "CT-6",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "0"
+    },
+    {
+      "ma": "CT-7",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "['  - DH-0021 · [KIỂM THỬ] Đơn chỉ tiêu tạm: đã đủ chỉ tiêu, không nhận thêm hồ sơ.']"
+    },
+    {
+      "ma": "CT-8",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "(200, 0, 'filled')"
+    },
+    {
+      "ma": "CT-9",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "404"
+    },
+    {
+      "ma": "CT-10",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "['job_order.slot_released', 'job_order.filled']"
+    },
+    {
+      "ma": "HH-1",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "(['DH-9901'], [])"
+    },
+    {
+      "ma": "HH-2",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "404"
+    },
+    {
+      "ma": "HH-3",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "['  - DH-9901 · [KIỂM THỬ] Đơn quá hạn tạm: đã hết hạn nộp hồ sơ (hạn 11/10/2026).']"
+    },
+    {
+      "ma": "HH-4",
+      "ket_qua": "ĐÚNG",
+      "bang_chung": "(200, 0)"
+    }
+  ]
+}

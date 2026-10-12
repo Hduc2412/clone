@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WIREFRAME — 8 màn hình chính</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  .man { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 24px; align-items: start; margin-top: 12px; }
+  @media (max-width: 900px) { .man { grid-template-columns: 1fr; } }
+  .wf { background: #fff; border: 2px solid #9aa1ab; border-radius: 12px; padding: 10px; font-size: 13px; color: #3b4250; display: grid; gap: 8px; }
+  .wf.dt { max-width: 900px; } .wf.dd { width: 250px; }
+  .wf .nhan { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; }
+  .k { background: #eceef1; border: 1px dashed #a9b0ba; border-radius: 8px; padding: 8px 10px; }
+  .k.dam { background: #d9dde3; } .k.nut { background: #3b4250; color: #fff; border: 0; text-align: center; font-weight: 600; }
+  .k.nut2 { background: #fff; border: 1.5px solid #3b4250; text-align: center; font-weight: 600; }
+  .k.anh { background: repeating-linear-gradient(45deg, #e3e6ea 0 10px, #eef0f3 10px 20px); min-height: 120px; display: grid; align-items: end; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .gm { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; } .gs { display: grid; grid-template-columns: 170px 1fr; gap: 8px; }
+  .gl { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+  .ghi { font-size: .9rem; } .ghi li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">WIREFRAME · thang xám · chỉ bố cục, chưa phải màu và chữ cuối cùng</div>
+<div class="tl">
+  <h1>Wireframe tám màn hình chính</h1>
+  <p class="phu">Bên trái là bản máy tính, bên phải là điện thoại (390px). Trên điện thoại thứ tự đọc giống hệt máy tính, chỉ dồn về một cột. Không có thanh nút cố định ở đáy màn hình.</p>
+
+  <!-- 1 -->
+  <h2>1. Trang chủ và danh sách đơn</h2>
+  <p class="nho phu">Tận dụng: <code>app/(site)/page.tsx</code>, <code>don-hang/page.tsx</code>, <code>PhotoBackdrop.tsx</code>. Đổi: chữ hero nằm trên tấm nền ngà đặc; thẻ đơn có nút "Tôi có hợp đơn này không?"; bỏ bớt khối trang trí.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="k dam">Đầu trang: logo · menu (Giới thiệu, Đơn hàng, Điều kiện, Chi phí, Hỏi đáp, Hồ sơ của tôi)</div>
+      <div class="k anh"><div class="k" style="background:#fff;max-width:60%">Tấm chữ nền ngà: tiêu đề · một câu giải thích · [Gửi CV để được tư vấn] [Xem đơn đang tuyển]</div></div>
+      <div class="g3"><div class="k">Bước 1 Gửi CV</div><div class="k">Bước 2 Xác nhận</div><div class="k">Bước 3 Bảng đối chiếu</div></div>
+      <div class="k">Bộ lọc: khu vực · loại cơ sở · chương trình</div>
+      <div class="g2"><div class="k">Thẻ đơn: tên · chip · lương / tiếng Nhật / tuổi / hạn · [Tôi có hợp?] Xem chi tiết</div><div class="k">Thẻ đơn</div></div>
+      <div class="k">Chi phí nói rõ từ đầu (tổng 90 triệu và ba chặng)</div>
+      <div class="k">Hỏi đáp thường gặp · liên hệ · chân trang ghi công ảnh</div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k dam">Logo · [☰ Menu]</div>
+      <div class="k anh"><div class="k" style="background:#fff">Tiêu đề · câu giải thích · [Gửi CV] [Xem đơn]</div></div>
+      <div class="k">Ba bước (dọc)</div><div class="k">Bộ lọc (mỗi ô một dòng)</div>
+      <div class="k">Thẻ đơn</div><div class="k">Thẻ đơn</div><div class="k">Chi phí</div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <h2>2. Chi tiết đơn tuyển dụng</h2>
+  <p class="nho phu">Tận dụng: <code>don-hang/[code]/page.tsx</code>. Đổi: tên điều kiện bắt buộc dùng đúng tên tiêu chí của bảng đối chiếu; thẻ "Tôi có hợp đơn này không?" đứng ngay dưới tiêu đề trên điện thoại.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="k dam">Đầu trang</div>
+      <div class="k">← Đơn hàng · Tên đơn · chip: tỉnh, loại cơ sở, chương trình · hạn nộp</div>
+      <div class="gm">
+        <div style="display:grid;gap:8px"><div class="k">Điều kiện bắt buộc: tiếng Nhật · bằng cấp · kinh nghiệm · tuổi · giới tính · hạn nộp</div><div class="k">Thông tin tham khảo: lương, phụ cấp, chi phí, ngày phỏng vấn, xuất cảnh dự kiến</div><div class="k">Về cơ sở tiếp nhận</div></div>
+        <div style="display:grid;gap:8px"><div class="k" style="border-style:solid">Thẻ dính khi cuộn: "Tôi có hợp đơn này không?" · [Gửi CV / Khai tay] · đã có hồ sơ: [Xem bảng đối chiếu]</div><div class="k">Hỏi về đơn này</div></div>
+      </div>
+      <div class="k">Đơn tương tự</div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k dam">Logo · [☰]</div><div class="k">Tên đơn · chip · hạn</div>
+      <div class="k" style="border-style:solid">Thẻ "Tôi có hợp?" + nút</div>
+      <div class="k">Điều kiện bắt buộc</div><div class="k">Thông tin tham khảo</div><div class="k">Đơn tương tự</div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <h2>3. Gửi CV hoặc khai tay</h2>
+  <p class="nho phu">Tận dụng: <code>tu-van/page.tsx</code>, <code>CvUpload.tsx</code>, biểu mẫu trong <code>ConsultationFlow.tsx</code>. Đổi: hai lối vào ngang hàng thay vì biểu mẫu giấu trong mục thu gọn.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="k">Nếu đến từ một đơn: "Bạn đang xem đơn DH-0001 …"</div>
+      <div class="k">Thanh bước A–F · đang ở A</div>
+      <div class="g2"><div class="k" style="min-height:110px">Gửi CV: kéo thả · [Chọn tệp] · [Chụp ảnh CV] · PDF, Word, ảnh</div><div class="k" style="min-height:110px">Chưa có CV? Khai tay khoảng 2 phút · [Bắt đầu khai]</div></div>
+      <div class="k">Một dòng: thông tin dùng để làm gì, ai đọc được · không thu thông tin sức khỏe</div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k">Bước 1/6 · vạch tiến trình</div>
+      <div class="k" style="min-height:80px">Gửi CV · [Chụp ảnh CV] [Chọn tệp]</div>
+      <div class="k">Khai tay · [Bắt đầu]</div><div class="k">Dòng quyền riêng tư</div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <h2>4. Kiểm tra hồ sơ và trả lời thông tin còn thiếu</h2>
+  <p class="nho phu">Tận dụng: biểu mẫu và <code>AdvisorChat</code> (mốc "sau_cv") trong <code>ConsultationFlow.tsx</code>. Đổi: hồ sơ hiện thành danh sách đọc được ngay (không phải biểu mẫu trống), mỗi dòng có nguồn; câu hỏi còn thiếu trả lời tại chỗ; trợ lý thu gọn bên cạnh.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="k">Thanh bước · đang ở B "Làm rõ thông tin"</div>
+      <div class="gm">
+        <div style="display:grid;gap:8px">
+          <div class="k">Năng lực trên giấy tờ: mỗi dòng "Bằng cấp · Cao đẳng Điều dưỡng · đọc từ CV · [Sửa]"</div>
+          <div class="k">Nguyện vọng: khu vực · loại cơ sở · lương · ngân sách (không bắt buộc)</div>
+          <div class="k" style="border-style:solid">Còn thiếu 2 mục: ô trả lời ngay "Bạn sinh năm nào?" …</div>
+          <div class="k nut" style="max-width:240px">Xác nhận hồ sơ</div>
+        </div>
+        <div class="k" style="min-height:160px">Trợ lý hỏi thêm (thu gọn): nói lại điều đã đọc từ CV, hỏi 1–2 câu · ô trả lời · đề xuất chỉ ghi khi khách bấm "Đúng, lưu"</div>
+      </div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k">Bước 2/6</div><div class="k">Năng lực trên giấy tờ</div><div class="k">Nguyện vọng</div>
+      <div class="k" style="border-style:solid">Còn thiếu: ô trả lời</div><div class="k">Trợ lý hỏi thêm (mở ra khi bấm)</div>
+      <div class="k nut">Xác nhận hồ sơ</div>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <h2>5. Kết quả đối chiếu và tư vấn AI</h2>
+  <p class="nho phu">Tận dụng: <code>OrderConsultationRoom.tsx</code>, <code>OrderAdvicePanel.tsx</code>, <code>BangDoiChieu.tsx</code> (làm hôm nay), <code>AdvisorChat.tsx</code>. Bản màu: <a href="mockup_tu_van.html">mockup_tu_van.html</a>.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="k">Tên đơn · chip thông tin chính · thanh bước (D)</div>
+      <div class="gm">
+        <div style="display:grid;gap:8px">
+          <div class="k" style="min-height:120px;border-style:solid">Bảng đối chiếu: Tiêu chí · Yêu cầu · Của bạn · ✓</div>
+          <div class="k">Tổng kết: 5 đạt · 1 chưa đạt · 1 chưa rõ · chi tiết từng mục · điểm nguyện vọng</div>
+          <div class="k">Hướng học (nếu vướng tiếng Nhật): khóa · thời gian · học phí kèm tổng</div>
+          <div class="k">Phân tích của trợ lý + nhãn nguồn · Hỏi thêm: 3 gợi ý + ô hỏi</div>
+          <div class="g2"><div class="k">Tư vấn việc học</div><div class="k">Bổ sung hồ sơ</div><div class="k">Xem đơn khác</div><div class="k">Nói với nhân viên</div></div>
+        </div>
+        <div style="display:grid;gap:8px;align-content:start"><div class="k" style="border-style:solid">Cần bổ sung: ô trả lời tại chỗ</div><div class="k">Hồ sơ của bạn (có nguồn) · [Sửa] — cột này dính khi cuộn</div></div>
+      </div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k">Tên đơn · chip</div><div class="k">Bước 4/6</div>
+      <div class="k" style="border-style:solid">Thẻ tiêu chí ×7 (dọc)</div><div class="k">Tổng kết</div>
+      <div class="k" style="border-style:solid">Cần bổ sung</div><div class="k">Hồ sơ của bạn</div>
+      <div class="k">Hướng học</div><div class="k">Phân tích + hỏi thêm</div><div class="k">Việc tiếp theo (dọc)</div>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <h2>6. Xác nhận đăng ký hoặc gửi yêu cầu nhân viên</h2>
+  <p class="nho phu">Tận dụng: <code>SupportRequestForm.tsx</code>, khung xác nhận hai bước trong <code>MatchCard.tsx</code>. Đổi: một màn xác nhận chung nói rõ sẽ gửi gì, cho ai, khi nào được gọi lại.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="gl">
+        <div class="k" style="min-height:150px">Sẽ gửi cho nhân viên: hồ sơ đã xác nhận · đơn DH-0001 · bảng đối chiếu bạn vừa xem</div>
+        <div style="display:grid;gap:8px">
+          <div class="k">Bạn muốn: ( ) Đăng ký đơn này ( ) Nhắn tin hỏi ( ) Xin gặp ( ) Tư vấn học</div>
+          <div class="k">Họ tên · Số điện thoại (bắt buộc)</div>
+          <div class="k">Nếu xin gặp: ngày · giờ (08:00–11:30, 13:30–17:00) · trực tiếp / trực tuyến</div>
+          <div class="k">"Đây chưa phải ký hợp đồng hay đóng tiền."</div>
+          <div class="g2"><div class="k nut">Xác nhận gửi</div><div class="k nut2">Quay lại</div></div>
+        </div>
+      </div>
+      <div class="k">Sau khi gửi: mã yêu cầu · lịch (nếu có) · gọi lại trong giờ hành chính · [Theo dõi ở Hồ sơ của tôi]</div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k">Sẽ gửi gì (thu gọn, mở được)</div><div class="k">Bạn muốn: 4 nút lớn</div><div class="k">Họ tên · SĐT</div><div class="k">Ngày giờ</div>
+      <div class="k nut">Xác nhận gửi</div><div class="k nut2">Quay lại</div>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <h2>7. Hàng đợi và chi tiết xử lý của nhân viên</h2>
+  <p class="nho phu">Tận dụng: <code>admin/queue</code>, <code>admin/support</code>, <code>admin/applications</code>, <code>admin/profiles/[code]</code>. Đổi: danh sách bên trái, chi tiết bên phải trên cùng một màn; phiếu hiện nguồn và mức xác minh của từng dòng. Bản màu: <a href="mockup_nhan_vien.html">mockup_nhan_vien.html</a>.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="gs">
+        <div class="k dam" style="min-height:220px">Menu: Hàng đợi · Hỗ trợ · Lịch hẹn · Hồ sơ · Khách · Đơn · Khóa học · (Quản lý)</div>
+        <div style="display:grid;gap:8px">
+          <div class="k">Tab: Chờ nhận (12) · Của tôi (5) · Đang có người xử lý (quản lý)</div>
+          <div class="gl"><div class="k" style="min-height:150px">Danh sách: tên · đơn · thời gian · nhãn quá 24 giờ</div>
+            <div style="display:grid;gap:8px"><div class="k">Đầu phiếu: mã · tên · đơn · [Nhận xử lý] [Chuyển cho…]</div><div class="k">Hồ sơ + nguồn + mức xác minh</div><div class="k">Đối chiếu (đủ 3 trạng thái bằng chữ)</div><div class="k">Khách đã hỏi · Lịch hẹn</div><div class="k">Ghi kết quả sơ tuyển · Lịch sử</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="k dam">Menu cuộn ngang</div><div class="k">Tab</div><div class="k">Danh sách</div>
+      <div class="k">Chạm một dòng → trang chi tiết (các khối dọc như máy tính)</div>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <h2>8. Trang quản lý của Manager/Admin</h2>
+  <p class="nho phu">Tận dụng: <code>admin/page.tsx</code> (tổng quan), <code>staff-scores</code>, <code>users</code>, <code>audit-logs</code>. Đổi: tổng quan trả lời ba câu của quản lý — việc nào đang chờ, ai đang quá tải, đơn nào sắp hết hạn.</p>
+  <div class="man">
+    <div class="wf dt"><span class="nhan">Máy tính</span>
+      <div class="g4"><div class="k">Chờ nhận 12</div><div class="k">Quá 24 giờ chưa liên hệ 3</div><div class="k">Yêu cầu hỗ trợ đang chờ 4</div><div class="k">Lịch hẹn hôm nay 2</div></div>
+      <div class="gm"><div class="k" style="min-height:120px">Theo nhân viên: đang giữ · quá hạn · đã liên hệ tuần này · điểm tháng · [Phân công]</div><div class="k">Đơn sắp hết hạn · còn chỉ tiêu</div></div>
+      <div class="k">Cần phân công: hồ sơ chờ lâu nhất · chọn người · [Giao]</div>
+      <div class="k">Chỉ Admin: Người dùng · Nhật ký hệ thống · xóa đơn</div>
+    </div>
+    <div class="wf dd"><span class="nhan">Điện thoại</span>
+      <div class="g2"><div class="k">Chờ 12</div><div class="k">Quá hạn 3</div></div><div class="g2"><div class="k">Hỗ trợ 4</div><div class="k">Lịch 2</div></div>
+      <div class="k">Theo nhân viên (thẻ)</div><div class="k">Cần phân công</div><div class="k">Đơn sắp hết hạn</div>
+    </div>
+  </div>
+  <p class="nho phu" style="margin-top:12px">Các con số trong wireframe (12, 3, 4, 2…) là số giữ chỗ để thấy bố cục, không phải số liệu hệ thống.</p>
+</div>
+</body>
+</html>

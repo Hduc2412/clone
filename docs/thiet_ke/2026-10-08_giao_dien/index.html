@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thiết kế giao diện 08/10/2026 — bản trình duyệt</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  .so-do { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .so-do { grid-template-columns: 1fr; } }
+  .so-do .cot { background: #fff; border: 1px solid var(--vien); border-radius: 14px; padding: 16px 18px; }
+  .so-do ul { margin: 6px 0 0; padding-left: 18px; font-size: .93rem; }
+  .so-do li { margin: 3px 0; }
+  .luong { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin-top: 10px; }
+  .luong .b { background: #fff; border: 1.5px solid var(--chu); border-radius: 12px; padding: 10px 12px; font-size: .9rem; width: 150px; }
+  .luong .b b { display: block; font-size: .8rem; color: var(--do); letter-spacing: .04em; }
+  .luong .m { display: grid; place-items: center; width: 28px; color: var(--chu-phu); font-size: 1.2rem; }
+  .nhanh { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+  @media (max-width: 860px) { .nhanh { grid-template-columns: 1fr; } .luong .b { width: 100%; } .luong .m { width: 100%; height: 22px; transform: rotate(90deg); } }
+  .nhanh div { border-radius: 12px; padding: 12px 14px; font-size: .92rem; }
+  .anh-hang { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; margin-top: 12px; }
+  .anh-hang.ba { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 860px) { .anh-hang, .anh-hang.ba { grid-template-columns: 1fr; } }
+  .anh-hang img { width: 100%; }
+  .muc-luc { columns: 2; font-size: .95rem; } @media (max-width: 640px) { .muc-luc { columns: 1; } }
+  .hoi li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">TÀI LIỆU THIẾT KẾ · MOCKUP CHỜ DUYỆT · CHƯA TRIỂN KHAI VÀO MÃ GIAO DIỆN</div>
+<div class="tl">
+  <p class="tieu-de-khoi">Đồ án tốt nghiệp · Hệ thống tư vấn điều dưỡng Nhật Bản</p>
+  <h1>Thiết kế giao diện trước khi triển khai</h1>
+  <p class="phu">Bản 08/10/2026. Toàn bộ là mockup HTML tĩnh với dữ liệu minh họa từ đơn mẫu; không trang nào gọi máy chủ. Ảnh chụp bên dưới là ảnh chụp chính các trang mockup này trên trình duyệt (khổ 1280px và 390px), không phải ảnh của website đang chạy.</p>
+
+  <ul class="muc-luc" style="margin-top:16px">
+    <li><a href="#ban-2"><b>Cập nhật lần 2</b></a></li><li><a href="#so-do">Sơ đồ điều hướng</a></li><li><a href="#luong">Luồng thao tác</a></li>
+    <li><a href="#vi-sao">Vì sao bố cục này</a></li><li><a href="#mockup">Mockup màu</a></li>
+    <li><a href="wireframe.html">Wireframe 8 màn hình</a> (trang riêng)</li><li><a href="thanh_phan.html">Bộ thành phần và trạng thái</a> (trang riêng)</li>
+    <li><a href="#tan-dung">Tận dụng màn hình đang có</a></li><li><a href="#chuyen-dong">Chuyển động</a></li>
+    <li><a href="#tiep-can">Khả năng tiếp cận</a></li><li><a href="#phu-thuoc">Phụ thuộc phía máy chủ</a></li>
+    <li><a href="#duyet">Cần anh/chị duyệt</a></li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 id="ban-2">Cập nhật lần 2 — sau đợt sửa quyền và xác minh (08/10, chiều)</h2>
+  <ul>
+    <li><b>Mới: <a href="mockup_kiem_tra_ho_so.html">mockup_kiem_tra_ho_so.html</a></b> — bước B (làm rõ) và C (xác nhận) chuyển như <b>slide do người dùng bấm</b>: nút "Tiếp"/"Quay lại", không tự trượt theo thời gian; chuyển xong tiêu điểm về tiêu đề bước mới, bước cũ bị khóa (<code>inert</code>); bật giảm chuyển động thì chuyển tức thì. Bấm thử được.</li>
+    <li><b>Nền phong cảnh nhẹ</b> ở trang tư vấn: ảnh mờ dưới lớp phủ ngà 90%; bảng và chữ luôn nằm trên thẻ trắng đặc nên tương phản không phụ thuộc ảnh. Trang nội bộ giữ nền phẳng, không ảnh, không chuyển động.</li>
+    <li><b>Bốn mức tiếng Nhật</b> có nhãn chữ riêng: tự khai · đang học (chưa có) · đã đạt theo kết quả trung tâm · có chứng chỉ.</li>
+    <li><b>Khách sửa mục nhân viên đã ghi</b>: thông báo "chưa đổi, đã gửi nhân viên xem lại" thay cho im lặng; phía nhân viên có khối "Đề xuất của khách chờ bạn xem" (Giữ nguyên / Sửa theo khách).</li>
+    <li><b>Hàng đợi của nhân viên thường</b>: việc chưa nhận chỉ hiện tên viết tắt, loại việc, đơn, thời gian; số điện thoại, lời nhắn, phiếu mở sau khi nhận. Đã có trên bản dựng thật (ảnh dưới), mockup trình bày lại cùng quy tắc.</li>
+    <li><b>Nhãn điểm chi phí/lương</b>: tách "bạn chưa nêu ngân sách" với "đơn chưa công bố chi phí"; điểm 5/10 ghi rõ là trung lập. Đã có trên bản dựng thật.</li>
+  </ul>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/v2_kiem_tra_ho_so_may_tinh_buoc_b.png" alt="Mockup bước B"><p class="cap">MOCKUP — bước B, nền phong cảnh nhẹ, nhãn bốn mức tiếng Nhật.</p></div>
+    <div><img class="anh-mau" src="anh/v2_kiem_tra_ho_so_dien_thoai.png" alt="Mockup bước B điện thoại"><p class="cap">MOCKUP — bước B trên điện thoại.</p></div>
+  </div>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/v2_kiem_tra_ho_so_may_tinh_buoc_c.png" alt="Mockup bước C"><p class="cap">MOCKUP — bước C sau khi bấm "Tiếp": thông báo mục nhân viên đã ghi.</p></div>
+    <div><img class="anh-mau" src="anh/v2_nhan_vien_de_xuat_tien_do_hoc.png" alt="Mockup nhân viên"><p class="cap">MOCKUP — nhân viên: đề xuất chờ xử lý, tiến độ học.</p></div>
+  </div>
+  <div class="anh-hang ba">
+    <div><img class="anh-mau" src="../../nghiem_thu/anh_2026-10-08/6_ban_dung_that_chua_xac_nhan_409.png" alt="Bản dựng thật: chưa xác nhận"><p class="cap"><b>BẢN DỰNG THẬT</b> (database thử) — API trả 409 mã <code>ho_so_chua_xac_nhan</code>, trang mời xác nhận.</p></div>
+    <div><img class="anh-mau" src="../../nghiem_thu/anh_2026-10-08/7_ban_dung_that_nhan_chi_phi.png" alt="Bản dựng thật: nhãn chi phí"><p class="cap"><b>BẢN DỰNG THẬT</b> — nhãn điểm trung lập của chi phí.</p></div>
+    <div><img class="anh-mau" src="../../nghiem_thu/anh_2026-10-08/8_ban_dung_that_hang_doi_ho_tro_consultant.png" alt="Bản dựng thật: hàng đợi consultant"><p class="cap"><b>BẢN DỰNG THẬT</b> — hàng đợi hỗ trợ khi đăng nhập consultant.</p></div>
+  </div>
+  <p class="nho phu" style="margin-top:8px">Ảnh bản dựng thật cho thấy chữ website vẫn có chân (serif). Đã tìm được cơ chế: HTML mang lớp <code>__variable_83907a</code> còn CSS định nghĩa <code>__variable_021202</code>, nên <code>--font-sans</code> rỗng. Giả thuyết: do chạy <code>next build</code> rồi <code>next dev</code> trên cùng thư mục <code>.next</code> — chưa kiểm trên bản production. Sửa phòng thủ đề xuất: <code>var(--font-sans, system-ui)</code>.</p>
+
+  <!-- ================================================================ -->
+  <h2 id="so-do">1. Sơ đồ điều hướng</h2>
+  <div class="so-do">
+    <div class="cot"><h3 style="margin:0">Website khách — công khai</h3>
+      <ul>
+        <li><b>Trang chủ</b> → Đơn hàng · Điều kiện · Chi phí · Quy trình · Hỏi đáp · Liên hệ</li>
+        <li><b>Đơn hàng</b> (lọc) → <b>Chi tiết đơn</b> → "Tôi có hợp đơn này không?"</li>
+        <li><b>Khung chat chung</b> (góc màn hình): hỏi về chương trình, không xem hồ sơ</li>
+      </ul>
+    </div>
+    <div class="cot"><h3 style="margin:0">Luồng tư vấn — theo phiên, không cần đăng nhập</h3>
+      <ul>
+        <li><b>/tu-van</b>: A Gửi CV / khai tay → B Làm rõ → C Xác nhận</li>
+        <li>→ D <b>Danh sách đơn đủ điều kiện</b> hoặc <b>bảng đối chiếu một đơn</b> (/tu-van/don/[mã])</li>
+        <li>→ E Phân tích + hỏi thêm → F <b>Xác nhận đăng ký / gửi nhân viên</b></li>
+        <li><b>Hồ sơ của tôi</b>: theo dõi đăng ký, yêu cầu, lịch hẹn</li>
+      </ul>
+    </div>
+    <div class="cot"><h3 style="margin:0">Nội bộ — cần đăng nhập</h3>
+      <ul>
+        <li><b>Tổng quan</b> (quản lý: việc chờ, ai quá tải, đơn sắp hết hạn)</li>
+        <li><b>Hàng đợi hồ sơ</b> · <b>Yêu cầu hỗ trợ</b> · Lịch hẹn · Hồ sơ ứng tuyển · Khách hàng</li>
+        <li>Dữ liệu: Đơn tuyển dụng · Khóa học · Nhật ký giới thiệu</li>
+        <li>Quản lý/Admin: Điểm nhân viên · Người dùng · Nhật ký hệ thống</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 id="luong">2. Luồng thao tác</h2>
+  <h3>Khách hàng</h3>
+  <div class="luong">
+    <div class="b"><b>A</b>Gửi CV (PDF, .docx, ảnh) hoặc khai tay</div><div class="m">→</div>
+    <div class="b"><b>B</b>Xem điều máy đọc được, trả lời mục còn thiếu</div><div class="m">→</div>
+    <div class="b"><b>C</b>Xác nhận hồ sơ (bắt buộc trước khi có kết quả)</div><div class="m">→</div>
+    <div class="b"><b>D</b>Bảng đối chiếu ✓ với đơn đã chọn</div><div class="m">→</div>
+    <div class="b"><b>E</b>Tổng kết, điểm nguyện vọng, phân tích AI, hỏi thêm</div><div class="m">→</div>
+    <div class="b"><b>F</b>Đăng ký, học, xem đơn khác hoặc gặp nhân viên</div>
+  </div>
+  <div class="nhanh">
+    <div class="bao-dat"><b>Đạt mọi điều kiện bắt buộc</b> → nút "Đăng ký đơn này" → màn xác nhận nói rõ sẽ gửi gì → mã hồ sơ, gọi lại trong giờ hành chính.</div>
+    <div class="bao-loi"><b>Có điều kiện chưa đạt</b> → không có nút đăng ký → ba lối: hướng học (nếu vướng tiếng Nhật), đơn khác đủ điều kiện, nói chuyện với nhân viên.</div>
+    <div class="bao-vang"><b>Có mục chưa rõ</b> → trả lời ngay ở "Cần bổ sung" → bảng tính lại; kết quả cũ mờ đi có nhãn, không tự đổi khi khách đang đọc.</div>
+  </div>
+  <p class="nho phu" style="margin-top:10px">Nhánh lỗi: CV không đọc được → chọn tệp khác hoặc khai tay (không mắc kẹt). Trợ lý bận → tóm tắt tự động có nhãn, không giả làm câu trả lời. Gửi lại → cùng mã, không tạo trùng. Chưa xác nhận → không bảng, không kết luận.</p>
+
+  <h3>Nhân viên</h3>
+  <div class="luong">
+    <div class="b"><b>1</b>Hàng đợi: chờ nhận</div><div class="m">→</div>
+    <div class="b"><b>2</b>Nhận xử lý (một người nhận được)</div><div class="m">→</div>
+    <div class="b"><b>3</b>Đọc phiếu: nguồn từng dòng, chỗ chưa rõ</div><div class="m">→</div>
+    <div class="b"><b>4</b>Gọi điện / gặp, đối chứng giấy tờ</div><div class="m">→</div>
+    <div class="b"><b>5</b>Ghi kết quả sơ tuyển (trình độ + trạng thái một lần)</div><div class="m">→</div>
+    <div class="b"><b>6</b>Chuyển / trả về hàng đợi nếu cần (quản lý chuyển)</div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 id="vi-sao">3. Vì sao bố cục này giúp khách hiểu</h2>
+  <ul>
+    <li><b>Bảng đứng trước lời văn.</b> Câu hỏi trong đầu khách là "tôi có hợp không, vướng ở đâu". Bảng trả lời bằng dữ kiện đặt cạnh nhau; đoạn phân tích của AI đứng sau, để giải thích chứ không thay bảng. Trước đây khung chat đứng trên cùng và bảng phải bấm mới mở.</li>
+    <li><b>Chỉ một ký hiệu ✓.</b> Người ít dùng máy đọc một cột ✓ nhanh hơn ba màu ba chữ. Dấu ✗ đỏ cạnh "chưa cung cấp" dễ đọc thành "bị loại" — nên phần nhìn thấy chỉ có ✓, còn tổng kết bên dưới nói rõ bằng chữ đâu là chưa đạt, đâu là chưa rõ.</li>
+    <li><b>Hỏi đúng chỗ thiếu.</b> Mục "Cần bổ sung" có ô trả lời ngay cạnh bảng (máy tính) hoặc ngay sau tổng kết (điện thoại). Không bắt khách quay lại biểu mẫu dài để sửa một năm sinh.</li>
+    <li><b>Mỗi dòng hồ sơ nói nguồn.</b> "bạn khai", "đọc từ CV · bạn đã xác nhận", "nhân viên đã xác minh". Khách biết máy đọc gì; nhân viên biết dòng nào phải hỏi kỹ.</li>
+    <li><b>Bước tiếp theo luôn có lối đi.</b> Không đạt vẫn có ba hướng: học, đơn khác, gặp nhân viên. Không màn hình nào kết thúc bằng một lời từ chối trơn.</li>
+    <li><b>Nhân viên thấy chính thứ khách thấy</b>, cộng thêm ba trạng thái bằng chữ và nguồn của từng dòng — gọi điện không phải hỏi lại từ đầu.</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 id="mockup">4. Mockup màu</h2>
+  <p class="phu">Mở trực tiếp: <a href="mockup_trang_chu.html">trang chủ</a> · <a href="mockup_tu_van.html">kết quả tư vấn</a> · <a href="mockup_nhan_vien.html">xử lý của nhân viên</a>. Thu hẹp cửa sổ trình duyệt để xem bản điện thoại.</p>
+
+  <h3>4.1 Kết quả đối chiếu và tư vấn AI</h3>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/tu_van_may_tinh_1_bang.png" alt="Máy tính: đầu trang và bảng đối chiếu"><p class="cap">Máy tính — tên đơn, thông tin chính, thanh bước; bảng ✓ bên trái, "Cần bổ sung" và hồ sơ bên phải.</p></div>
+    <div><img class="anh-mau" src="anh/tu_van_dien_thoai_1_dau.png" alt="Điện thoại: đầu trang"><p class="cap">Điện thoại — thanh bước thu thành "Bước 4/6" kèm vạch.</p></div>
+  </div>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/tu_van_may_tinh_2_tong_ket.png" alt="Máy tính: tổng kết"><p class="cap">Tổng kết tách "chưa đạt" và "cần bổ sung"; điểm nguyện vọng không chấm vì đơn chưa đạt.</p></div>
+    <div><img class="anh-mau" src="anh/tu_van_dien_thoai_2_the_tieu_chi.png" alt="Điện thoại: thẻ tiêu chí"><p class="cap">Mỗi tiêu chí một thẻ, hai cột "Yêu cầu" | "Của bạn", ✓ ở góc phải.</p></div>
+  </div>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/tu_van_may_tinh_3_phan_tich.png" alt="Máy tính: phân tích và việc tiếp theo"><p class="cap">Phân tích của trợ lý có nhãn nguồn; ô hỏi thêm gọn; bốn việc tiếp theo.</p></div>
+    <div><img class="anh-mau" src="anh/tu_van_dien_thoai_4_can_bo_sung.png" alt="Điện thoại: cần bổ sung"><p class="cap">"Cần bổ sung" nằm ngay sau tổng kết trên điện thoại.</p></div>
+  </div>
+
+  <h3>4.2 Trang chủ và danh sách đơn</h3>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/trang_chu_may_tinh_1_hero.png" alt="Máy tính: trang chủ"><p class="cap">Phong cảnh chuyển cảnh chậm (3 ảnh, mỗi cảnh 12 giây). Chữ nằm trên tấm nền ngà đặc, không đặt thẳng lên ảnh. Ảnh chụp đúng lúc chuyển sang cảnh bình minh.</p></div>
+    <div><img class="anh-mau" src="anh/trang_chu_dien_thoai_1_hero.png" alt="Điện thoại: trang chủ"><p class="cap">Điện thoại — ảnh thành dải trên, tấm chữ chồng nhẹ phía dưới.</p></div>
+  </div>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/trang_chu_may_tinh_2_don.png" alt="Máy tính: danh sách đơn"><p class="cap">Thẻ đơn: bốn con số cần biết và nút "Tôi có hợp đơn này không?".</p></div>
+    <div><img class="anh-mau" src="anh/trang_chu_dien_thoai_2_don.png" alt="Điện thoại: danh sách đơn"><p class="cap">Điện thoại — bộ lọc mỗi ô một dòng (xem câu hỏi duyệt số 4).</p></div>
+  </div>
+
+  <h3>4.3 Hàng đợi và xử lý của nhân viên</h3>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/nhan_vien_may_tinh_1_hang_doi.png" alt="Máy tính: hàng đợi"><p class="cap">Danh sách bên trái (dính khi cuộn), phiếu chi tiết bên phải. Nút "Chuyển cho…" mờ với nhân viên thường.</p></div>
+    <div><img class="anh-mau" src="anh/nhan_vien_dien_thoai_1.png" alt="Điện thoại: hàng đợi"><p class="cap">Điện thoại — menu cuộn ngang, danh sách rồi chi tiết.</p></div>
+  </div>
+  <div class="anh-hang">
+    <div><img class="anh-mau" src="anh/nhan_vien_may_tinh_2_doi_chieu.png" alt="Máy tính: phiếu và đối chiếu"><p class="cap">Nguồn và mức xác minh từng dòng; đối chiếu hiện đủ ba trạng thái bằng chữ cho nhân viên.</p></div>
+    <div><img class="anh-mau" src="anh/nhan_vien_may_tinh_3_ket_qua.png" alt="Máy tính: ghi kết quả sơ tuyển"><p class="cap">Ghi kết quả sơ tuyển: trình độ đã kiểm, cách đối chứng, kết quả, ghi chú nội bộ.</p></div>
+  </div>
+
+  <h3>4.4 Mẫu trạng thái</h3>
+  <div class="anh-hang" style="grid-template-columns:1fr 1fr">
+    <div><img class="anh-mau" src="anh/trang_thai_1.png" alt="Trạng thái: tải, đọc CV, lỗi CV, thiếu, chưa đạt"></div>
+    <div><img class="anh-mau" src="anh/trang_thai_2.png" alt="Trạng thái: điểm, chưa xác nhận, AI, lỗi mạng, gửi lại, xung đột"></div>
+  </div>
+  <p class="cap">Đủ 16 trạng thái ở <a href="thanh_phan.html#">thanh_phan.html</a> mục 8.</p>
+
+  <!-- ================================================================ -->
+  <h2 id="tan-dung">5. Tận dụng màn hình đang có</h2>
+  <table class="tt">
+    <thead><tr><th>Màn hình</th><th>Tệp hiện có</th><th>Làm gì</th><th>Mức</th></tr></thead>
+    <tbody>
+      <tr><td>Trang chủ</td><td><code>app/(site)/page.tsx</code>, <code>PhotoBackdrop.tsx</code>, <code>AnimatedBackground.tsx</code></td><td>Tấm chữ nền ngà; chuyển cảnh 3 ảnh đã có giấy phép; bớt khối trang trí; đổi màu theo bộ mới</td><td>Sửa bố cục</td></tr>
+      <tr><td>Danh sách đơn</td><td><code>don-hang/page.tsx</code></td><td>Thẻ đơn có 4 số chính + nút "Tôi có hợp?"; bộ lọc một hàng</td><td>Sửa nhẹ</td></tr>
+      <tr><td>Chi tiết đơn</td><td><code>don-hang/[code]/page.tsx</code></td><td>Thẻ "Tôi có hợp?" dính bên phải / ngay dưới tiêu đề trên điện thoại; tên điều kiện trùng tên tiêu chí bảng</td><td>Sửa nhẹ</td></tr>
+      <tr><td>Gửi CV / khai tay</td><td><code>tu-van/page.tsx</code>, <code>CvUpload.tsx</code>, <code>ConsultationFlow.tsx</code></td><td>Hai lối vào ngang hàng; thanh bước A–F (đã có <code>BuocTuVan.tsx</code>)</td><td>Sửa bố cục</td></tr>
+      <tr><td>Kiểm tra hồ sơ</td><td><code>ConsultationFlow.tsx</code>, <code>fields.tsx</code>, <code>AdvisorChat.tsx</code></td><td>Hồ sơ hiện thành danh sách có nguồn, sửa tại chỗ; câu hỏi thiếu trả lời tại chỗ; trợ lý thu gọn</td><td>Sửa nhiều</td></tr>
+      <tr><td>Kết quả đối chiếu</td><td><code>OrderConsultationRoom.tsx</code>, <code>OrderAdvicePanel.tsx</code>, <code>BangDoiChieu.tsx</code>, <code>MatchCard.tsx</code></td><td>Bố cục hai cột; "Cần bổ sung" + hồ sơ ở cột bên; bốn việc tiếp theo</td><td>Sửa bố cục (dữ liệu đã có)</td></tr>
+      <tr><td>Xác nhận / gửi nhân viên</td><td><code>SupportRequestForm.tsx</code>, khung xác nhận trong <code>MatchCard.tsx</code></td><td>Gộp thành một màn xác nhận chung "sẽ gửi gì, cho ai"</td><td>Sửa nhiều</td></tr>
+      <tr><td>Hàng đợi + chi tiết</td><td><code>admin/queue</code>, <code>admin/support</code>, <code>admin/applications</code>, <code>admin/profiles/[code]</code></td><td>Danh sách + chi tiết cùng màn; nhãn nguồn/xác minh; đối chiếu ba trạng thái</td><td>Sửa bố cục</td></tr>
+      <tr><td>Trang quản lý</td><td><code>admin/page.tsx</code>, <code>staff-scores</code>, <code>users</code>, <code>audit-logs</code></td><td>Tổng quan trả lời "việc chờ, ai quá tải, đơn sắp hết hạn"</td><td>Sửa vừa</td></tr>
+      <tr><td>Khung chat chung</td><td><code>components/Chat*</code></td><td>Giữ tách biệt; trên trang tư vấn ở điện thoại không để nút nổi che nội dung</td><td>Sửa nhẹ</td></tr>
+    </tbody>
+  </table>
+  <p class="nho phu" style="margin-top:8px">Không thêm thư viện giao diện mới. Bảng màu đưa vào <code>tailwind.config.ts</code> của cả hai app để hai bên dùng chung tên màu.</p>
+
+  <!-- ================================================================ -->
+  <h2 id="chuyen-dong">6. Chuyển động</h2>
+  <table class="tt">
+    <thead><tr><th>Chỗ</th><th>Chuyển động</th><th>Khi bật giảm chuyển động</th></tr></thead>
+    <tbody>
+      <tr><td>Phong cảnh trang chủ</td><td>3 ảnh mờ dần nối tiếp, mỗi cảnh 12 giây, phóng nhẹ 4%</td><td>Đứng yên ở ảnh đầu, không tải hai ảnh còn lại</td></tr>
+      <tr><td>Chuyển bước A→F</td><td>Nội dung bước mới hiện dần 0,45 giây, trượt lên 8px; cuộn đến đầu bước</td><td>Hiện ngay, không cuộn mượt</td></tr>
+      <tr><td>Bảng đối chiếu</td><td>Hiện một lần khi tải xong. <b>Không</b> tự đổi khi khách đang đọc: có kết quả mới thì hiện nút "Xem kết quả mới"</td><td>Như trên, không hiệu ứng</td></tr>
+      <tr><td>Trợ lý đang trả lời</td><td>Ba chấm nhấp nháy cạnh chữ "Trợ lý đang viết…"</td><td>Chỉ còn chữ</td></tr>
+      <tr><td>Chữ quan trọng</td><td>Không bao giờ chuyển động liên tục (không chữ chạy, không nhấp nháy tiêu đề)</td><td>—</td></tr>
+      <tr><td>Hoa rơi, mây trôi đang có</td><td>Đề xuất bỏ khỏi trang tư vấn; chỉ giữ ở trang chủ nếu anh/chị muốn</td><td>Tắt</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================================================================ -->
+  <h2 id="tiep-can">7. Khả năng tiếp cận</h2>
+  <ul>
+    <li>Cỡ chữ gốc 17px; chữ nhỏ nhất 15px; dòng 1,65. Nút cao tối thiểu 48px.</li>
+    <li>Không dùng màu hoặc ký hiệu làm phương tiện duy nhất: ✓ có chữ ẩn "Đáp ứng", ô trống có "Chưa đáp ứng hoặc chưa rõ"; tổng kết nói bằng chữ.</li>
+    <li>Viền focus xanh 3px ở mọi nút, ô nhập, liên kết. Thứ tự tab bằng thứ tự đọc.</li>
+    <li>Nhãn ô nhập luôn nằm trên ô; lỗi nói cách sửa.</li>
+    <li>Không thanh nút cố định ở đáy điện thoại (che nội dung và bàn phím). Cột bên chỉ dính trên máy tính.</li>
+    <li>Tỷ lệ tương phản trong bảng màu là tính toán ước lượng — phải đo lại bằng công cụ khi triển khai.</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 id="phu-thuoc">8. Thiết kế giả định những việc phía máy chủ chưa làm</h2>
+  <ul>
+    <li><b>Nhãn "nhân viên đã xác minh" không bị khách sửa đè</b> — hiện chưa có code giữ nhãn khi ô bị sửa (bước 4).</li>
+    <li><b>"Cần bổ sung" trả lời tại chỗ rồi tính lại</b> — dùng lại API sửa hồ sơ + đối chiếu có sẵn; cần kiểm khóa phiên bản để không ghi đè (trạng thái "xung đột dữ liệu").</li>
+    <li><b>Kết quả cũ mờ đi, đợi khách bấm "Xem kết quả mới"</b> — giao diện cần biết kết quả đang hiện thuộc phiên bản hồ sơ nào.</li>
+    <li><b>Danh sách hàng đợi có số "6 đạt · 1 chưa rõ"</b> — cần API hàng đợi trả kèm tóm tắt đối chiếu.</li>
+    <li>Hồ sơ chưa xác nhận hiện chỉ chặn ở giao diện và khối gửi trợ lý, chưa chặn ở API.</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 id="duyet">9. Cần anh/chị duyệt</h2>
+  <ol class="hoi">
+    <li><b>Màu đỏ:</b> đổi từ đỏ tươi #CB1D1E đang dùng sang đỏ trầm #A3302D cho cả website và nội bộ?</li>
+    <li><b>Bố cục trang tư vấn:</b> hai cột, cột bên ("Cần bổ sung" + hồ sơ) dính khi cuộn trên máy tính — hay một cột như điện thoại?</li>
+    <li><b>Nhân viên xem ba trạng thái bằng chữ</b> (✓ Đạt / ✕ Chưa đạt / ? Chưa rõ), khác với trang khách chỉ có ✓ — đồng ý?</li>
+    <li><b>Bộ lọc đơn trên điện thoại:</b> ba ô xếp dọc như mockup, hay thu vào một nút "Lọc đơn"?</li>
+    <li><b>Hiệu ứng hoa rơi, mây trôi đang có:</b> bỏ hẳn, hay chỉ giữ ở trang chủ?</li>
+    <li><b>Nút chat nổi</b> trên trang tư vấn ở điện thoại: ẩn và thay bằng liên kết "khung chat chung" trong khối hỏi thêm?</li>
+    <li><b>Câu chữ trong các mẫu trạng thái</b> là bản nháp — anh/chị sửa câu nào thì ghi lại, tôi dùng đúng câu đó.</li>
+    <li><b>Chuyển bước dạng slide</b> chỉ cho B–C (làm rõ, xác nhận); D–F (bảng, phân tích, việc tiếp theo) vẫn là một trang cuộn để khách so được bảng với phân tích — đồng ý?</li>
+    <li><b>Nền phong cảnh nhẹ ở trang tư vấn</b> (phủ ngà 90%) — giữ, hay để nền phẳng hoàn toàn?</li>
+    <li><b>Tên viết tắt trong hàng đợi</b> ("L. T. M.") cho nhân viên thường — đủ để phân biệt việc, hay bỏ hẳn tên cho tới khi nhận?</li>
+  </ol>
+  <p class="nho phu" style="margin-top:12px">Sau khi duyệt, thứ tự triển khai đề xuất: bộ màu + chữ (gồm sửa lỗi phông có chân) → trang tư vấn → kiểm tra hồ sơ → xác nhận/gửi nhân viên → trang chủ/đơn → nội bộ. Mỗi bước kiểm trên trình duyệt ở hai khổ trước khi sang bước sau.</p>
+</div>
+</body>
+</html>

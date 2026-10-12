@@ -1,0 +1,21 @@
+{
+  "model": "gemini-3.8-flash",
+  "du_phong": null,
+  "cho_giay": 30.0,
+  "toi_da": 6,
+  "da_goi": 2,
+  "ly_do_dung": "hai lỗi dịch vụ liên tiếp",
+  "luot": [
+    {
+      "luot": 1,
+      "model": "gemini-3.8-flash",
+      "ket_qua": "ReadTimeout"
+    },
+    {
+      "luot": 2,
+      "model": "gemini-3.8-flash",
+      "ket_qua": "503"
+    }
+  ],
+  "cach_do": "13c8f3"
+}

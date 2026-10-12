@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOCKUP — Kết quả đối chiếu và tư vấn</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  /* Bản 2 (08/10): nền phong cảnh NHẸ — ảnh mờ dưới lớp phủ ngà 90%; bảng và chữ luôn
+     nằm trên thẻ trắng đặc nên độ tương phản không phụ thuộc ảnh. */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -2;
+    background: url("../../../frontend/public/nen/fuji-binh-minh-nho.webp") center/cover no-repeat; }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: rgba(251,248,242,.9); }
+  .bang-dau { background-color: rgba(244,239,228,.85) !important; }
+  .bang-dau { background: linear-gradient(180deg, #f4efe4 0%, var(--nen) 100%); border-bottom: 1px solid var(--vien-nhat); }
+  /* Họa tiết sóng seigaiha rất nhạt, chỉ ở dải đầu — không nằm dưới chữ cần đọc lâu */
+  .bang-dau { background-image:
+      radial-gradient(circle at 50% 100%, transparent 14px, rgba(163,48,45,.05) 15px, transparent 16px),
+      linear-gradient(180deg, #f4efe4 0%, var(--nen) 100%);
+    background-size: 40px 20px, 100% 100%; }
+  .bang-dau .khung { padding-top: 26px; padding-bottom: 22px; }
+  .thong-tin-don { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  /* Thứ tự trong mã = thứ tự đọc trên điện thoại: bảng → tổng kết → cần bổ sung → học → phân tích → việc tiếp.
+     Máy tính chỉ xếp lại bằng vùng lưới; cột bên dính khi cuộn nhưng không che gì. */
+  .bo-cuc { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 24px; row-gap: 28px; margin-top: 24px;
+    grid-template-areas: "bang canh" "tongket canh" "hoc canh" "ai canh" "tiep canh"; }
+  .v-bang { grid-area: bang; } .v-tongket { grid-area: tongket; } .v-hoc { grid-area: hoc; } .v-ai { grid-area: ai; } .v-tiep { grid-area: tiep; }
+  .canh { grid-area: canh; align-self: start; position: sticky; top: 88px; }
+  @media (max-width: 980px) { .bo-cuc { grid-template-columns: 1fr; grid-template-areas: "bang" "tongket" "canh" "hoc" "ai" "tiep"; } .canh { position: static; } }
+  .tong-ket-so { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tong-ket-so span { padding: 6px 12px; border-radius: 10px; background: #fff; border: 1px solid var(--vien); font-size: .93rem; }
+  .hanh-dong { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .hanh-dong a { display: block; text-decoration: none; color: var(--chu); background: #fff; border: 1px solid var(--vien); border-radius: 12px; padding: 14px 16px; min-height: 96px; }
+  .hanh-dong a b { display: block; margin-bottom: 4px; }
+  .hanh-dong a span { font-size: .88rem; color: var(--chu-phu); }
+  .hanh-dong a.chinh { border-color: var(--do); background: var(--do-nhat); }
+  @media (max-width: 480px) { .hanh-dong { grid-template-columns: 1fr; } .hanh-dong a { min-height: 0; } }
+  .ho-so dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .95rem; }
+  .ho-so dt { color: var(--chu-phu); }
+  .ho-so dd { margin: 0; }
+  .nguon { display: block; font-size: .8rem; color: var(--chu-phu); }
+  .hoi-nhanh { display: flex; gap: 8px; margin-top: 8px; }
+  .hoi-nhanh .o-nhap { min-height: 46px; }
+  .o-hoi { display: flex; gap: 8px; margin-top: 12px; }
+  .lo-trinh { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 640px) {
+    .lo-trinh { grid-template-columns: 1fr; } h1 { font-size: 1.5rem; }
+    /* Thông tin đơn: một đoạn chữ thay cho năm chip xếp năm dòng */
+    .thong-tin-don { gap: 0; } .thong-tin-don .chip { background: none; padding: 0; font-size: .92rem; }
+    .thong-tin-don .chip:not(:last-child)::after { content: "·"; margin: 0 6px; color: var(--chu-phu); }
+    /* Thẻ tiêu chí đứng thẳng trên nền, không lồng trong một thẻ nữa */
+    .v-bang { background: none; border: 0; box-shadow: none; padding: 0; }
+  }
+  .lo-trinh div { background: var(--nen-2); border-radius: 12px; padding: 12px 14px; }
+  .lo-trinh b { display: block; font-size: 1.15rem; }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">MOCKUP · dữ liệu minh họa từ đơn mẫu DH-0001</div>
+
+<header class="dau-trang"><div class="khung">
+  <a class="logo" href="#"><b>DC</b> Nhân lực Quốc tế DC</a>
+  <nav class="menu"><a href="#">Giới thiệu</a><a href="#">Đơn hàng</a><a href="#">Chi phí</a><a href="#">Hỏi đáp</a><a class="dang" href="#">Hồ sơ của tôi</a></nav>
+  <button class="nut nut-phu nut-nho nut-menu" aria-label="Mở menu">☰ Menu</button>
+</div></header>
+
+<section class="bang-dau"><div class="khung">
+  <a href="#" class="nho">← Xem lại chi tiết đơn</a>
+  <p class="tieu-de-khoi" style="margin-top:10px">Tư vấn theo đơn · DH-0001</p>
+  <h1 style="margin-top:4px">Điều dưỡng viện dưỡng lão Tokyo</h1>
+  <div class="thong-tin-don">
+    <span class="chip">Tokyo · vùng Kantō</span><span class="chip">Viện dưỡng lão Sakura</span>
+    <span class="chip">Kỹ năng đặc định</span><span class="chip">Lương 195.000–215.000 ¥/tháng</span>
+    <span class="chip">Hạn nộp 24/12/2026</span>
+  </div>
+  <div style="margin-top:18px">
+    <ol class="buoc" aria-label="Các bước tư vấn">
+      <li class="xong"><i>✓</i>Gửi CV</li><li class="xong"><i>✓</i>Làm rõ thông tin</li>
+      <li class="xong"><i>✓</i>Xác nhận hồ sơ</li><li class="dang" aria-current="step"><i>4</i>Đối chiếu với đơn</li>
+      <li><i>5</i>Phân tích</li><li><i>6</i>Việc tiếp theo</li>
+    </ol>
+    <div class="buoc-gon"><b>Bước 4/6 · Đối chiếu với đơn</b>
+      <div class="vach" aria-hidden="true"><span class="xong"></span><span class="xong"></span><span class="xong"></span><span class="dang"></span><span></span><span></span></div>
+    </div>
+  </div>
+</div></section>
+
+<main class="khung" style="padding-bottom:64px">
+  <div class="bo-cuc">
+      <section class="the hien v-bang">
+        <h2>Hồ sơ của bạn so với đơn này</h2>
+        <p class="phu nho" style="margin-top:6px">✓: đáp ứng theo thông tin hiện có. Ô trống: chưa đáp ứng hoặc cần bổ sung; xem giải thích bên dưới.</p>
+
+        <table class="bang doi-chieu" style="margin-top:12px">
+          <caption class="an">Đối chiếu từng tiêu chí bắt buộc của đơn với hồ sơ của bạn</caption>
+          <thead><tr><th scope="col">Tiêu chí</th><th scope="col">Yêu cầu của đơn</th><th scope="col">Thông tin của bạn</th><th scope="col" class="cot-dau"><span aria-hidden="true">✓</span><span class="an">Đáp ứng</span></th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Trạng thái đơn</th><td>Đơn đang tuyển</td><td>Đang tuyển</td><td class="cot-dau"><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></td></tr>
+            <tr><th scope="row">Hạn nộp hồ sơ</th><td>Đến 24/12/2026</td><td>Hôm nay 08/10/2026</td><td class="cot-dau"><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></td></tr>
+            <tr class="dong-chu-y"><th scope="row">Tiếng Nhật</th><td>Từ N4</td><td>Chưa học</td><td class="cot-dau"><span class="an">Chưa đáp ứng hoặc chưa rõ</span></td></tr>
+            <tr><th scope="row">Bằng cấp</th><td>Cao đẳng trở lên</td><td>Cao đẳng Điều dưỡng</td><td class="cot-dau"><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></td></tr>
+            <tr><th scope="row">Kinh nghiệm</th><td>Không yêu cầu</td><td>Không cần xét</td><td class="cot-dau"><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></td></tr>
+            <tr class="dong-chu-y"><th scope="row">Độ tuổi</th><td>20–35 tuổi</td><td class="chua-cung-cap">Chưa cung cấp</td><td class="cot-dau"><span class="an">Chưa đáp ứng hoặc chưa rõ</span></td></tr>
+            <tr><th scope="row">Giới tính</th><td>Không yêu cầu</td><td>Nữ</td><td class="cot-dau"><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></td></tr>
+          </tbody>
+        </table>
+
+        <ul class="the-tieu-chi" aria-label="Đối chiếu từng tiêu chí bắt buộc" style="margin-top:12px">
+          <li><div class="hang-dau"><span>Trạng thái đơn</span><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Đơn đang tuyển</dd><dt>Thông tin của bạn</dt><dd>Đang tuyển</dd></dl></li>
+          <li><div class="hang-dau"><span>Hạn nộp hồ sơ</span><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Đến 24/12/2026</dd><dt>Thông tin của bạn</dt><dd>Hôm nay 08/10/2026</dd></dl></li>
+          <li><div class="hang-dau"><span>Tiếng Nhật</span><span class="an">Chưa đáp ứng hoặc chưa rõ</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Từ N4</dd><dt>Thông tin của bạn</dt><dd>Chưa học</dd></dl></li>
+          <li><div class="hang-dau"><span>Bằng cấp</span><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Cao đẳng trở lên</dd><dt>Thông tin của bạn</dt><dd>Cao đẳng Điều dưỡng</dd></dl></li>
+          <li><div class="hang-dau"><span>Kinh nghiệm</span><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Không yêu cầu</dd><dt>Thông tin của bạn</dt><dd>Không cần xét</dd></dl></li>
+          <li><div class="hang-dau"><span>Độ tuổi</span><span class="an">Chưa đáp ứng hoặc chưa rõ</span></div><dl><dt>Yêu cầu của đơn</dt><dd>20–35 tuổi</dd><dt>Thông tin của bạn</dt><dd class="chua-cung-cap">Chưa cung cấp</dd></dl></li>
+          <li><div class="hang-dau"><span>Giới tính</span><span class="dau-tich" aria-hidden="true">✓</span><span class="an">Đáp ứng</span></div><dl><dt>Yêu cầu của đơn</dt><dd>Không yêu cầu</dd><dt>Thông tin của bạn</dt><dd>Nữ</dd></dl></li>
+        </ul>
+      </section>
+
+      <section class="the v-tongket">
+        <h2>Tổng kết điều kiện</h2>
+        <div class="tong-ket-so" style="margin-top:12px"><span><b>5</b> đạt</span><span><b>1</b> chưa đạt</span><span><b>1</b> chưa rõ</span><span class="phu">trên 7 tiêu chí bắt buộc</span></div>
+        <div class="cach">
+          <div class="bao bao-loi"><span class="bt" aria-hidden="true">●</span><div><b>Chưa đáp ứng: Tiếng Nhật</b>Đơn cần từ N4, hồ sơ ghi bạn chưa học. Đây là điều kiện bắt buộc.</div></div>
+          <div class="bao bao-vang"><span class="bt" aria-hidden="true">?</span><div><b>Cần bổ sung: Độ tuổi</b>Bạn chưa cho biết năm sinh. Chưa rõ <u>không phải</u> là không đạt — trả lời ở mục “Cần bổ sung” để kết quả chắc hơn.</div></div>
+          <p class="nho phu">Dấu ✓ là đáp ứng theo thông tin bạn khai hoặc CV ghi, <b>chưa phải</b> đã được nhân viên xác minh.</p>
+        </div>
+        <h3 style="margin-top:22px">Điểm khớp nguyện vọng</h3>
+        <p class="phu" style="margin-top:4px">Đơn này chưa đạt điều kiện bắt buộc nên không chấm điểm nguyện vọng.</p>
+      </section>
+
+    <!-- ===== CỘT BÊN ===== -->
+      <aside class="canh cach">
+      <section class="the-phang">
+        <h3>Cần bổ sung</h3>
+        <p class="nho phu" style="margin-top:4px">Trả lời ngay tại đây. Hệ thống tính lại khi bạn bấm Lưu.</p>
+        <form class="truong" style="margin-top:12px" onsubmit="return false">
+          <label for="ns">Bạn sinh năm nào?</label>
+          <div class="hoi-nhanh"><input id="ns" class="o-nhap" inputmode="numeric" placeholder="Ví dụ 1998"><button class="nut nut-chinh nut-nho">Lưu</button></div>
+        </form>
+      </section>
+      <section class="the-phang ho-so">
+        <div class="hang" style="justify-content:space-between"><h3>Hồ sơ của bạn</h3><a href="#" class="nho">Sửa</a></div>
+        <dl style="margin-top:10px">
+          <dt>Họ tên</dt><dd>Đỗ Thị Thử<span class="nguon">bạn khai</span></dd>
+          <dt>Năm sinh</dt><dd class="chua-cung-cap">Chưa cung cấp</dd>
+          <dt>Tiếng Nhật</dt><dd>Chưa học<span class="nguon">bạn khai</span></dd>
+          <dt>Bằng cấp</dt><dd>Cao đẳng Điều dưỡng<span class="nguon">đọc từ CV · bạn đã xác nhận</span></dd>
+          <dt>Nguyện vọng</dt><dd>Vùng Kantō, viện dưỡng lão</dd>
+        </dl>
+        <p class="nho phu" style="margin-top:10px">Xác nhận lúc 14:20 hôm nay. Sửa hồ sơ thì bảng đối chiếu được tính lại.</p>
+      </section>
+      </aside>
+
+      <section class="the v-hoc">
+        <h2>Hướng học để đủ điều kiện</h2>
+        <p class="phu" style="margin-top:4px">Từ <b>Chưa học</b> lên <b>N4</b> — theo danh mục khóa học của công ty</p>
+        <div class="lo-trinh" style="margin-top:14px">
+          <div><span class="nho phu">Khóa</span><b>Học tiếng Nhật tại trung tâm</b><span class="nho phu">KH-0001</span></div>
+          <div><span class="nho phu">Thời gian</span><b>6–7 tháng</b><span class="nho phu">học tập trung, có ký túc xá</span></div>
+          <div><span class="nho phu">Học phí</span><b>35.000.000đ</b><span class="nho phu">một chặng trong tổng 90.000.000đ</span></div>
+        </div>
+      </section>
+
+      <section class="the v-ai">
+        <h2>Phân tích của trợ lý</h2>
+        <div class="loi-ai" style="margin-top:12px">
+          Bạn đã đạt phần lớn điều kiện của đơn này, kể cả bằng Cao đẳng Điều dưỡng. Chỗ vướng duy nhất chắc chắn là tiếng Nhật: đơn cần N4 mà bạn chưa học. Nếu theo khóa của trung tâm, mất khoảng 6–7 tháng. Bạn cho mình biết năm sinh để kiểm điều kiện tuổi nhé.
+        </div>
+        <div class="hang" style="margin-top:10px"><span class="nguon-ai">Trợ lý viết lại từ kết quả đối chiếu</span><a href="#" class="nho">Xem bản hệ thống ghép</a></div>
+
+        <h3 style="margin-top:22px">Hỏi thêm về đơn này</h3>
+        <div class="goi-y-hoi" style="margin-top:8px"><button>Vì sao tôi chưa đạt?</button><button>Học bao lâu thì đủ?</button><button>Tổng chi phí là bao nhiêu?</button></div>
+        <form class="o-hoi" onsubmit="return false"><label class="an" for="hoi">Câu hỏi về đơn này</label><input id="hoi" class="o-nhap" placeholder="Gõ câu hỏi của bạn…"><button class="nut nut-phu">Hỏi</button></form>
+        <p class="nho phu" style="margin-top:8px">Câu hỏi chung về chương trình (visa, sinh hoạt…) hỏi ở <a href="#">khung chat chung</a>.</p>
+      </section>
+
+      <section class="v-tiep">
+        <h2>Việc tiếp theo</h2>
+        <div class="hanh-dong" style="margin-top:12px">
+          <a href="#" class="chinh"><b>Tư vấn về việc học</b><span>Nhân viên gọi lại trong giờ hành chính</span></a>
+          <a href="#"><b>Bổ sung hồ sơ</b><span>Trả lời năm sinh, kết quả tính lại ngay</span></a>
+          <a href="#"><b>Xem đơn khác</b><span>Đơn bạn đủ điều kiện nộp ngay</span></a>
+          <a href="#"><b>Nói chuyện với nhân viên</b><span>Nhắn tin, xin gặp hoặc gọi lại</span></a>
+        </div>
+      </section>
+  </div>
+</main>
+</body>
+</html>

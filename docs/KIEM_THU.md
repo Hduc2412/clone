@@ -1,6 +1,6 @@
 # Kiểm thử hệ thống
 
-Lần chạy gần nhất: 06/10/2026. **1188 ca backend, 65 ca website và 27 ca hệ quản trị — tất cả đạt**,
+Lần chạy gần nhất: 07/10/2026. **1245 ca backend, 65 ca website và 35 ca hệ quản trị — tất cả đạt**,
 thời gian chạy khoảng 18 giây cho phần backend.
 
 ```bash
@@ -103,7 +103,7 @@ Hai bộ đáng chú ý riêng vì chúng **kiểm bằng cách đọc mã ngu�
   thẻ đơn đi theo cờ của máy chủ. Quy tắc "chưa xếp hạng được thì không nói thứ hạng" phải
   đúng ở cả bốn chỗ, và một trong bốn chỗ ấy nằm trong React.
 
-Ngoài ra hai app web có **65 ca** (website) và **27 ca** (hệ quản trị) chạy bằng `node --test`:
+Ngoài ra hai app web có **65 ca** (website) và **35 ca** (hệ quản trị) chạy bằng `node --test`:
 `cd frontend && npm test`, `cd admin-frontend && npm test`. TypeScript được biên dịch rồi chạy
 trong hộp cát `vm`, nên không cần trình duyệt.
 
@@ -303,7 +303,7 @@ Lần chạy gần nhất: 18 đơn đã xét, 9 đạt, đơn đứng đầu 10
 
 ## 3. Chín lỗi thật do kiểm thử phát hiện
 
-Phần này đáng chú ý hơn con số 1188, vì nó cho thấy bộ kiểm thử có tác dụng thật.
+Phần này đáng chú ý hơn con số 1245, vì nó cho thấy bộ kiểm thử có tác dụng thật.
 
 | Lỗi | Nếu lọt ra thì sao | Ca chặn |
 |---|---|---|
@@ -378,6 +378,61 @@ Chi tiết, cách tái hiện và lượt kiểm lại: `docs/nghiem_thu/2026-10
 Mỗi chốt kèm một phép đột biến trong `scripts/dot_bien.py`. Đây cũng là lần đầu các ca quản trị
 **dựng trang thật** (`tests/dungTrang.cjs`) thay vì chỉ soi cấu trúc mã.
 
+### 3.0d. Ba điểm bảo mật và vận hành, cũng từ trình duyệt (06/10)
+
+Kiểm lại tám điểm trên lại thấy thêm ba. Hai điểm đầu sửa trước vì đụng tới bảo mật và tới
+khách thật; điểm thứ ba — yêu cầu hỗ trợ chưa chuyển được người xử lý — **để sau** theo quyết
+định của chủ đồ án.
+
+| Lỗi | Nếu lọt ra thì sao | Ca chặn |
+|---|---|---|
+| Token đăng nhập chỉ mang email | Xóa một nhân viên rồi cấp lại email ấy cho người khác: người cũ còn giữ cookie là vào thẳng tài khoản mới, với quyền của tài khoản mới | `test_phien_tai_khoan_cu` (7 ca) |
+| Hàng đợi cắt ở 50, không báo — kể cả thẻ "Hồ sơ chờ nhận" ở tổng quan | 72 khách chờ, màn hình hiện 50; hàng xếp người chờ lâu nhất lên đầu nên 22 người bị giấu là những người **vừa** đăng ký | `test_hang_doi_du` (6 ca), `hangDoiDu.test.cjs` (5 ca) |
+| Bộ hành trình E2E xóa tài khoản tạm khi hồ sơ còn giao cho chúng | Mỗi lượt đo để lại hai bản ghi mang người phụ trách không tồn tại; ngày 06/10 tích lại 129 | `test_e2e_tra_ve_hang_doi` (4 ca) |
+
+### 3.0e. Trợ lý tư vấn: nguyên nhân tách theo tầng (07/10)
+
+Chi tiết ở `docs/AGENT_TU_VAN.md §17`. Kiểm thử mới: `test_tu_van_mo_rong` (22 ca — ngữ cảnh, đơn
+khác từ engine, khóa học có nguồn, dự phòng khi mô hình lỗi, nhật ký cả danh mục),
+`test_hau_kiem_co_nhan` (bộ 27 câu có nhãn). Đo bản HEAD với bản mới trên cùng bộ câu
+(`scripts/do_hau_kiem.py`): chặn nhầm câu đúng 4 → 0, để lọt câu bịa 7 → 0, từ chối không thành
+câu chuẩn 1 → 0. Khóa học phải gọi đúng tên hoặc mã trong danh mục; quan hệ hai khoản tiền phải
+đúng chiều.
+
+| Tầng | Lỗi | Ca chặn |
+|---|---|---|
+| Dữ liệu | Nhật ký một đơn được lấy làm "lần đối chiếu gần nhất" của cả danh mục (5 hồ sơ trên kho phát triển) | `NhatKyCaDanhMucTests` |
+| Điều phối | Phòng theo đơn không thấy đơn khác, khóa học; mô hình lỗi thì chỉ "đang bận" | `PhongTheoDonTests` |
+| Hậu kiểm | Câu đúng chứa "chưa có thông tin" bị nuốt; số khách vừa nói bị loại; câu tự nhận đã làm thay khách, mã đơn bịa, khóa bịa không mã không số, và câu đảo quan hệ hai khoản tiền có thật đều lọt | `test_hau_kiem_co_nhan` |
+| Dịch vụ | 503 rồi quá giờ ở cả hai model — **không đo được** trên mô hình thật ngày 07/10 (7/7) | `scripts/danh_gia_tu_van_that.py` |
+
+### 3.0f. Chuyển và trả yêu cầu hỗ trợ (07/10)
+
+Trước 07/10 yêu cầu hỗ trợ không đổi được người xử lý — 67 yêu cầu mang tên tài khoản đã xóa
+phải trả về hàng đợi bằng script ngày 06/10. Nay: `POST /ho-tro/{code}/chuyen` (chỉ Admin/Manager,
+bắt buộc lý do, khóa theo người đang giữ) và `POST /ho-tro/{code}/tra-ve` (người đang giữ hoặc
+quản lý). Mỗi lần đổi ghi một dòng `lich_su_phu_trach`; đường công khai của khách không trả trường
+này. Trang hỗ trợ có tab "Đang có người xử lý" cho quản lý, ô "Chuyển cho…" và nút "Trả về hàng đợi".
+
+Ca chặn: `test_ho_tro_chuyen_tra` (13 ca), `supportChuyenTra.test.cjs` (3 ca), và bước 17 của
+`e2e_hanh_trinh` qua HTTP thật — chuyển A → B, A mất quyền trả lời và trả về, B trả về hàng đợi.
+
+### Môi trường kiểm thử riêng
+
+Bộ E2E, lượt chốt và các đột biến đo qua HTTP **ghi vào database**. Chạy chúng trên kho phát triển
+là trộn dữ liệu thử vào dữ liệu demo. Từ 07/10 chạy trên database và thư mục lưu trữ riêng:
+
+```bash
+export MONGODB_DB_NAME=xkld_kiem_thu_0710
+export STORAGE_PATH=F:/DoAnTotNghiep/_tam/kiem_thu_0710/storage
+python -m scripts.seed_job_orders && python -m scripts.seed_courses   # chỉ vào kho kiểm thử
+python -m uvicorn main:app --port 8020                                # cùng hai biến trên
+python -m scripts.nghiem_thu_chot                                     # cùng hai biến trên
+```
+
+`STORAGE_PATH` kéo theo cả thư mục CV lẫn sổ ghi danh E2E (`<storage>/_e2e/so_phien.jsonl`), nên CV
+mẫu mà bộ hành trình tải lên không rơi vào `backend/storage/cv`.
+
 ### 3.1. Lỗi lệch múi giờ — đã sửa và **đã xác minh**
 
 Mục này trước đây để riêng vì "đã sửa" và "đã nhìn thấy chạy đúng" là hai chuyện
@@ -448,11 +503,11 @@ ra điều gì vừa hỏng, không phải mở mã nguồn ra đọc mới bi�
 
 ## 5. Những phần chưa có kiểm thử tự động
 
-Nói rõ để không hiểu nhầm con số 1188 là đã phủ hết hệ thống.
+Nói rõ để không hiểu nhầm con số 1245 là đã phủ hết hệ thống.
 
 | Phần | Hiện trạng | Dự kiến |
 |---|---|---|
-| Giao diện website và màn hình quản trị | **92 ca** chạy bằng `node --test` (65 website, 27 quản trị): TypeScript biên dịch rồi chạy trong hộp cát `vm`. Hai lượt kiểm trên trình duyệt thật ngày 06/10 (`docs/nghiem_thu/2026-10-06_1510_trinh_duyet.md`) — bằng **sự kiện DOM**, chưa phải thao tác chuột, chưa kiểm bố cục | Thêm ca khi có màn hình mới; không dựng bộ kiểm thử trình duyệt tự động trong phạm vi đồ án |
+| Giao diện website và màn hình quản trị | **100 ca** chạy bằng `node --test` (65 website, 35 quản trị): TypeScript biên dịch rồi chạy trong hộp cát `vm`. Ba lượt kiểm trên trình duyệt thật ngày 06/10 (`docs/nghiem_thu/2026-10-06_1510_trinh_duyet.md`) — bằng **sự kiện DOM**, chưa phải thao tác chuột, chưa kiểm bố cục | Thêm ca khi có màn hình mới; không dựng bộ kiểm thử trình duyệt tự động trong phạm vi đồ án |
 | Đọc hồ sơ CV | Có bộ nghiệm thu `scripts/nghiem_thu_doc_cv.py` chấm từng trường trên sáu hồ sơ mẫu | Chạy lại trước mỗi mốc bàn giao |
 | Chatbot trả lời có căn cứ | Có bộ nghiệm thu `scripts/nghiem_thu_chatbot.py` trên bộ câu hỏi chuẩn | Bổ sung câu hỏi khi kho tri thức dày thêm |
 | Đăng ký sơ bộ và phiếu tóm tắt | Đã có `test_registrations.py` | — |
@@ -489,7 +544,7 @@ hạn mức, nên trộn vào đó là làm hỏng tính chất ấy.
 | Cả chuỗi năm hồ sơ có đúng không, và **hết hạn mức thì còn gì**? | `scripts.nghiem_thu_xuyen_suot` | Không cần gì. **Không** gọi mô hình |
 | Qua HTTP thật — cookie đã ký, giới hạn theo IP, MongoDB — có còn đúng không? | `scripts.e2e_xuyen_suot` | Backend đang chạy ở 8020 |
 | Trọn hành trình CV → tư vấn → đăng ký → lịch hẹn → **nhân viên nhận việc** có đúng không? | `scripts.e2e_hanh_trinh` | Backend ở 8020; một lượt mô hình cho bước đọc CV, hoặc `--khai-tay` để không gọi lượt nào |
-| Các bộ đo trên có **thật sự đỏ** khi mã sai không? | `scripts.dot_bien` | Dựng máy chủ riêng cho mỗi đột biến; không gọi mô hình; hoàn nguyên đúng từng byte và giờ sửa. 62/62 ngày 06/10 (bản cuối `c6328b30…`), gồm mười một chốt của giao diện, bốn chốt của mã thoát và mười ba chốt cho tám điểm bắt trên trình duyệt |
+| Các bộ đo trên có **thật sự đỏ** khi mã sai không? | `scripts.dot_bien` | Dựng máy chủ riêng cho mỗi đột biến; không gọi mô hình; hoàn nguyên đúng từng byte và giờ sửa. 68/68 ngày 06/10 (bản `e66af137…`). Ngày 07/10 thêm mười ba chốt của trợ lý tư vấn (81 tổng); chạy `--khong-ghi-db` — bỏ 12 đột biến đo qua HTTP vì chúng ghi vào database — **66/66**, rồi 3/3 cho hai chốt khóa thật, tiền thật. Cùng tối, trên môi trường kiểm thử riêng (xem §3.0f) chạy **đủ 85 đột biến kể cả 12 đột biến qua HTTP: 85/85**, bản `cd71501b…` |
 | *(chốt)* Mọi bộ trên, trên **một** bản code, kèm biên bản | `scripts.nghiem_thu_chot` | Backend ở 8020. Từ chối chạy nếu máy chủ khởi động trước lần sửa mã máy chủ gần nhất; ghi dấu vân tay mã (`scripts.dau_van_tay_ma`) trước và sau, lệch là kết quả không hợp lệ |
 | *(dọn)* Dữ liệu các bộ E2E để lại trong database thật | `scripts.don_du_lieu_e2e` | Chỉ xóa phiên có trong sổ ghi danh hoặc danh sách đã duyệt; mặc định chỉ xem; `--xoa` sao lưu rồi xóa; `--khoi-phuc` đưa phiên trở lại |
 

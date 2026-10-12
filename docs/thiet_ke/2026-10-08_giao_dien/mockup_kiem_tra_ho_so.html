@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOCKUP — Kiểm tra hồ sơ (chuyển bước như slide, người dùng điều khiển)</title>
+<link rel="stylesheet" href="chung.css">
+<style>
+  /* Nền phong cảnh NHẸ: ảnh mờ, phủ ngà dày — mọi khối chữ đặt trên thẻ trắng đặc. */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -2;
+    background: url("../../../frontend/public/nen/ho-kawaguchi-nho.webp") center/cover no-repeat; }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: rgba(251,248,242,.90); }
+  .khung-slide { overflow: hidden; border-radius: var(--bo); }
+  .day-slide { display: flex; transition: transform .32s ease; }
+  .slide { flex: 0 0 100%; min-width: 0; }
+  @media (prefers-reduced-motion: reduce) { .day-slide { transition: none; } }
+  .dieu-khien { display: flex; justify-content: space-between; gap: 12px; margin-top: 20px; }
+  .muc dl { display: grid; grid-template-columns: 170px 1fr auto; gap: 10px 14px; align-items: start; margin: 0; }
+  .muc dt { color: var(--chu-phu); } .muc dd { margin: 0; }
+  .nguon { display: block; font-size: .82rem; color: var(--chu-phu); }
+  @media (max-width: 640px) { .muc dl { grid-template-columns: 1fr auto; } .muc dt { grid-column: 1 / -1; margin-top: 8px; } }
+  .nhan-tn { display: inline-block; font-size: .8rem; padding: 2px 9px; border-radius: 999px; margin-top: 4px; }
+  .tn-chung-chi { background: var(--xanh-nhat); color: var(--xanh); }
+  .tn-dang-hoc { background: var(--tin-nhat); color: var(--tin); }
+</style>
+</head>
+<body>
+<div class="nhan-mockup">MOCKUP · bấm "Tiếp" / "Quay lại" để thử chuyển bước · dữ liệu minh họa</div>
+<header class="dau-trang"><div class="khung">
+  <a class="logo" href="#"><b>DC</b> Nhân lực Quốc tế DC</a>
+  <nav class="menu"><a href="#">Đơn hàng</a><a href="#">Chi phí</a><a class="dang" href="#">Hồ sơ của tôi</a></nav>
+  <button class="nut nut-phu nut-nho nut-menu">☰ Menu</button>
+</div></header>
+
+<main class="khung" style="padding:28px 24px 64px; max-width:52rem">
+  <p class="tieu-de-khoi">Tư vấn theo đơn · DH-0001</p>
+  <h1 style="margin-top:4px">Kiểm tra hồ sơ của bạn</h1>
+  <ol class="buoc" aria-label="Các bước tư vấn" style="margin-top:16px" id="thanh-buoc">
+    <li class="xong"><i>✓</i>Gửi CV</li><li data-buoc="0"><i>B</i>Làm rõ thông tin</li>
+    <li data-buoc="1"><i>C</i>Xác nhận hồ sơ</li><li><i>D</i>Đối chiếu</li><li><i>E</i>Phân tích</li><li><i>F</i>Việc tiếp theo</li>
+  </ol>
+  <div class="buoc-gon" id="buoc-gon"></div>
+
+  <div class="khung-slide" style="margin-top:20px">
+    <div class="day-slide" id="day">
+      <!-- ===== Slide B: Làm rõ ===== -->
+      <section class="slide" aria-labelledby="t-b" id="slide-0">
+        <div class="the cach">
+          <h2 id="t-b" tabindex="-1">Máy đã đọc được những điều này</h2>
+          <p class="phu nho">Mỗi dòng ghi rõ lấy từ đâu. Sửa ngay nếu máy đọc nhầm.</p>
+          <div class="muc"><dl>
+            <dt>Họ tên</dt><dd>Lê Thị Minh<span class="nguon">đọc từ CV</span></dd><dd><a href="#" class="nho">Sửa</a></dd>
+            <dt>Bằng cấp</dt><dd>Cao đẳng Điều dưỡng<span class="nguon">đọc từ CV · “Cao đẳng Y tế Hà Nội, 2020”</span></dd><dd><a href="#" class="nho">Sửa</a></dd>
+            <dt>Tiếng Nhật</dt><dd>N4<br><span class="nhan-tn tn-chung-chi">có chứng chỉ — nhân viên đã đối chứng bản gốc</span><br>
+              <span class="nhan-tn tn-dang-hoc">đang học hướng tới N3 — chưa phải trình độ đã có</span></dd><dd><a href="#" class="nho">Sửa</a></dd>
+          </dl></div>
+          <div class="bao bao-vang"><span class="bt">?</span><span><b>Còn 1 mục để kết quả chắc hơn</b>Thiếu không làm bạn mất đơn nào — hệ thống ghi “chưa rõ” chứ không loại.</span></div>
+          <div class="truong"><label for="ns">Bạn sinh năm nào?</label><input id="ns" class="o-nhap" inputmode="numeric" placeholder="Ví dụ 1998"></div>
+          <details><summary class="nho" style="cursor:pointer">Hỏi trợ lý nếu chưa rõ một mục (thu gọn)</summary>
+            <p class="nho phu" style="margin-top:8px">Trợ lý chỉ đề xuất; thông tin chỉ được lưu khi bạn bấm “Đúng, lưu”.</p></details>
+        </div>
+      </section>
+
+      <!-- ===== Slide C: Xác nhận ===== -->
+      <section class="slide" aria-labelledby="t-c" id="slide-1">
+        <div class="the cach">
+          <h2 id="t-c" tabindex="-1">Xác nhận hồ sơ</h2>
+          <div class="bao bao-vang" role="status"><span class="bt">?</span><span><b>Tiếng Nhật: chưa đổi</b>Bạn vừa sửa thành N5, nhưng nhân viên đã ghi N4 sau khi đối chứng bản gốc. Điều bạn sửa đã được gửi để nhân viên xem lại.</span></div>
+          <div class="muc"><dl>
+            <dt>Họ tên</dt><dd>Lê Thị Minh</dd><dd></dd>
+            <dt>Năm sinh</dt><dd>1998<span class="nguon">bạn vừa khai</span></dd><dd></dd>
+            <dt>Bằng cấp</dt><dd>Cao đẳng Điều dưỡng</dd><dd></dd>
+            <dt>Tiếng Nhật</dt><dd>N4 · có chứng chỉ</dd><dd></dd>
+            <dt>Nguyện vọng</dt><dd>Vùng Kantō, viện dưỡng lão<span class="nguon">chưa nêu ngân sách — không ảnh hưởng điều kiện</span></dd><dd></dd>
+          </dl></div>
+          <p class="nho phu">Bấm xác nhận nghĩa là những điều trên đúng theo bạn biết. Nhân viên vẫn đối chiếu giấy tờ khi gặp bạn.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="dieu-khien">
+    <button class="nut nut-phu" id="lui">← Quay lại</button>
+    <button class="nut nut-chinh" id="tien">Tiếp: xác nhận hồ sơ →</button>
+  </div>
+  <p class="nho phu" style="margin-top:12px">Chỉ chuyển bước khi bạn bấm. Không có gì tự trượt, tự đổi trong lúc bạn đang đọc.</p>
+</main>
+
+<script>
+  // Mockup: hai slide, người dùng điều khiển. Chuyển xong thì đưa tiêu điểm về tiêu đề
+  // của bước mới để trình đọc màn hình đọc đúng chỗ — không tự chuyển theo thời gian.
+  const day = document.getElementById('day'), lui = document.getElementById('lui'), tien = document.getElementById('tien');
+  const nhanTien = ['Tiếp: xác nhận hồ sơ →', 'Xác nhận và xem bảng đối chiếu →'];
+  let i = 0;
+  function ve() {
+    day.style.transform = `translateX(-${i * 100}%)`;
+    document.querySelectorAll('.slide').forEach((s, k) => { s.inert = k !== i; s.setAttribute('aria-hidden', k !== i); });
+    document.querySelectorAll('#thanh-buoc li[data-buoc]').forEach(li => {
+      const k = +li.dataset.buoc; li.className = k < i ? 'xong' : k === i ? 'dang' : '';
+      li.toggleAttribute('aria-current', k === i);
+    });
+    document.getElementById('buoc-gon').innerHTML = `<b>Bước ${i + 2}/6 · ${i ? 'Xác nhận hồ sơ' : 'Làm rõ thông tin'}</b>`;
+    lui.disabled = i === 0; tien.textContent = nhanTien[i];
+  }
+  lui.onclick = () => { if (i > 0) { i--; ve(); document.querySelector(`#slide-${i} h2`).focus(); } };
+  tien.onclick = () => { if (i < 1) { i++; ve(); document.querySelector(`#slide-${i} h2`).focus(); } };
+  ve();
+</script>
+</body>
+</html>
