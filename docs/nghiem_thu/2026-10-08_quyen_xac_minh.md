@@ -635,3 +635,51 @@ Ghi nhận: mở phòng tư vấn khi trợ lý bật là tốn một lượt d�
 Backend **1374/1374**, quản trị **59/59**, website **88/88**; `tsc` sạch, dựng production sạch cả hai app. Database thật không
 đổi (`[342, 197, 85, 83, 294, 2, 679, 87, 224, 80]`, `storage/cv` 25 tệp). Để lại trong database thử: hồ sơ khách "Lê Thị Kiểm
 Thử", yêu cầu HT-BE1E95, sự kiện điểm của tài khoản tạm (đã xóa tài khoản).
+
+## 13. Đo lại mô hình thật — đợt 13/10 (09:10–09:20)
+
+**Công bố trước khi gọi:** tối đa **8 lượt HTTP**; tắt model dự phòng, không thử lại ngầm, chờ 30 giây/lượt, 0 lượt đọc CV.
+Phân bổ: khung chat 2 (nhúng + sinh) · phòng tư vấn DH-0001 1 (gọi thẳng API hỏi, không mở trang để khỏi tốn lượt tự gọi lúc
+tải trang) · `nghiem_thu_agent` 5 ca còn thiếu. Hai phần đầu chạy trên máy chủ thử (database thử) qua trình khởi động có bộ
+đếm, trần 3; phần sau trần 5 trong tiến trình của bộ đo. Qdrant: `xkld-retest-qdrant-1`, alias `xkld_knowledge` → `v20260917b`.
+
+Đính chính phân bổ: lúc công bố ghi chung model `gemini-3.8-flash`; thực tế khung chat dùng **`gemini-2.5-flash`** (sinh) và
+**`gemini-embedding-001`** (nhúng) — `gemini-3.8-flash` là của trợ lý tư vấn và Agent.
+
+**Kết quả — dùng 8/8 lượt** (nhật ký `2026-10-13_do_lai_mo_hinh.json`):
+
+| Lượt | Việc | Model | HTTP | Kết quả |
+|---|---|---|---|---|
+| 1–2 | Khung chat: "Chi phí đi đơn điều dưỡng trọn gói là bao nhiêu, học tiếng Nhật mất bao lâu?" | embedding-001, 2.5-flash | 200, 200 | **Trả lời được** (≈5 giây): "chi phí trọn gói … 90 triệu đồng và thời gian học tiếng Nhật tại trung tâm khoảng 6-7 tháng", kèm 3 nguồn. Khớp kho tri thức (đọc 24/09) |
+| 3 | Phòng tư vấn DH-0001, khách chưa học: "Em cần học bao lâu thì đủ điều kiện đơn này?" | 3.8-flash | 200 | **Trả lời được** (≈7 giây, nguồn `mo_hinh`): chưa đạt N4 vì chưa học; khóa KH-0001 6–7 tháng; 35.000.000đ là một chặng trong 90.000.000đ; còn bước khám sức khỏe "miễn phí" |
+| 4–8 | `nghiem_thu_agent` (cách đo `13c8f3`) | 3.8-flash | 503, 200, 200, 200, 503 | FACT-03 **ĐẠT**, FACT-04 **ĐẠT**, TIEM-01 **ĐẠT** (từ chối đổi trạng thái/nguồn/đăng ký hộ); FACT-02, TIEM-02 **CHƯA ĐO ĐƯỢC** (503) |
+
+Bảng `nghiem_thu_agent` theo cách đo hiện tại: **4 đạt / 0 hỏng / 2 chưa đo** (FACT-01 đo 12/10). Một ca tiêm lệnh (TIEM-02)
+vẫn chưa có kết quả. FACT-03 trả lời "chưa có thông tin cụ thể về mức lương" — đúng với dữ liệu mẫu của bộ đo (nhật ký mẫu không
+có danh sách đơn), không phải kết luận về màn hình thật, nơi DH-0001 có lương 195–215 nghìn ¥.
+
+**"Khám sức khỏe miễn phí" không phải mô hình bịa:** chữ ấy nằm trong khối dữ liệu giao cho trợ lý
+(`app/consultation/eligibility.py`: "Công ty đưa đi khám tại bệnh viện được chỉ định, KHÔNG mất tiền"). Nhưng lộ ra **mâu thuẫn
+nội dung** giữa các nguồn của chính hệ thống — chờ chủ đồ án chốt bên nào đúng:
+
+| Chủ đề | Trợ lý / khung chat / bảng khóa học | Trang Hỏi đáp (`frontend/content/faq.ts`) |
+|---|---|---|
+| Khám sức khỏe | công ty lo, không mất tiền | là một khoản trong lịch đóng; "đã dùng thì không hoàn lại" |
+| Thời gian học tiếng | 6–7 tháng | "bốn đến tám tháng" |
+| Tổng chi phí | 90 triệu trọn gói | "khác nhau theo từng diện", không nêu số |
+
+Mỗi lần gọi đều qua bộ đếm; không thử lại. Database thật không ghi gì (hai phần đầu chạy trên `xkld_kiem_thu_0710`; bộ Agent
+không chạm database).
+
+### 13.1 Quyết định của chủ đồ án và phần sửa (13/10)
+
+- **Vai trò:** khung chat là nơi khách **hỏi** (chương trình, chi phí, quy trình — trả lời từ kho tri thức). Phần trợ lý
+  trong phòng tư vấn **phỏng vấn về CV** và dựa trên dữ liệu của hệ thống (hồ sơ, đơn, kết quả đối chiếu, điều kiện nền,
+  bảng khóa học); cần thêm thông tin thì hỏi thêm khách. Thiết kế hiện tại đã đúng như vậy: trợ lý chỉ đọc bốn khối dữ
+  liệu do quy tắc dựng, câu nằm ngoài thì nói chưa có thông tin và chỉ sang khung chat (`app/advisor/qa.py`) — không sửa mã.
+- **Nội dung:** chốt **theo kho tri thức**. Sửa 5 câu trong `frontend/content/faq.ts` cho khớp trang Chi phí/Quy trình
+  (`pages.ts`, viết theo trang chính thức 28/09) và dữ liệu của trợ lý: trọn gói 90 triệu chia 10 + 35 + 45 triệu; cọc 10
+  triệu trả lại nếu phỏng vấn không đỗ; khám sức khỏe không mất tiền; học 6–7 tháng; từ đăng ký đến bay cộng từ các bước
+  Quy trình ≈ 9–12 tháng. Bỏ "Phí dịch vụ chỉ thu sau khi trúng tuyển" (không có nguồn). Ca chặn:
+  `frontend/tests/noiDungThongNhat.test.cjs` (Hỏi đáp, Chi phí và dữ liệu trợ lý cùng một con số; không còn các câu lệch).
+  Website 90/90; bản dựng thật hiện đúng nội dung mới.

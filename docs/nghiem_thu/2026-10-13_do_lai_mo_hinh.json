@@ -1,0 +1,75 @@
+{
+  "dot": "13/10 09:10–09:20",
+  "tran_ca_dot": 8,
+  "phan_bo_cong_bo": {
+    "khung_chat": 2,
+    "phong_tu_van_DH-0001": 1,
+    "nghiem_thu_agent": 5,
+    "doc_cv": 0
+  },
+  "may_chu_thu": {
+    "tran": 3,
+    "luot": [
+      {
+        "luc": "09:13:45",
+        "luot": 1,
+        "model": "gemini-embedding-001",
+        "ket_qua": "200",
+        "duong": "embedContent",
+        "dung": ""
+      },
+      {
+        "luc": "09:13:47",
+        "luot": 2,
+        "model": "gemini-2.5-flash",
+        "ket_qua": "200",
+        "duong": "generateContent",
+        "dung": ""
+      },
+      {
+        "luc": "09:14:56",
+        "luot": 3,
+        "model": "gemini-3.8-flash",
+        "ket_qua": "200",
+        "duong": "generateContent",
+        "dung": ""
+      }
+    ]
+  },
+  "nghiem_thu_agent": {
+    "model": "gemini-3.8-flash",
+    "du_phong": null,
+    "cho_giay": 30.0,
+    "toi_da": 5,
+    "da_goi": 5,
+    "ly_do_dung": "",
+    "luot": [
+      {
+        "luot": 1,
+        "model": "gemini-3.8-flash",
+        "ket_qua": "503"
+      },
+      {
+        "luot": 2,
+        "model": "gemini-3.8-flash",
+        "ket_qua": "200"
+      },
+      {
+        "luot": 3,
+        "model": "gemini-3.8-flash",
+        "ket_qua": "200"
+      },
+      {
+        "luot": 4,
+        "model": "gemini-3.8-flash",
+        "ket_qua": "200"
+      },
+      {
+        "luot": 5,
+        "model": "gemini-3.8-flash",
+        "ket_qua": "503"
+      }
+    ],
+    "cach_do": "13c8f3"
+  }
+}

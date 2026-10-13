@@ -60,20 +60,23 @@ export const FAQ: FaqItem[] = [
     topic: "chi_phi",
     question: "Tổng chi phí hết bao nhiêu?",
     answer:
-      "Chi phí khác nhau theo từng diện chương trình và từng đơn hàng. Diện EPA thấp nhất vì có hỗ trợ từ chương trình hợp tác hai chính phủ. Các khoản và thời điểm đóng được ghi rõ trong mục Chi phí và trong hợp đồng. Con số chính xác cho trường hợp của bạn do nhân viên tư vấn xác nhận.",
+      // 13/10: thống nhất với kho tri thức và trang Chi phí (`pages.ts` COSTS, theo trang chi
+      // phí chính thức của công ty). Bản cũ không nêu con số nào —
+      // trong khi khung chat và trợ lý trả lời "90 triệu trọn gói".
+      "Trọn gói 90 triệu đồng, chia ba chặng: 10 triệu khi đăng ký, 35 triệu khi nhập học tiếng Nhật, 45 triệu trước khi xuất cảnh (được nợ lại, sang Nhật làm trả trong 8 tháng). Công ty cấp hồ sơ vay vốn dưới 100 triệu từ Ngân hàng chính sách địa phương. Hộ chiếu, visa, lý lịch tư pháp đóng theo mức phí nhà nước. Nhân viên tư vấn xác nhận lại cho trường hợp của bạn.",
     featured: true,
   },
   {
     topic: "chi_phi",
     question: "Có được đóng chi phí theo từng đợt không?",
     answer:
-      "Có. Chi phí chia theo giai đoạn: khám sức khỏe, học tiếng, làm hồ sơ, rồi tới trước khi xuất cảnh. Không phải đóng toàn bộ ngay từ đầu. Lịch đóng ghi trong hợp đồng.",
+      "Có. Ba chặng: 10 triệu khi đăng ký, 35 triệu khi nhập học tiếng Nhật, 45 triệu trước khi xuất cảnh. Không phải đóng toàn bộ ngay từ đầu. Khám sức khỏe không mất tiền — công ty đưa đi khám tại bệnh viện được chỉ định.",
   },
   {
     topic: "chi_phi",
     question: "Nếu phỏng vấn không đỗ thì có mất tiền không?",
     answer:
-      "Những khoản đã dùng thực tế như khám sức khỏe hay học phí đã học thì không hoàn lại. Phí dịch vụ chỉ thu sau khi trúng tuyển. Trượt đơn này vẫn được giới thiệu sang đơn khác mà không phải bắt đầu lại từ đầu.",
+      "Khoản 10 triệu đặt cọc lúc đăng ký: phỏng vấn không đỗ thì công ty trả lại luôn, đỗ thì tính vào chi phí đã đóng. Khám sức khỏe không mất tiền. Trượt đơn này vẫn được giới thiệu sang đơn khác mà không phải bắt đầu lại từ đầu.",
   },
   {
     topic: "luong_thuong",
@@ -105,7 +108,7 @@ export const FAQ: FaqItem[] = [
     topic: "quy_trinh",
     question: "Từ lúc đăng ký đến lúc bay mất bao lâu?",
     answer:
-      "Thông thường 8 đến 14 tháng, phần lớn thời gian dành cho học tiếng Nhật. Nếu đã có chứng chỉ tiếng Nhật thì rút ngắn đáng kể. Mục Quy trình mô tả từng bước kèm thời lượng.",
+      "Cộng các bước ở mục Quy trình: học tiếng Nhật 6–7 tháng, hoàn thiện hồ sơ và xin tư cách lưu trú 2–4 tháng, đào tạo trước xuất cảnh 1 tháng — khoảng 9 đến 12 tháng. Nếu đã có chứng chỉ tiếng Nhật thì rút ngắn đáng kể.",
     featured: true,
   },
   {
@@ -124,7 +127,7 @@ export const FAQ: FaqItem[] = [
     topic: "hoc_tap",
     question: "Học tiếng Nhật ở đâu và học bao lâu?",
     answer:
-      "Học tập trung tại trung tâm của công ty, ở nội trú trong ký túc xá. Thời gian từ bốn đến tám tháng tùy trình độ đầu vào và yêu cầu của đơn hàng.",
+      "Học tập trung tại trung tâm của công ty, ở nội trú trong ký túc xá. Học hết 50 bài mất 6–7 tháng; học phí 35 triệu là một chặng trong tổng 90 triệu.",
   },
   {
     topic: "ky_tuc_xa",
