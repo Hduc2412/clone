@@ -683,3 +683,37 @@ không chạm database).
   Quy trình ≈ 9–12 tháng. Bỏ "Phí dịch vụ chỉ thu sau khi trúng tuyển" (không có nguồn). Ca chặn:
   `frontend/tests/noiDungThongNhat.test.cjs` (Hỏi đáp, Chi phí và dữ liệu trợ lý cùng một con số; không còn các câu lệch).
   Website 90/90; bản dựng thật hiện đúng nội dung mới.
+
+## 14. Nghiệm thu MVP theo 6 tình huống §10 báo cáo mô hình 26/09 (13/10)
+
+Chuẩn là phạm vi đã thống nhất 25–26/09: ba luồng (tư vấn AI theo đơn, tư vấn tiếng Nhật, chuyển tiếp nhân viên) và 6 tình
+huống kiểm chứng ở §10. Bộ mới `backend/scripts/nghiem_thu_mvp.py` chạy qua HTTP thật tới máy chủ thử (database
+`xkld_kiem_thu_0710`), mỗi tình huống một phiên khách riêng, phiên ghi danh vào sổ E2E để dọn được. **Không gọi mô hình**
+(ngân sách đợt 13/10 đã dùng 8/8 ở §13): phần câu do AI viết là bản dự phòng ghép sẵn — chất lượng câu AI thật xem §13.
+
+| Tình huống §10 | Đã kiểm | Kết quả |
+|---|---|---|
+| 1. Chưa có CV / file không đọc được | CV scan (`06_dang_thi_ngoc_scan.pdf`, giả) → nhận nhưng `unreadable`, không OCR; lời hướng gửi bản có chữ hoặc tự khai; 0 trường bị điền; không tự chuyển nhân viên | 4/4 |
+| 2. Chưa học tiếng Nhật (đơn N4) | Khai tay + xác nhận; chưa đạt, vướng đúng tiếng Nhật; không mở nút đăng ký; lộ trình KH-0001 6–7 tháng, 35 triệu trong tổng 90 triệu (từ bảng khóa học); AI tắt vẫn trả lời bản dự phòng, nói rõ chưa phải câu trả lời riêng; không tự gửi phiếu | 6/6 |
+| 3. Đã học, chưa có chứng chỉ | N4 ghi "tự khai, chưa được đối chứng"; vẫn đạt N4 của đơn, không bị coi là chưa học | 2/2 |
+| 4. Đổi đơn / quay lại | Đổi sang DH-0004 dùng lại hồ sơ; đơn quá hạn DH-0017 không mở đăng ký, lý do "hạn nộp 17/09/2026 — hôm nay 13/10/2026"; sửa N4 → N3: phiên bản 1 → 2, đánh giá lại | 3/3 |
+| 5. Muốn chốt đơn / AI không giải quyết được | Chưa xác nhận → 400; xác nhận → một hồ sơ đăng ký trạng thái nháp chờ nhân viên (không phải "đã tuyển"); bấm lần hai → 409; yêu cầu nhân viên lưu, gửi lại ra cùng mã | 4/4 |
+| 6. Từ chối chuyển tiếp / hệ thống lỗi | Chưa bấm gửi thì không có gì tới nhân viên; thiếu họ tên/số điện thoại hợp lệ → 422; AI tắt: không hứa kết quả tuyển dụng | 3/3 |
+
+**Tổng: 22/22** (lượt cuối 10:54, chạy bằng bản trong repo; kết quả `docs/nghiem_thu/2026-10-13_nghiem_thu_mvp.json`).
+Ba lượt trước chưa sạch, đều do bộ đo hoặc cách chạy, không phải chức năng:
+- 21/22 — phép kiểm lộ trình học dò sai tên trường (`months_min` thay vì `months_text`); dữ liệu hệ thống đúng.
+- 20/22 — chạy lại ngay sau bộ hành trình, bộ giới hạn tần suất trả 429 (5 đăng ký / 5 phút / IP).
+- 21/22 — 409 "đã có hồ sơ đăng ký đang xử lý": bộ đo dùng một số điện thoại cố định qua nhiều lượt, mà hệ thống chỉ cho
+  một hồ sơ đang mở trên mỗi người — **hệ thống làm đúng**. Nay mỗi lượt dùng số ngẫu nhiên.
+
+Phía nhân viên và hồi quy, cùng ngày: `nghiem_thu_xuyen_suot --tat-ai` 5/5, `e2e_xuyen_suot` 5/5 (tám kỳ vọng so chéo đúng),
+`e2e_hanh_trinh --khai-tay` 0 chỗ hỏng — riêng phép chống đăng ký trùng **không đo được** ở lượt này vì bộ giới hạn tần suất
+(5 đăng ký / 5 phút / IP) chặn trước sau bộ MVP; phép này đã đo ở tình huống 5 (409). Test tự động: backend 1374/1374, quản trị
+59/59, website 90/90. Database thật không đổi; `storage/cv` 25 tệp.
+
+Ghi nhận nhỏ (chưa sửa): với đơn đã quá hạn, phòng tư vấn nói "Đơn này **chưa phù hợp** vì hạn nộp hồ sơ…" — lý do đúng nhưng
+cách nói dễ khiến khách nghĩ lỗi ở hồ sơ mình.
+
+Giới hạn: không đo câu AI thật trong lượt này; không đọc CV có chữ bằng mô hình (tốn lượt); các tình huống kiểm bằng API, không
+bằng chuột trên giao diện (giao diện đã đi qua bằng trình duyệt ở §12).

@@ -1,0 +1,134 @@
+[
+  {
+    "tinh_huong": "1. Chưa có CV / file không đọc được",
+    "kiem": "CV scan được nhận nhưng đánh dấu không đọc được (không OCR, không gửi bản gốc cho mô hình)",
+    "dat": true,
+    "ghi": "HTTP 201, trạng thái 'unreadable'"
+  },
+  {
+    "tinh_huong": "1. Chưa có CV / file không đọc được",
+    "kiem": "Hướng khách gửi bản có chữ hoặc tự khai",
+    "dat": true,
+    "ghi": "'Mình đã nhận file nhưng đây là bản scan nên chưa đọc được chữ. Bạn gửi bản có chữ hoặc tự khai nhanh vài thông tin giúp '"
+  },
+  {
+    "tinh_huong": "1. Chưa có CV / file không đọc được",
+    "kiem": "Không có trường nào bị điền từ file không đọc được",
+    "dat": true,
+    "ghi": "0 trường"
+  },
+  {
+    "tinh_huong": "1. Chưa có CV / file không đọc được",
+    "kiem": "Không tự chuyển nhân viên vì thiếu CV",
+    "dat": true,
+    "ghi": "{\"items\": []}"
+  },
+  {
+    "tinh_huong": "2. Khách chưa học tiếng Nhật (đơn yêu cầu N4)",
+    "kiem": "Khai tay và xác nhận hồ sơ",
+    "dat": true,
+    "ghi": "201/200"
+  },
+  {
+    "tinh_huong": "2. Khách chưa học tiếng Nhật (đơn yêu cầu N4)",
+    "kiem": "Đối chiếu: chưa đạt, vướng đúng tiêu chí tiếng Nhật",
+    "dat": true,
+    "ghi": "eligible=False, blockers=['japanese']"
+  },
+  {
+    "tinh_huong": "2. Khách chưa học tiếng Nhật (đơn yêu cầu N4)",
+    "kiem": "Không mở nút đăng ký khi chưa đạt",
+    "dat": true,
+    "ghi": ""
+  },
+  {
+    "tinh_huong": "2. Khách chưa học tiếng Nhật (đơn yêu cầu N4)",
+    "kiem": "Lộ trình học từ bảng khóa học: 6–7 tháng, 35 triệu trong tổng 90 triệu",
+    "dat": true,
+    "ghi": "{\"level_from\": \"chua_hoc\", \"level_from_label\": \"Chưa học\", \"level_to\": \"N4\", \"level_to_label\": \"N4\", \"months_text\": \"6–7 tháng\", \"tuition_vnd\": 35000000, \"tuition_incomplete\": false, \"package_total_vnd\": 90000000, \"courses\": [{\"code\": \"KH-0001\", \"title\": \"Học tiếng Nhật tại trung tâm\", \"format\": \"Học tập trung tại trung tâm, sáng và chiều, tối tự ôn. Học từ thứ Hai đến thứ Bảy, cuối tháng nghỉ 3–4 ngày. Có ký túc xá.\"}]}"
+  },
+  {
+    "tinh_huong": "2. Khách chưa học tiếng Nhật (đơn yêu cầu N4)",
+    "kiem": "AI tắt: trợ lý vẫn trả lời bằng bản dự phòng, nói rõ chưa phải câu trả lời riêng, không bịa số",
+    "dat": true,
+    "ghi": "nguồn 'khong_goi_duoc': 'Trợ lý tư vấn đang tạm thời chưa trả lời được, nên mình gửi bạn tóm tắt tự động từ kết quả đối chiếu — đây chư'"
+  },
+  {
+    "tinh_huong": "2. Khách chưa học tiếng Nhật (đơn yêu cầu N4)",
+    "kiem": "Không tự gửi phiếu cho nhân viên hay tạo học viên",
+    "dat": true,
+    "ghi": ""
+  },
+  {
+    "tinh_huong": "3. Đã học, chưa có chứng chỉ (N4 tự khai)",
+    "kiem": "Trình độ ghi là tự khai, chưa đối chứng — không coi là đã có chứng chỉ",
+    "dat": true,
+    "ghi": "'N4 — tự khai, chưa được đối chứng'"
+  },
+  {
+    "tinh_huong": "3. Đã học, chưa có chứng chỉ (N4 tự khai)",
+    "kiem": "Không bị coi là chưa học: vẫn đạt điều kiện N4 của đơn",
+    "dat": true,
+    "ghi": ""
+  },
+  {
+    "tinh_huong": "4. Đổi đơn / quay lại",
+    "kiem": "Đổi sang đơn khác dùng lại hồ sơ đã có, không bắt khai lại",
+    "dat": true,
+    "ghi": "DH-0004: 'đạt các điều kiện bắt buộc'"
+  },
+  {
+    "tinh_huong": "4. Đổi đơn / quay lại",
+    "kiem": "Đơn quá hạn không được trình bày như đang tuyển",
+    "dat": true,
+    "ghi": "HTTP 200"
+  },
+  {
+    "tinh_huong": "4. Đổi đơn / quay lại",
+    "kiem": "Quay lại sau khi học (N4 → N3): hồ sơ lên phiên bản mới và đánh giá lại",
+    "dat": true,
+    "ghi": "phiên bản 1 → 2; trạng thái 'confirmed'"
+  },
+  {
+    "tinh_huong": "5. Khách muốn chốt đơn / AI không giải quyết được",
+    "kiem": "Chưa xác nhận thì không tạo đăng ký",
+    "dat": true,
+    "ghi": "HTTP 400"
+  },
+  {
+    "tinh_huong": "5. Khách muốn chốt đơn / AI không giải quyết được",
+    "kiem": "Xác nhận thì tạo đúng một hồ sơ đăng ký, trạng thái chờ nhân viên (không phải 'đã tuyển')",
+    "dat": true,
+    "ghi": "HTTP 201, HS-277629 · 'draft'"
+  },
+  {
+    "tinh_huong": "5. Khách muốn chốt đơn / AI không giải quyết được",
+    "kiem": "Bấm đăng ký lần hai không tạo hồ sơ thứ hai",
+    "dat": true,
+    "ghi": "HTTP 409"
+  },
+  {
+    "tinh_huong": "5. Khách muốn chốt đơn / AI không giải quyết được",
+    "kiem": "Yêu cầu nhân viên được lưu, gửi lại không nhân đôi",
+    "dat": true,
+    "ghi": "HT-6C6917 / HT-6C6917"
+  },
+  {
+    "tinh_huong": "6. Khách từ chối chuyển tiếp / hệ thống lỗi",
+    "kiem": "Khách chưa bấm gửi thì không có gì tới nhân viên (phiên tình huống 2)",
+    "dat": true,
+    "ghi": ""
+  },
+  {
+    "tinh_huong": "6. Khách từ chối chuyển tiếp / hệ thống lỗi",
+    "kiem": "Thiếu họ tên / số điện thoại hợp lệ thì từ chối, không lưu dở",
+    "dat": true,
+    "ghi": "HTTP 422"
+  },
+  {
+    "tinh_huong": "6. Khách từ chối chuyển tiếp / hệ thống lỗi",
+    "kiem": "AI lỗi/tắt: báo rõ, không hứa kết quả tuyển dụng",
+    "dat": true,
+    "ghi": "'Trợ lý tư vấn đang tạm thời chưa trả lời được, nên mình gửi bạn tóm tắt tự động từ kết quả đối chiếu — đây chư'"
+  }
+]
