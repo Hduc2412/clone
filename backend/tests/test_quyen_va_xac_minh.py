@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+from tests.test_khong_lo_lien_lac import CO_CAY_MA_DAY_DU, LY_DO_BO_QUA
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -591,6 +593,7 @@ class TienDoTests(unittest.IsolatedAsyncioTestCase):
         for khong in ("GHI_CHU_NOI_BO_HS", "GHI_CHU_NOI_BO_LICH", "GHI_CHU_DON", A["email"], "screening"):
             self.assertNotIn(khong, khoi)
 
+    @unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
     def test_chang_khop_trang_khach(self):
         """Trợ lý nói đúng chặng khách thấy ở "Hồ sơ của tôi" — so với bảng của giao diện."""
         from app.consultation import tien_do

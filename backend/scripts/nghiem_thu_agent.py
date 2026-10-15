@@ -53,6 +53,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import app  # noqa: F401  — đặt stdout về UTF-8 để in được tiếng Việt
 from app.advisor import qa

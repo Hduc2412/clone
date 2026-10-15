@@ -508,7 +508,7 @@ khác nhau. Nay đã xác minh xong ngày 17/09:
 | Bộ câu hỏi lệch: 27 phải-từ-chối trên 35 câu | Một con bot từ chối tất cả vẫn được 27/35. Tỷ lệ đó làm bộ đo dễ dãi | Cân thêm câu phải-trả-lời, nhưng việc đó gắn với chuyện kho tri thức còn mỏng |
 | Bộ đọc CV mới có 6 hồ sơ mẫu | Spec §7 đặt mốc 30. Con số đọc CV chưa đủ tư cách làm bằng chứng trong báo cáo | Bổ sung thêm CV mẫu |
 | Hai phiên làm việc song song giành cổng và giành file | Đã hai lần dựng trùng công cụ: bộ câu hỏi chatbot, và bộ khẳng định cho bộ đối chiếu. Cả hai lần đều phải gộp lại sau | Kiểm cái đã có trước khi dựng cái mới; chia cố định `8020/3100/3101` và `8030/4000/4001` |
-| Docker mới chạy thử một lần (17/09, xem §5) | Từ đó đã thêm nhiều tính năng; phông chữ nay tự phục vụ nên dựng không còn cần mạng tới Google (12/10), nhưng chưa dựng lại trong container | Dựng và chạy lại trước khi bàn giao |
+| ~~Docker mới chạy thử một lần (17/09)~~ **Đã dựng lại 15/10** | Sáu dịch vụ lên, backend `healthy`, website/quản trị/API trả 200, backend trong container thấy kho tri thức 17 đoạn; `Ran 1374 tests ... OK (skipped=11)`. Lần dựng tìm ra hai lỗi chỉ container mới lộ: thiếu `from typing import Any` (Python 3.12 đánh giá chú thích kiểu, 3.14 thì không) và ba ca đọc nguồn frontend thiếu điều kiện bỏ qua — xem `docs/DOCKER.md` §2 | Đóng |
 | Chưa có `docs/handoff/KNOWLEDGE_BASE_SPEC.md` | Nhóm chatbot đang chờ bản mô tả API quản lý tri thức cho màn hình "Tri thức AI" | Viết và gửi |
 
 ### 3.3. Đo chất lượng ngoại tuyến
@@ -540,6 +540,43 @@ Hai lỗi của phần chatbot phát hiện qua bộ này, đã báo lại chứ
 - Khớp từ khóa theo chuỗi con khiến `khoảng` trúng `khoản`, đẩy câu hỏi về lương
   sang nhóm chi phí.
 
+### 3.4. Kho tri thức chép tay và đo truy hồi (13–15/10)
+
+Kho cũ (`xkld_knowledge_v20260917b`, 32 đoạn) do mô hình đọc ảnh tự động. Đếm bằng
+biểu thức chính quy ngày 13/10: 30/32 đoạn dính số điện thoại, 11 đoạn tả bố cục ảnh
+thay cho nội dung, 5 đoạn mở đầu bằng lời dẫn của máy, bài "Quy trình đi Nhật" chỉ
+ra một bước `1. XUẤT CẢNH`, và có bài chép tên học viên thật.
+
+Thay bằng bản người đọc trực tiếp 32 ảnh, nạp bằng `ingestion/nap_ban_chep_tay.py`.
+Bản chép nằm **ngoài repo** (`Tailieu/TriThuc/NOI_DUNG_ANH_WEBSITE.md`) vì có địa chỉ
+văn phòng — `test_khong_lo_lien_lac` đã bắt đúng điều này khi file còn trong `docs/`.
+16 bài có chữ giữ nguyên; 16 bài chỉ có ảnh chụp bỏ đi và gộp thành một đoạn tổng
+hợp từ tiêu đề in trên ảnh. Kho hiện hành: `xkld_knowledge_v20261015`, **17 đoạn**,
+không còn số điện thoại, lời dẫn máy hay tên người.
+
+**Truy hồi, 15/10** — mỗi bài một câu hỏi diễn đạt khác tiêu đề, qua đúng
+`retriever.search` của khung chat:
+
+| Hạng mục | Kết quả | Nghĩa |
+|---|---|---|
+| Bài đúng đứng hạng 1 | **16/16**, điểm 0,741–0,811 | Ngưỡng nhận đoạn là 0,65 |
+| "Giá vàng hôm nay" | Cao nhất 0,584 → từ chối, không gọi mô hình sinh | Câu ngoài phạm vi không lọt |
+| "Trung tâm có sự kiện, ngoại khóa gì" | Trước đoạn tổng hợp: 0,664, vượt ngưỡng nhưng rơi vào bài không liên quan. Sau: 0,745 đúng đoạn | Bỏ bài ảnh làm hở chủ đề này; đoạn tổng hợp bịt lại |
+| Hai câu về trung tâm sau khi thêm đoạn tổng hợp | Bài hạng 1 và điểm giữ nguyên | Đoạn mới không tranh chỗ |
+
+**Khung chat trọn đường, 15/10** — 4 câu, đúng nội dung tài liệu: chi phí 90 triệu
+chia ba đợt 10/35/45; 18–40 tuổi, không yêu cầu bằng cấp; ba địa chỉ trung tâm, ký
+túc xá không mất tiền; các sự kiện văn hóa Nhật ở Hà Nội và ngoại khóa ở Bến Tre,
+không thêm lịch hay chi phí nào tài liệu không có.
+
+Lượt gọi: 13–15/10 dùng 11 + 20 + 22 + 6 lượt, không lượt nào thử lại; 11 lượt đầu
+mất vì 429 theo phút đến giữa chừng. Từ đó bộ nạp lưu vector xuống đĩa ngay khi lấy
+được (`backend/data/vector_chep_tay.json`, không vào git), nên lần thêm đoạn tổng
+hợp chỉ tốn đúng 1 lượt nhúng. Câu hỏi chưa đo: 13 câu còn lại của bộ 16 chưa chạy
+lại sau khi thêm đoạn tổng hợp — đoạn ấy nói về hoạt động trung tâm, khó tranh hạng
+với các bài chi phí, lương, điều kiện, nhưng chưa đo. Kết quả thô ở
+`_tam/kiem_thu_0710/kho_tri_thuc_20261015.json` (ngoài repo).
+
 ---
 
 ## 4. Cách viết kiểm thử trong dự án
@@ -568,7 +605,7 @@ Nói rõ để không hiểu nhầm con số 1374 là đã phủ hết hệ th�
 | Chatbot trả lời có căn cứ | Có bộ nghiệm thu `scripts/nghiem_thu_chatbot.py` trên bộ câu hỏi chuẩn | Bổ sung câu hỏi khi kho tri thức dày thêm |
 | Đăng ký sơ bộ và phiếu tóm tắt | Đã có `test_registrations.py` | — |
 | Hàng đợi và điểm nhân viên | Đã có `test_handover.py` và `test_employee_scores.py`, gồm ca hai người cùng nhận một hồ sơ | — |
-| Đóng gói Docker | Đã dựng và chạy thử cả sáu dịch vụ ngày 17/09: website, quản trị và backend lên qua nginx, nạp được 19 đơn mẫu, toàn bộ ca kiểm thử chạy trong container đều đạt | Chạy lại trước khi bàn giao |
+| Đóng gói Docker | Dựng lần đầu 17/09; **dựng lại 15/10**: sáu dịch vụ lên qua nginx, 1374 ca chạy trong container đạt (11 ca bỏ qua có lý do), kho tri thức 17 đoạn đọc được từ container | Dựng lại mỗi khi đổi phụ thuộc hoặc phiên bản Python |
 | Chất lượng câu mô hình viết cho Agent | `scripts/nghiem_thu_agent.py` — sáu ca gọi mô hình thật, 6/6 đạt ngày 05/10 với cách đo `35e724`. Cách đo đổi sang `13c8f3` nên kết quả cũ không tính. Đo lại 12/10 (ngân sách 8 lượt, tắt dự phòng): lần 1 dừng sau `ReadTimeout` + 503; lần 2 dừng sau 2 lỗi 503 liên tiếp — **FACT-01 đạt, FACT-02…TIEM-02 chưa đo được** (`docs/nghiem_thu/2026-10-12_nghiem_thu_agent_ngan_sach*.json`). Hai ca tiến độ của `danh_gia_tu_van_that` chưa đo. **Cỡ mẫu là sáu**: đó là "sáu tình huống đã thử thì đúng", không phải "tính năng đúng" | Bồi thêm ca sau mỗi lượt đo; mỗi lượt tốn hạn mức |
 | Cả chuỗi từ hồ sơ tới lời tư vấn | `scripts/nghiem_thu_xuyen_suot.py` (năm ca, dựng bằng quy tắc) và `scripts/e2e_xuyen_suot.py` (năm ca qua HTTP thật) | Chạy trước mỗi mốc bàn giao |
 | Số viết bằng chữ trong câu mô hình trả lời | **Chốt số không thấy.** Mô hình viết *"hai trăm năm mươi triệu"* thì không có chữ số nào để bóc. Lỗ hổng có từ trước, nói rõ chứ không giả vờ đã kín | Cần một bộ đọc số tiếng Việt ghép được; một bộ nửa vời sẽ chặn oan *"năm nay"* hay *"một số đơn"* |

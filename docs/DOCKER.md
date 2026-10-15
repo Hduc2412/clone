@@ -105,15 +105,25 @@ Chạy bộ kiểm thử ngay trong container:
 docker compose exec backend python -m unittest discover -s tests -t .
 ```
 
-Kết quả đúng là `OK (skipped=7)` — **bảy ca bỏ qua là bình thường, không phải lỗi.**
-Ảnh backend chỉ chép `backend/`, còn bảy ca ấy soi file ngoài thư mục đó (nguồn
-frontend, `.gitignore`) để canh một quy tắc của cả kho mã: không để lọt số điện
-thoại hay địa chỉ thật. Trong container không có gì để soi, nên chúng tự bỏ qua
-kèm lý do thay vì báo đỏ — một ca đỏ vì thiếu file trông y như một ca đỏ vì quy
-tắc bị vi phạm, mà hai thứ ấy đòi hai phản ứng khác hẳn nhau.
+Kết quả đúng (dựng lại 15/10/2026) là `Ran 1374 tests ... OK (skipped=11)` —
+**mười một ca bỏ qua là bình thường, không phải lỗi.** Ảnh backend chỉ chép
+`backend/`, còn mười một ca ấy soi file ngoài thư mục đó (nguồn frontend,
+`.gitignore`): bảy ca canh quy tắc không để lọt số điện thoại, tên hay địa chỉ
+thật, bốn ca so giao diện với máy chủ. Trong container không có gì để soi, nên chúng tự
+bỏ qua kèm lý do thay vì báo đỏ — một ca đỏ vì thiếu file trông y như một ca đỏ vì
+quy tắc bị vi phạm, mà hai thứ ấy đòi hai phản ứng khác hẳn nhau. Ca mới nào đọc
+file ngoài `backend/` phải gắn `@unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)`
+từ `tests/test_khong_lo_lien_lac.py`; ba ca so giao diện viết sau đã thiếu dòng này
+và chỉ lộ ra khi dựng lại.
 
-Chạy trên máy thật thì không ca nào bỏ qua: `Ran 987 tests ... OK`. Đó mới là
-lượt chạy kiểm được cả bảy quy tắc kia.
+Chạy trên máy thật thì không ca nào bỏ qua: `Ran 1374 tests ... OK`. Đó mới là
+lượt chạy kiểm được cả mười một quy tắc kia.
+
+**Container chạy Python 3.12, máy phát triển chạy 3.14.** Từ 3.14, chú thích kiểu
+không bị đánh giá lúc nạp module, nên một tên kiểu quên import (`Any`) chạy êm trên
+máy mà nổ `NameError` trong container — đúng lỗi của `scripts/nghiem_thu_agent.py`
+tìm ra lần dựng ngày 15/10. Đó là lý do phải chạy bộ kiểm thử **trong** container,
+không chỉ trên máy.
 
 Dừng và xóa container, **giữ nguyên dữ liệu**:
 

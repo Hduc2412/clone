@@ -24,6 +24,9 @@ backend/tests/fixtures/tu_van/ket_qua_agent.json
 # sẽ tốn lượt gọi mô hình đọc ảnh một lần nữa. Đổi lấy việc không phát tán số
 # của một người thật thì rẻ.
 backend/data/image_vision_cache.json
+# Vector của bản chép tay nội dung ảnh (13/10/2026): dữ liệu chạy, dựng lại được
+# bằng ingestion/nap_ban_chep_tay.py. Bản chép nằm ngoài repo vì có địa chỉ văn phòng.
+backend/data/vector_chep_tay.json
 
 # Debug files
 debug.html

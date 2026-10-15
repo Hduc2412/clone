@@ -29,6 +29,8 @@ import unittest
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
+from tests.test_khong_lo_lien_lac import CO_CAY_MA_DAY_DU, LY_DO_BO_QUA
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -1763,6 +1765,7 @@ class DiemPhuHopChuaCoNghiaThiKhongHienTests(unittest.TestCase):
 
         self.assertIn("score_ranked", advice_builder.Advice.__dataclass_fields__)
 
+    @unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
     def test_hai_man_hinh_khong_tu_suy_tu_score(self):
         """Giao diện phải đọc cờ của máy chủ, không tự đoán từ con số điểm."""
         import pathlib
@@ -1941,6 +1944,7 @@ class ChuaXepHangThiKhongNoiXepHangTests(unittest.TestCase):
         self.assertNotIn("phù hợp nhất", cau)
         self.assertIn("chưa so được thứ tự", cau.lower())
 
+    @unittest.skipUnless(CO_CAY_MA_DAY_DU, LY_DO_BO_QUA)
     def test_nhan_thu_hang_tren_the_cung_theo_co(self):
         import pathlib
 
