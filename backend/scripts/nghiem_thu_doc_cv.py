@@ -10,6 +10,9 @@ Cờ:
   --lam-lai              bỏ hết kết quả đã lưu, đo lại từ đầu
   --model=<ten>          đo trên model khác thay vì `GEMINI_JSON_MODEL`
   --khoa-tu-van          dùng `ADVISOR_API_KEY` thay cho `GEMINI_API_KEY`
+  --bo=cv_thuc_te        chấm bộ CV khác trong `tests/fixtures/` (mặc định `cv`); kết quả lưu riêng
+  --toi-da=N             đo tối đa N CV trong lượt này — giữ đúng số lượt gọi đã công bố
+  --khong-thu-lai        tắt thử lại ngầm của bộ đọc: mỗi CV đúng một lượt gọi
 
 ## Vì sao là script chứ không phải ca kiểm thử
 
@@ -210,7 +213,16 @@ def in_so_sanh(bang: dict[str, dict]) -> None:
 
 
 def main() -> int:
+    global FIXTURES, KET_QUA
+    for arg in sys.argv[1:]:
+        if arg.startswith("--bo="):
+            FIXTURES = FIXTURES.parent / arg.split("=", 1)[1]
+            KET_QUA = FIXTURES / "ket_qua_doc_cv.json"
+    toi_da = next((int(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--toi-da=")), None)
+    if "--khong-thu-lai" in sys.argv:
+        extractor.RETRY_DELAYS = ()
     answers = json.loads((FIXTURES / "dap_an.json").read_text(encoding="utf-8"))
+    print(f"Bộ CV: {FIXTURES.name} ({len(answers)} CV)")
 
     model = settings.gemini_json_model
     for arg in sys.argv[1:]:
@@ -251,16 +263,32 @@ def main() -> int:
             "những dòng ấy KHÔNG tính vào bảng dưới."
         )
 
+    da_goi = 0
+    loi_lien_tiep = 0
     for entry in answers:
         khoa = f"{model}::{van_tay}::{entry['file']}"
         if khoa in bang:
             bo_qua += 1
             continue
+        if toi_da is not None and da_goi >= toi_da:
+            chua_do.append(entry["file"])
+            continue
         result = run_one(entry, model)
+        if not result.get("unreadable"):
+            da_goi += 1  # ảnh không đọc được thì không gọi mô hình
         if result["failed"]:
             chua_do.append(result["file"])
             print(f"\n=== {result['file']}\n    CHƯA ĐO ĐƯỢC — {result['failed'][:110]}")
+            loi_lien_tiep += 1
+            loi = result["failed"].lower()
+            # Hết hạn mức hoặc dịch vụ hỏng hai lần liền: dừng hẳn, không đốt thêm lượt.
+            if "429" in loi or "quota" in loi or "exhausted" in loi or loi_lien_tiep >= 2:
+                print("    DỪNG lượt đo: " + ("hết hạn mức" if loi_lien_tiep < 2 else "hai lỗi liên tiếp"))
+                chua_do.extend(e["file"] for e in answers[answers.index(entry) + 1:]
+                               if f"{model}::{van_tay}::{e['file']}" not in bang)
+                break
             continue
+        loi_lien_tiep = 0
         bang[khoa] = result
         # Ghi ngay từng CV. Hết hạn mức giữa lượt cũng không mất phần đã đo.
         ghi_bang(bang)
@@ -302,6 +330,9 @@ def main() -> int:
         print("\nCác trường đọc sai — đây là phần cần xử lý:")
         for line in sai_chi_tiet:
             print("  -", line)
+    elif not dung_cach:
+        # Chưa đo CV nào thì không có gì để kết luận — đừng in câu nghe như "đạt".
+        print("\nChưa đo được CV nào trong bộ này, nên chưa có kết luận về đọc sai.")
     else:
         print("\nKhông trường nào đọc sai. Trường thiếu thì hệ thống hỏi lại ứng viên.")
     if chua_do:

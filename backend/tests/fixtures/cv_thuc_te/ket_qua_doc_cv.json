@@ -1,0 +1,372 @@
+{
+  "gemini-2.5-flash::dfd85a::09_pham_thi_thu_trang.pdf": {
+    "file": "09_pham_thi_thu_trang.pdf",
+    "model": "gemini-2.5-flash",
+    "unreadable": false,
+    "failed": null,
+    "rows": [
+      [
+        "birth_year",
+        2004,
+        2004,
+        "ĐÚNG"
+      ],
+      [
+        "care_experience",
+        true,
+        true,
+        "ĐÚNG"
+      ],
+      [
+        "education_level",
+        "cao_dang",
+        "cao_dang",
+        "ĐÚNG"
+      ],
+      [
+        "experience_years",
+        0,
+        null,
+        "THIẾU"
+      ],
+      [
+        "full_name",
+        "Phạm Thị Thu Trang",
+        "PHẠM THỊ THU TRANG",
+        "ĐÚNG"
+      ],
+      [
+        "gender",
+        "nu",
+        "nu",
+        "ĐÚNG"
+      ],
+      [
+        "japanese_level",
+        "N5",
+        "N5",
+        "ĐÚNG"
+      ],
+      [
+        "major",
+        "Điều dưỡng",
+        "Điều dưỡng",
+        "ĐÚNG"
+      ],
+      [
+        "phone",
+        "0943218765",
+        "0943218765",
+        "ĐÚNG"
+      ]
+    ],
+    "rejected": {}
+  },
+  "gemini-2.5-flash::dfd85a::10_hoang_van_nam_so_yeu_ly_lich.docx": {
+    "file": "10_hoang_van_nam_so_yeu_ly_lich.docx",
+    "model": "gemini-2.5-flash",
+    "unreadable": false,
+    "failed": null,
+    "rows": [
+      [
+        "birth_year",
+        1997,
+        1997,
+        "ĐÚNG"
+      ],
+      [
+        "care_experience",
+        true,
+        true,
+        "ĐÚNG"
+      ],
+      [
+        "education_level",
+        "trung_cap",
+        "trung_cap",
+        "ĐÚNG"
+      ],
+      [
+        "experience_years",
+        6,
+        null,
+        "THIẾU"
+      ],
+      [
+        "full_name",
+        "Hoàng Văn Nam",
+        "HOÀNG VĂN NAM",
+        "ĐÚNG"
+      ],
+      [
+        "gender",
+        "nam",
+        "nam",
+        "ĐÚNG"
+      ],
+      [
+        "japanese_level",
+        null,
+        null,
+        "ĐÚNG"
+      ],
+      [
+        "phone",
+        "0965432187",
+        "0965432187",
+        "ĐÚNG"
+      ]
+    ],
+    "rejected": {
+      "experience_years": "đoạn dẫn không nói giá trị này: 6.0",
+      "japanese_level": "đoạn dẫn không nói giá trị này: 'chua_hoc'"
+    }
+  },
+  "gemini-2.5-flash::dfd85a::11_rirekisho_nguyen_thi_thanh_huyen.pdf": {
+    "file": "11_rirekisho_nguyen_thi_thanh_huyen.pdf",
+    "model": "gemini-2.5-flash",
+    "unreadable": false,
+    "failed": null,
+    "rows": [
+      [
+        "birth_year",
+        2001,
+        2001,
+        "ĐÚNG"
+      ],
+      [
+        "care_experience",
+        true,
+        true,
+        "ĐÚNG"
+      ],
+      [
+        "education_level",
+        "cao_dang",
+        "trung_cap",
+        "SAI"
+      ],
+      [
+        "experience_years",
+        3,
+        null,
+        "THIẾU"
+      ],
+      [
+        "full_name",
+        "Nguyen Thi Thanh Huyen",
+        "NGUYEN THI THANH HUYEN",
+        "ĐÚNG"
+      ],
+      [
+        "gender",
+        "nu",
+        "nu",
+        "ĐÚNG"
+      ],
+      [
+        "japanese_level",
+        "N3",
+        "N3",
+        "ĐÚNG"
+      ],
+      [
+        "phone",
+        "0902468135",
+        "0902468135",
+        "ĐÚNG"
+      ]
+    ],
+    "rejected": {
+      "experience_years": "đoạn dẫn không nói giá trị này: 3.0"
+    }
+  },
+  "gemini-2.5-flash::dfd85a::12_do_van_thang_tts_ve_nuoc.pdf": {
+    "file": "12_do_van_thang_tts_ve_nuoc.pdf",
+    "model": "gemini-2.5-flash",
+    "unreadable": false,
+    "failed": null,
+    "rows": [
+      [
+        "birth_year",
+        1994,
+        1994,
+        "ĐÚNG"
+      ],
+      [
+        "care_experience",
+        true,
+        true,
+        "ĐÚNG"
+      ],
+      [
+        "education_level",
+        "khac",
+        "khac",
+        "ĐÚNG"
+      ],
+      [
+        "experience_years",
+        6,
+        6.0,
+        "ĐÚNG"
+      ],
+      [
+        "full_name",
+        "Đỗ Văn Thắng",
+        "ĐỖ VĂN THẮNG",
+        "ĐÚNG"
+      ],
+      [
+        "gender",
+        "nam",
+        "nam",
+        "ĐÚNG"
+      ],
+      [
+        "japanese_level",
+        "N3",
+        "N3",
+        "ĐÚNG"
+      ],
+      [
+        "phone",
+        "0397531864",
+        null,
+        "THIẾU"
+      ]
+    ],
+    "rejected": {}
+  },
+  "gemini-2.5-flash::dfd85a::13_nguyen_van_duc_khong_dau.docx": {
+    "file": "13_nguyen_van_duc_khong_dau.docx",
+    "model": "gemini-2.5-flash",
+    "unreadable": false,
+    "failed": null,
+    "rows": [
+      [
+        "birth_year",
+        2000,
+        2000,
+        "ĐÚNG"
+      ],
+      [
+        "care_experience",
+        false,
+        null,
+        "THIẾU"
+      ],
+      [
+        "education_level",
+        "khac",
+        null,
+        "THIẾU"
+      ],
+      [
+        "experience_years",
+        3,
+        null,
+        "THIẾU"
+      ],
+      [
+        "full_name",
+        "Nguyen Van Duc",
+        "Nguyen Van Duc",
+        "ĐÚNG"
+      ],
+      [
+        "gender",
+        "nam",
+        "nam",
+        "ĐÚNG"
+      ],
+      [
+        "japanese_level",
+        "chua_hoc",
+        "chua_hoc",
+        "ĐÚNG"
+      ],
+      [
+        "phone",
+        "0372468159",
+        null,
+        "THIẾU"
+      ]
+    ],
+    "rejected": {
+      "care_experience": "không chỉ được đoạn dẫn trong CV",
+      "experience_years": "đoạn dẫn không nói giá trị này: 3.0"
+    }
+  },
+  "gemini-2.5-flash::dfd85a::14_trinh_thi_hong_anh_chup.jpg": {
+    "file": "14_trinh_thi_hong_anh_chup.jpg",
+    "model": "gemini-2.5-flash",
+    "unreadable": true,
+    "failed": null,
+    "rows": [],
+    "rejected": {}
+  },
+  "gemini-2.5-flash::dfd85a::15_bui_thi_thanh_tam_kem_thu.pdf": {
+    "file": "15_bui_thi_thanh_tam_kem_thu.pdf",
+    "model": "gemini-2.5-flash",
+    "unreadable": false,
+    "failed": null,
+    "rows": [
+      [
+        "birth_year",
+        1998,
+        1998,
+        "ĐÚNG"
+      ],
+      [
+        "care_experience",
+        true,
+        true,
+        "ĐÚNG"
+      ],
+      [
+        "education_level",
+        "dai_hoc",
+        "dai_hoc",
+        "ĐÚNG"
+      ],
+      [
+        "experience_years",
+        5,
+        5.0,
+        "ĐÚNG"
+      ],
+      [
+        "full_name",
+        "Bùi Thị Thanh Tâm",
+        "Bùi Thị Thanh Tâm",
+        "ĐÚNG"
+      ],
+      [
+        "gender",
+        "nu",
+        "nu",
+        "ĐÚNG"
+      ],
+      [
+        "japanese_level",
+        "N2",
+        "N2",
+        "ĐÚNG"
+      ],
+      [
+        "major",
+        "Điều dưỡng",
+        "Điều dưỡng",
+        "ĐÚNG"
+      ],
+      [
+        "phone",
+        "0918246357",
+        "0918246357",
+        "ĐÚNG"
+      ]
+    ],
+    "rejected": {}
+  }
+}
