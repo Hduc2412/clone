@@ -29,6 +29,14 @@ import { useState } from "react";
 
 type Variant = "hero" | "soft" | "dark";
 
+/** Cánh hoa ở đầu trang: ít và nhỏ hơn nền chung, vì khối này thấp. */
+const HOA_DAU_TRANG = [
+  { left: "58%", delay: "-2s", duration: "14s", size: 12, opacity: 0.55 },
+  { left: "70%", delay: "-9s", duration: "17s", size: 9, opacity: 0.45 },
+  { left: "81%", delay: "-5s", duration: "15s", size: 13, opacity: 0.5 },
+  { left: "92%", delay: "-12s", duration: "19s", size: 10, opacity: 0.4 },
+];
+
 const ANH = [
   {
     ten: "fuji-binh-minh",
@@ -102,9 +110,40 @@ export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant 
         className={
           isDark
             ? "absolute inset-0 bg-ink-900/70"
-            : "landscape-veil absolute inset-0"
+            : isSoft
+              ? "landscape-veil-soft absolute inset-0"
+              : "landscape-veil absolute inset-0"
         }
       />
+      {/* 22/10: vầng sáng ấm trôi chậm trên ảnh và cánh hoa rơi — đầu trang con không
+          còn là một mảng ảnh mờ đứng yên. */}
+      {!isDark && (
+        <>
+          <div
+            className="anh-sang absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#ffd7a8]/70"
+          />
+          <div
+            className="anh-sang absolute bottom-[-6rem] left-[38%] h-72 w-72 rounded-full bg-[#f4b7b7]/50"
+            style={{ animationDelay: "-11s", animationDuration: "28s" }}
+          />
+          <div className="absolute inset-0 overflow-hidden">
+            {HOA_DAU_TRANG.map((c) => (
+              <span
+                key={c.left}
+                className="canh-hoa absolute top-0"
+                style={{ left: c.left, animationDelay: c.delay, animationDuration: c.duration, opacity: c.opacity }}
+              >
+                <svg width={c.size} height={c.size} viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M8 15c-3 0-5-2.6-5-5.6C3 6.4 5 3.4 8 1c3 2.4 5 5.4 5 8.4 0 3-2 5.6-5 5.6Z"
+                    fill="#e58b92"
+                  />
+                </svg>
+              </span>
+            ))}
+          </div>
+        </>
+      )}
       {/* Chuyển mềm xuống phần nội dung bên dưới, tránh đường cắt ngang gắt.
           Thấp hơn hẳn ở đầu trang con: khối đó chỉ cao chừng 290px, nên dải mờ
           112px như ở trang chủ sẽ nuốt hơn một phần ba tấm ảnh và đẩy dải sóng
@@ -128,9 +167,9 @@ export default function PhotoBackdrop({ variant = "hero" }: { variant?: Variant 
       {/* Sóng seigaiha giữ lại từ bản cũ: một nét Nhật Bản do mình vẽ, đặt trên
           ảnh thì thành viền trang trí chứ không tranh chỗ. */}
       <div
-        className={`pattern-seigaiha absolute inset-x-0 bottom-0 ${
+        className={`pattern-seigaiha song-sang absolute inset-x-0 bottom-0 ${
           isSoft ? "h-10" : "h-16"
-        } ${isDark ? "text-white/10" : "text-brand-500/20"}`}
+        } ${isDark ? "text-white/10" : "text-brand-500/30"}`}
       />
     </div>
   );

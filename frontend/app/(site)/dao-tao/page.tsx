@@ -54,7 +54,7 @@ export default function TrainingPage() {
         </div>
       </Section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <SectionHeading
             eyebrow="Vì sao ở nội trú"

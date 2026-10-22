@@ -69,7 +69,7 @@ export default function SiteFooter() {
 
         <div className="mt-10 border-t border-white/10 pt-6 text-xs leading-5 text-slate-400">
           <p>
-            Website thuộc đồ án tốt nghiệp: hệ thống AI hỗ trợ tư vấn và quản trị
+            Website thuộc đồ án tốt nghiệp: hệ thống trí tuệ nhân tạo hỗ trợ tư vấn và quản trị
             tuyển dụng điều dưỡng Nhật Bản. Thông tin về chi phí, lương và thời
             gian trên trang mang tính tham khảo và được nhân viên tư vấn xác nhận
             lại theo từng trường hợp.

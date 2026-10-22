@@ -87,7 +87,7 @@ export default async function HomePage() {
       </Section>
 
       {/* --- Điều kiện rút gọn --- */}
-      <section className="relative overflow-hidden bg-slate-50">
+      <section className="dai-nen relative overflow-hidden">
         <div aria-hidden className="pattern-grid absolute inset-0 opacity-60" />
         <Container className="relative py-14 md:py-20">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
@@ -255,7 +255,7 @@ export default async function HomePage() {
       </Section>
 
       {/* --- Hỏi đáp --- */}
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Container className="py-14 md:py-20">
           <SectionHeading
             eyebrow="Hỏi đáp"

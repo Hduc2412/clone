@@ -271,7 +271,7 @@ export default async function JobOrderDetailPage({
       </Section>
 
       {related.length > 0 && (
-        <section className="bg-slate-50">
+        <section className="dai-nen">
           <Section>
             <SectionHeading
               eyebrow="Có thể bạn quan tâm"

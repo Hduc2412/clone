@@ -71,7 +71,7 @@ type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-brand-600 text-white shadow-lift hover:bg-brand-700 active:bg-brand-800",
+    "nut-sang bg-brand-600 text-white shadow-lift hover:bg-brand-700 active:bg-brand-800",
   secondary: "bg-ink-900 text-white hover:bg-ink-800",
   outline:
     "border border-slate-300 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700",
@@ -135,7 +135,7 @@ export function Card({
   return (
     <div
       className={`rounded-2xl border border-slate-200 bg-white shadow-card ${
-        hover ? "transition-shadow hover:shadow-lift" : ""
+        hover ? "the-noi" : ""
       } ${className}`}
     >
       {children}

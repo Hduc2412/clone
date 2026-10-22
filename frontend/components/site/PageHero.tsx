@@ -23,6 +23,10 @@ export default function PageHero({
         <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-slate-900 md:text-4xl">
           {title}
         </h1>
+        <span
+          aria-hidden
+          className="mt-4 block h-1 w-20 rounded-full bg-gradient-to-r from-brand-600 via-[#d9a441] to-reu-600"
+        />
         {lead && (
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
             {lead}

@@ -83,7 +83,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <SectionHeading
             eyebrow="Chương trình"

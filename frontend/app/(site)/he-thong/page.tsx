@@ -123,7 +123,7 @@ export default function SystemPage() {
         </div>
       </Section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <SectionHeading
             eyebrow="Vì sao đáng tin"

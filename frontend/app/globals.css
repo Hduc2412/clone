@@ -207,3 +207,140 @@ svg {
     animation: none;
   }
 }
+
+/* ===== Nền sống động toàn website (22/10/2026) — xem components/site/LivingBackground.tsx ===== */
+@keyframes vang-troi {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(6%, -5%, 0) scale(1.08); }
+  66%      { transform: translate3d(-5%, 6%, 0) scale(0.94); }
+}
+.vang-mau {
+  filter: blur(80px);
+  animation: vang-troi 34s ease-in-out infinite;
+  will-change: transform;
+}
+.nen-cham {
+  background-image: radial-gradient(rgba(32, 60, 57, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+}
+@keyframes hoa-roi {
+  0%   { transform: translate3d(0, -6vh, 0) rotate(0deg); opacity: 0; }
+  8%   { opacity: 1; }
+  25%  { transform: translate3d(3rem, 24vh, 0) rotate(80deg); }
+  50%  { transform: translate3d(-2rem, 52vh, 0) rotate(170deg); }
+  75%  { transform: translate3d(3.5rem, 78vh, 0) rotate(260deg); }
+  92%  { opacity: 1; }
+  100% { transform: translate3d(0, 106vh, 0) rotate(350deg); opacity: 0; }
+}
+.canh-hoa {
+  animation-name: hoa-roi;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+/* Tạm dừng nền: dừng cả nền chung, ảnh đầu trang và cánh hoa ở đầu trang. */
+.nen-dung .vang-mau,
+.nen-dung .canh-hoa,
+.nen-dung .landscape-frame,
+.nen-dung .hero-anh,
+.nen-dung .anh-sang,
+.nen-dung .song-sang {
+  animation-play-state: paused !important;
+}
+
+/* Khối nội dung hiện dần khi cuộn tới. */
+.hien-dan {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition: opacity 0.7s ease-out, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.hien-dan.da-hien {
+  opacity: 1;
+  transform: none;
+}
+
+/* Vệt sáng lướt qua nút chính khi rê chuột. */
+.nut-sang {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.nut-sang::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+}
+.nut-sang:hover::after,
+.nut-sang:focus-visible::after {
+  transform: translateX(120%);
+}
+
+/* Thẻ nhấc lên khi rê chuột, viền ửng màu thương hiệu. */
+.the-noi {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.the-noi:hover {
+  transform: translateY(-4px);
+  border-color: theme("colors.brand.200");
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04), 0 22px 44px -18px rgba(144, 55, 47, 0.38);
+}
+
+/* Đầu trang con: vầng sáng trôi trên ảnh và một dải sóng óng ánh ở mép dưới. */
+@keyframes anh-sang-troi {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
+  50%      { transform: translate3d(-8%, 6%, 0) scale(1.12); opacity: 1; }
+}
+.anh-sang {
+  filter: blur(60px);
+  animation: anh-sang-troi 22s ease-in-out infinite;
+}
+@keyframes song-sang {
+  from { background-position: 0 0; }
+  to   { background-position: 280px 0; }
+}
+.song-sang {
+  animation: song-sang 18s linear infinite;
+}
+
+/* Chữ nhấn có dải màu chạy chậm. */
+.chu-chuyen-mau {
+  background-image: linear-gradient(100deg, theme("colors.brand.700"), #c9853a 45%, theme("colors.brand.600") 70%, theme("colors.brand.700"));
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chu-sheen 9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canh-hoa-nen, .nut-dung-nen { display: none; }
+  .vang-mau, .anh-sang, .song-sang, .chu-chuyen-mau { animation: none !important; }
+  .hien-dan { opacity: 1; transform: none; }
+  .the-noi:hover { transform: none; }
+}
+@media (max-width: 767px) {
+  /* Máy yếu: làm mờ nhẹ hơn, bớt nửa số cánh hoa. */
+  .vang-mau { filter: blur(56px); }
+  .canh-hoa:nth-child(even) { display: none; }
+}
+@keyframes chu-sheen {
+  from { background-position: 0% 50%; }
+  to   { background-position: 220% 50%; }
+}
+/* Dải nền xen kẽ giữa các khối: trong mờ để nền sống động bên dưới vẫn lộ ra. */
+.dai-nen {
+  background: linear-gradient(180deg, rgba(244, 243, 236, 0.55), rgba(255, 255, 255, 0.45));
+  border-top: 1px solid rgba(201, 208, 200, 0.45);
+  border-bottom: 1px solid rgba(201, 208, 200, 0.45);
+}
+/* Lớp phủ đầu trang con: đậm vừa đủ ở cột chữ, mở hẳn sang phải để ảnh hiện rõ. */
+.landscape-veil-soft {
+  background: linear-gradient(90deg, rgba(255,253,249,.95) 0%, rgba(255,253,249,.82) 38%, rgba(255,253,249,.3) 68%, rgba(255,253,249,0) 100%);
+}
+@media (max-width: 767px) {
+  .landscape-veil-soft { background: rgba(255,253,249,.86); }
+}

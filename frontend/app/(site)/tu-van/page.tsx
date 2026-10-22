@@ -64,7 +64,7 @@ export default async function ConsultPage({
         <ConsultationFlow donDangXem={order ? { code: order.code, title: order.title } : null} />
       </Section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
             <div>
@@ -122,7 +122,7 @@ export default async function ConsultPage({
         </Section>
       </section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <div className="grid gap-6 md:grid-cols-3">
             {[

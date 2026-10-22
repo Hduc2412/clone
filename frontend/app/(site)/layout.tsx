@@ -1,5 +1,6 @@
 import ChatWidget from "@/components/ChatWidget";
 import SiteFooter from "@/components/site/SiteFooter";
+import LivingBackground from "@/components/site/LivingBackground";
 import SiteHeader from "@/components/site/SiteHeader";
 
 /**
@@ -16,6 +17,7 @@ export default function SiteLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
+      <LivingBackground />
       <a className="skip-link" href="#noi-dung">Đi đến nội dung chính</a>
       <SiteHeader />
       <main id="noi-dung" className="flex-1">{children}</main>

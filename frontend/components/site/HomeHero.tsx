@@ -14,11 +14,23 @@
 import Link from "next/link";
 import { useState } from "react";
 
+const HOA = [
+  { left: "8%", delay: "-4s", duration: "16s", size: 18, opacity: 0.9 },
+  { left: "27%", delay: "-11s", duration: "19s", size: 15, opacity: 0.9 },
+  { left: "46%", delay: "-7s", duration: "15s", size: 19, opacity: 0.9 },
+  { left: "63%", delay: "-14s", duration: "21s", size: 16, opacity: 0.9 },
+  { left: "78%", delay: "-2s", duration: "17s", size: 20, opacity: 0.9 },
+  { left: "90%", delay: "-9s", duration: "18s", size: 15, opacity: 0.9 },
+];
+
 export default function HomeHero() {
   const [dung, setDung] = useState(false);
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#244545] text-white" aria-label="Giới thiệu">
+    <section
+      className={`relative isolate overflow-hidden bg-[#244545] text-white ${dung ? "nen-dung" : ""}`}
+      aria-label="Giới thiệu"
+    >
       <div
         aria-hidden
         className="hero-anh absolute inset-0 bg-cover"
@@ -36,6 +48,21 @@ export default function HomeHero() {
             "linear-gradient(90deg, rgba(12,37,36,.88), rgba(12,37,36,.5) 48%, rgba(12,37,36,.08) 80%), linear-gradient(0deg, rgba(22,58,56,.45), transparent 60%)",
         }}
       />
+      {/* 22/10: vầng nắng sớm sau núi và cánh hoa anh đào bay qua khung ảnh. */}
+      <div aria-hidden className="anh-sang absolute right-[12%] top-[8%] h-72 w-72 rounded-full bg-[#ffcf9a]/45" />
+      <div aria-hidden className="absolute inset-0 overflow-hidden">
+        {HOA.map((c) => (
+          <span
+            key={c.left}
+            className="canh-hoa absolute top-0"
+            style={{ left: c.left, animationDelay: c.delay, animationDuration: c.duration, opacity: c.opacity }}
+          >
+            <svg width={c.size} height={c.size} viewBox="0 0 16 16" fill="none">
+              <path d="M8 15c-3 0-5-2.6-5-5.6C3 6.4 5 3.4 8 1c3 2.4 5 5.4 5 8.4 0 3-2 5.6-5 5.6Z" fill="#ffc9cf" />
+            </svg>
+          </span>
+        ))}
+      </div>
       <p
         aria-hidden
         className="absolute right-10 top-14 hidden text-3xl tracking-[0.3em] text-white/90 lg:block"
@@ -60,7 +87,7 @@ export default function HomeHero() {
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href="/tu-van"
-            className="inline-flex min-h-[48px] items-center rounded-md bg-brand-600 px-6 font-semibold text-white transition-colors hover:bg-brand-700"
+            className="nut-sang inline-flex min-h-[48px] items-center rounded-md bg-brand-600 px-6 font-semibold text-white transition-colors hover:bg-brand-700"
           >
             Khám phá cơ hội từ CV ↗
           </Link>

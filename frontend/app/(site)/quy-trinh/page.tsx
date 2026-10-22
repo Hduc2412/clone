@@ -66,7 +66,7 @@ export default function ProcessPage() {
         </div>
       </Section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <SectionHeading
             eyebrow="Sau khi sang Nhật"

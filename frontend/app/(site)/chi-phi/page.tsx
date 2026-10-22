@@ -67,7 +67,7 @@ export default function CostsPage() {
         </p>
       </Section>
 
-      <section className="bg-slate-50">
+      <section className="dai-nen">
         <Section>
           <div className="grid gap-8 lg:grid-cols-2">
             <div>
